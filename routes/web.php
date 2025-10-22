@@ -49,4 +49,5 @@ Route::middleware('auth')->group(function () {
 // Публичные resource-маршруты
 Route::get('/listings/{listing}', [ListingController::class, 'show'])->name('listings.show');
 
+require __DIR__.'/auth.php';
 //asdsadasdasddfdsf
