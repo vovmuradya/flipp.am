@@ -14,6 +14,7 @@ class CategoryField extends Model
     protected $fillable = [
         'category_id',
         'name',
+        'key',
         'type',
         'options',
         'is_required',

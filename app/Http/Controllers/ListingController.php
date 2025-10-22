@@ -113,7 +113,7 @@ class ListingController extends Controller
         $categories = Category::whereNotNull('parent_id')->orderBy('name')->get();
         $regions = Region::where('type', 'city')->orderBy('name')->get();
 
-        // Загружаем связи и преобразуем кастомные поля в удобный формат для JavaScript
+        // Загружаем связи и преобразуем кастомные поля в удобный формат
         $listing->load('customFieldValues');
         $savedCustomFields = $listing->customFieldValues->pluck('value', 'field_id');
 
@@ -130,19 +130,19 @@ class ListingController extends Controller
         // 1. Обновляем основные данные объявления
         $listing->update($request->validated());
 
-        // 2. Удаляем отмеченные для удаления изображения
+        // 2. Удаляем отмеченные изображения
         if ($request->has('delete_images')) {
-            $listing->media()->whereIn('id', $request->delete_images)->delete();
+            Media::whereIn('id', $request->delete_images)->delete();
         }
 
-        // 3. Добавляем новые загруженные изображения
+        // 3. Добавляем новые изображения
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $listing->addMedia($image)->toMediaCollection('images');
             }
         }
 
-        // 4. Полностью обновляем кастомные поля
+        // 4. Обновляем кастомные поля (удаляем старые, вставляем новые)
         $listing->customFieldValues()->delete();
         if ($request->has('custom_fields')) {
             foreach ($request->custom_fields as $fieldId => $value) {

@@ -42,30 +42,33 @@ class Listing extends Model implements HasMedia
      */
     public function toSearchableArray(): array
     {
-        // Load custom fields with their names (assuming relation is set up)
+        // Загружаем связи, чтобы избежать лишних запросов к БД
         $this->load('customFieldValues.field');
 
         $searchableData = [
-            'id' => $this->id,
-            'title' => $this->title,
-            'description' => $this->description,
-            'price' => (float) $this->price, // Make sure price is a number
-            'status' => $this->status,
-            'category_id' => $this->category_id,
-            'category_name' => $this->category?->name,
-            'region_id' => $this->region_id,
-            'region_name' => $this->region?->name,
-            'user_id' => $this->user_id,
+            'id'                => $this->id,
+            'title'             => $this->title,
+            'description'       => $this->description,
+            'price'             => (float) $this->price,
+            'status'            => $this->status,
+            'category_id'       => $this->category_id,
+            'region_id'         => $this->region_id,
+            'user_id'           => $this->user_id,
             'created_timestamp' => $this->created_at->timestamp,
         ];
 
-        // Add custom fields to the searchable data
+        // Добавляем кастомные поля в индекс поиска
         foreach ($this->customFieldValues as $value) {
-            // Use a simple key, e.g., 'year', 'mileage'
-            $key = strtolower($value->field->name);
-            // Try to convert to a number if the type is number
-            $fieldValue = $value->field->type === 'number' ? (int)$value->value : $value->value;
-            $searchableData[$key] = $fieldValue;
+            // Проверяем, что связь с полем существует, чтобы избежать ошибок
+            if ($value->field) {
+                // ИСПРАВЛЕНИЕ: Используем системный 'key' вместо 'name'
+                $key = $value->field->key;
+
+                // Преобразуем числовые значения в числа для правильной фильтрации
+                $fieldValue = $value->field->type === 'number' ? (int)$value->value : $value->value;
+
+                $searchableData[$key] = $fieldValue;
+            }
         }
 
         return $searchableData;
@@ -98,22 +101,19 @@ class Listing extends Model implements HasMedia
             ->height(150)
             ->sharpen(10)
             ->format('webp')
-            ->quality(80)
-            ->nonQueued();
+            ->quality(80);
 
         $this->addMediaConversion('medium')
             ->width(600)
             ->height(450)
             ->format('webp')
-            ->quality(85)
-            ->nonQueued();
+            ->quality(85);
 
         $this->addMediaConversion('large')
             ->width(1200)
             ->height(900)
             ->format('webp')
-            ->quality(90)
-            ->nonQueued();
+            ->quality(90);
     }
 
     // ========== RELATIONS ==========
@@ -140,7 +140,7 @@ class Listing extends Model implements HasMedia
 
     public function favorites()
     {
-        return $this->hasMany(Favorite::class);
+        return $this->belongsToMany(User::class, 'favorites');
     }
 
     public function reviews()

@@ -5,7 +5,7 @@
                 <div class="p-8 text-gray-900">
                     <h2 class="text-2xl font-bold mb-6">Новое объявление</h2>
 
-                    <form method="POST" action="{{ route('listings.store') }}" enctype="multipart/form-data">
+                    <form method="POST" action="{{ route('listings.store') }}" enctype="multipart/form-data" id="listingForm">
                         @csrf
                         <div class="space-y-6">
 
@@ -16,33 +16,37 @@
                                     <div>
                                         <label for="title" class="block font-medium text-sm text-gray-700">Заголовок</label>
                                         <input type="text" name="title" id="title" value="{{ old('title') }}" required
-                                            @class(['block mt-1 w-full border-gray-300 rounded-md shadow-sm', 'border-red-500' => $errors->has('title')])>
+                                               class="block mt-1 w-full border-gray-300 rounded-md shadow-sm @error('title') border-red-500 @enderror">
                                         @error('title')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
                                     </div>
+
                                     <div>
-                                        <label for="category_id" class="block font-medium text-sm text-gray-700">Категория</label>
+                                        <label for="category_id" class="block font-medium text-sm text-gray-700">Категория <span class="text-red-500">*</span></label>
                                         <select name="category_id" id="category_id" required
-                                            @class(['block mt-1 w-full border-gray-300 rounded-md shadow-sm', 'border-red-500' => $errors->has('category_id')])>
+                                                class="block mt-1 w-full border-gray-300 rounded-md shadow-sm @error('category_id') border-red-500 @enderror">
                                             <option value="">Выберите категорию</option>
                                             @foreach($categories as $category)
-                                                <option value="{{ $category->id }}" @selected(old('category_id') == $category->id)>{{ $category->name }}</option>
+                                                <option value="{{ $category->id }}" @selected(old('category_id') == $category->id)>
+                                                    {{ $category->name }}
+                                                </option>
                                             @endforeach
                                         </select>
                                         @error('category_id')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
                                     </div>
+
                                     <div>
                                         <label for="description" class="block font-medium text-sm text-gray-700">Описание</label>
                                         <textarea name="description" id="description" rows="5" required
-                                                  @class(['block mt-1 w-full border-gray-300 rounded-md shadow-sm', 'border-red-500' => $errors->has('description')])>{{ old('description') }}</textarea>
+                                                  class="block mt-1 w-full border-gray-300 rounded-md shadow-sm @error('description') border-red-500 @enderror">{{ old('description') }}</textarea>
                                         @error('description')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
                                     </div>
                                 </div>
                             </div>
 
                             {{-- ХАРАКТЕРИСТИКИ (ДИНАМИЧЕСКИЙ БЛОК) --}}
-                            <div id="custom-fields-container" class="p-6 border rounded-lg bg-gray-50 space-y-4">
+                            <div id="custom-fields-container" class="p-6 border rounded-lg bg-gray-50 space-y-4" style="display: none;">
                                 <h3 class="text-lg font-semibold mb-4">Характеристики</h3>
-                                {{-- Сюда будут загружаться поля с помощью JS --}}
+                                <div id="fields-wrapper"></div>
                             </div>
 
                             {{-- ЦЕНА И МЕСТОПОЛОЖЕНИЕ --}}
@@ -51,17 +55,20 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label for="price" class="block font-medium text-sm text-gray-700">Цена (USD)</label>
-                                        <input type="number" name="price" id="price" value="{{ old('price') }}" required
-                                            @class(['block mt-1 w-full border-gray-300 rounded-md shadow-sm', 'border-red-500' => $errors->has('price')])>
+                                        <input type="number" name="price" id="price" value="{{ old('price') }}" required step="0.01"
+                                               class="block mt-1 w-full border-gray-300 rounded-md shadow-sm @error('price') border-red-500 @enderror">
                                         @error('price')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
                                     </div>
+
                                     <div>
                                         <label for="region_id" class="block font-medium text-sm text-gray-700">Регион</label>
                                         <select name="region_id" id="region_id" required
-                                            @class(['block mt-1 w-full border-gray-300 rounded-md shadow-sm', 'border-red-500' => $errors->has('region_id')])>
+                                                class="block mt-1 w-full border-gray-300 rounded-md shadow-sm @error('region_id') border-red-500 @enderror">
                                             <option value="">Выберите регион</option>
                                             @foreach($regions as $region)
-                                                <option value="{{ $region->id }}" @selected(old('region_id') == $region->id)>{{ $region->name }}</option>
+                                                <option value="{{ $region->id }}" @selected(old('region_id') == $region->id)>
+                                                    {{ $region->name }}
+                                                </option>
                                             @endforeach
                                         </select>
                                         @error('region_id')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
@@ -70,14 +77,22 @@
                             </div>
 
                             {{-- ЗАГРУЗЧИК ИЗОБРАЖЕНИЙ --}}
-                            <div class="p-6 border rounded-lg bg-gray-50" x-data="imageUploader()">
-                                {{-- ... (код загрузчика изображений остаётся без изменений) ... --}}
+                            <div class="p-6 border rounded-lg bg-gray-50">
+                                <h3 class="text-lg font-semibold mb-4">Изображения</h3>
+                                <div>
+                                    <label for="images" class="block font-medium text-sm text-gray-700">Загрузите фото (макс. 6)</label>
+                                    <input type="file" name="images[]" id="images" multiple accept="image/*"
+                                           class="block mt-1 w-full">
+                                </div>
                             </div>
 
                         </div>
 
-                        <div class="flex items-center justify-end mt-8">
-                            <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">
+                        <div class="flex items-center justify-end mt-8 space-x-4">
+                            <a href="{{ route('dashboard.my-listings') }}" class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                                Отмена
+                            </a>
+                            <button type="submit" class="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700">
                                 Опубликовать
                             </button>
                         </div>
@@ -86,40 +101,158 @@
             </div>
         </div>
     </div>
+
+    // COMMENTS: The user wants to reorder the fields in the frontend (JS)
+    // to match the logical order defined in the PHP seeder (e.g., brand, model first).
+
     <script>
-        // Этот скрипт остаётся таким же, как я давал ранее
-        document.addEventListener('DOMContentLoaded', function () { /* ... */ });
+        document.addEventListener('DOMContentLoaded', function() {
+            const categorySelect = document.getElementById('category_id');
+            const fieldsContainer = document.getElementById('custom-fields-container');
+            const fieldsWrapper = document.getElementById('fields-wrapper');
 
-        // Новый JS-компонент для загрузчика изображений
-        function imageUploader() {
-            return {
-                previews: [],
-                handleFileSelect(event) {
-                    const files = Array.from(event.target.files);
-                    files.forEach(file => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            this.previews.push(e.target.result);
-                        };
-                        reader.readAsDataURL(file);
-                    });
-                },
-                removeImage(index) {
-                    // This is a simplified way to handle removal.
-                    // A more robust solution would manage the FileList object.
-                    this.previews.splice(index, 1);
-                    const dt = new DataTransfer();
-                    const input = document.getElementById('images');
-                    const { files } = input;
+            // При изменении категории загружаем поля
+            categorySelect.addEventListener('change', loadCustomFields);
 
-                    for (let i = 0; i < files.length; i++) {
-                        if (i !== index) {
-                            dt.items.add(files[i]);
-                        }
-                    }
-                    input.files = dt.files;
-                }
+            // Если категория уже выбрана (при валидации ошибок), загружаем поля
+            if (categorySelect.value) {
+                loadCustomFields();
             }
-        }
+
+            function loadCustomFields() {
+                const categoryId = categorySelect.value;
+
+                if (!categoryId) {
+                    fieldsContainer.style.display = 'none';
+                    fieldsWrapper.innerHTML = '';
+                    return;
+                }
+
+                // Показываем контейнер и показываем загрузку
+                fieldsContainer.style.display = 'block';
+                fieldsWrapper.innerHTML = '<p class="text-gray-500">Загрузка...</p>';
+
+                // Запрашиваем поля с API
+                const apiBase = 'http://localhost:8000'; // Laravel сервер
+                fetch(`${apiBase}/api/categories/${categoryId}/fields`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network error');
+                        return response.json();
+                    })
+                    .then(fields => {
+                        fieldsWrapper.innerHTML = '';
+
+                        if (fields.length === 0) {
+                            fieldsContainer.style.display = 'none';
+                            return;
+                        }
+
+                        fieldsContainer.style.display = 'block';
+
+                        // START OF MODIFIED LOGIC:
+                        // 1. Define the desired order of keys (e.g., for cars: Brand, Model, Generation).
+                        // This order list can be expanded for other categories if needed.
+                        const desiredOrder = [
+                            'brand', 'model', 'generation', // Cars, Laptops, Phones
+                            'moto_type', 'truck_type',       // Motorcycles, Trucks
+                            'rooms', 'property_type',        // Real Estate
+                            'job_sphere', 'position'         // Jobs/Resumes
+                            // Add more key for other categories if the default DB order is not suitable
+                        ];
+
+                        // 2. Sort the fields array. Fields with keys present in `desiredOrder`
+                        // will be moved to the beginning in the specified order.
+                        fields.sort((a, b) => {
+                            const indexA = desiredOrder.indexOf(a.key);
+                            const indexB = desiredOrder.indexOf(b.key);
+
+                            // If both keys are in the desiredOrder list: sort by their index (defined order)
+                            if (indexA > -1 && indexB > -1) {
+                                return indexA - indexB;
+                            }
+                            // If only A is in the list: A comes first (moved to the front)
+                            if (indexA > -1) {
+                                return -1;
+                            }
+                            // If only B is in the list: B comes first (moved to the front)
+                            if (indexB > -1) {
+                                return 1;
+                            }
+                            // If neither are in the list: keep their original order from the API (which should be DB order)
+                            return 0;
+                        });
+                        // END OF MODIFIED LOGIC
+
+                        // 3. Render the sorted fields.
+                        fields.forEach(field => {
+                            const fieldGroup = createFieldElement(field);
+                            fieldsWrapper.appendChild(fieldGroup);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading fields:', error);
+                        fieldsWrapper.innerHTML = '<p class="text-red-600">Ошибка загрузки характеристик</p>';
+                    });
+            }
+
+            // ... (function createFieldElement remains unchanged as it works correctly) ...
+            function createFieldElement(field) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'mb-4';
+
+                // NOTE: The PHP side ensures `options` is a JSON string.
+                // In the API response, it should be automatically decoded into a JS array/object.
+                // If it comes as a string, you might need to use `JSON.parse(field.options)`.
+                // For now, let's assume it is an array or null.
+                const fieldOptions = (typeof field.options === 'string' && field.options !== 'null') ? JSON.parse(field.options) : field.options;
+
+                const required = field.is_required ? 'required' : '';
+                const requiredLabel = field.is_required ? '<span class="text-red-500">*</span>' : '';
+
+                if (field.type === 'text') {
+                    wrapper.innerHTML = `
+                    <label class="block font-medium text-sm text-gray-700 mb-1">
+                        ${field.name} ${requiredLabel}
+                    </label>
+                    <input type="text"
+                        name="custom_fields[${field.id}]"
+                        class="block w-full border-gray-300 rounded-md shadow-sm p-2"
+                        ${required}>
+                `;
+                }
+                else if (field.type === 'number') {
+                    wrapper.innerHTML = `
+                    <label class="block font-medium text-sm text-gray-700 mb-1">
+                        ${field.name} ${requiredLabel}
+                    </label>
+                    <input type="number"
+                        name="custom_fields[${field.id}]"
+                        class="block w-full border-gray-300 rounded-md shadow-sm p-2"
+                        step="0.01"
+                        ${required}>
+                `;
+                }
+                else if (field.type === 'select') {
+                    // Check if fieldOptions is an array before using map
+                    const options = Array.isArray(fieldOptions)
+                        ? fieldOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')
+                        : '';
+
+                    wrapper.innerHTML = `
+                    <label class="block font-medium text-sm text-gray-700 mb-1">
+                        ${field.name} ${requiredLabel}
+                    </label>
+                    <select name="custom_fields[${field.id}]"
+                        class="block w-full border-gray-300 rounded-md shadow-sm p-2"
+                        ${required}>
+                        <option value="">Выберите...</option>
+                        ${options}
+                    </select>
+                `;
+                }
+
+                return wrapper;
+            }
+        });
     </script>
 </x-app-layout>
