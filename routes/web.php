@@ -50,5 +50,4 @@ Route::middleware('auth')->group(function () {
 Route::get('/listings/{listing}', [ListingController::class, 'show'])->name('listings.show');
 
 require __DIR__.'/auth.php';
-//asdsadasdasddfdsf
-//dfgdfg
+

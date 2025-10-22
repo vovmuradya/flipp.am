@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\CarBrand;
 use Illuminate\Http\JsonResponse;
 
 class CategoryFieldController extends Controller
@@ -12,12 +13,22 @@ class CategoryFieldController extends Controller
     /**
      * Get all fields for a specific category.
      */
-    public function index(Category $category): JsonResponse
+    public function index(Category $category)
     {
-        $fields = $category->customFields()->get(); // [cite: 1068]
+        $fields = $category->fields()->get()->toArray();
 
-        // Добавьте это, чтобы увидеть, что возвращается
-        // \Log::info('Category Fields for ID ' . $category->id . ': ' . $fields->toJson());
+        $carBrandFieldIndex = -1;
+        foreach ($fields as $index => $field) {
+            if ($field['key'] === 'car_brand') {
+                $carBrandFieldIndex = $index;
+                break;
+            }
+        }
+
+        if ($carBrandFieldIndex !== -1) {
+            $carBrands = CarBrand::orderBy('name')->get(['id', 'name']);
+            $fields[$carBrandFieldIndex]['car_brands'] = $carBrands;
+        }
 
         return response()->json($fields);
     }

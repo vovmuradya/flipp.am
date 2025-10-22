@@ -6,28 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
-    {
-        Schema::create('category_fields', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('category_id')->constrained('categories')->cascadeOnDelete();
-            $table->string('name');
-            $table->enum('type', ['text', 'number', 'select', 'checkbox', 'radio']); // [cite: 624]
-            $table->json('options')->nullable(); // [cite: 625]
-            $table->boolean('is_required')->default(false);
-            $table->integer('sort_order')->default(0);
-            $table->timestamps();
-        });
-    }
+public function up(): void
+{
+Schema::create('category_fields', function (Blueprint $table) {
+$table->id();
+$table->string('name');
+$table->string('key')->unique();
+$table->string('type');
+$table->boolean('is_required')->default(false);
+$table->json('options')->nullable();
+$table->timestamps();
+});
+}
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
-    {
-        Schema::dropIfExists('category_fields');
-    }
+public function down(): void
+{
+Schema::dropIfExists('category_fields');
+}
 };

@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Staudenmeir\LaravelAdjacencyList\Eloquent\HasRecursiveRelationships;
-
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Category extends Model
 {
     use HasFactory, HasRecursiveRelationships;
@@ -71,5 +71,9 @@ class Category extends Model
     public function scopeLeaf($query)
     {
         return $query->doesntHave('children');
+    }
+    public function fields(): BelongsToMany
+    {
+        return $this->belongsToMany(CategoryField::class, 'category_category_field');
     }
 }

@@ -1,23 +1,22 @@
 <?php
-
 namespace Database\Seeders;
 
 use App\Models\Category;
 use App\Models\CategoryField;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class CategoryFieldSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // Clear the table before seeding
-        CategoryField::query()->delete();
+        // 1. Безопасно очищаем таблицы, чтобы избежать ошибок с ключами
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table('category_category_field')->truncate();
+        CategoryField::query()->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        // Step 1: Define all fields for all categories in a single, readable structure.
-        // The array keys are now English slugs.
+        // 2. Ваша большая структура данных со всеми полями для всех категорий
         $fieldsBySlug = [
             // --- 🚗 CARS ---
             'cars' => [
@@ -351,25 +350,37 @@ class CategoryFieldSeeder extends Seeder
             ],
         ];
 
-        // Step 2: Get all categories in a single, optimized query.
-        // This avoids the N+1 problem and is much more performant.
-        $slugs = array_keys($fieldsBySlug);
-        $categories = Category::whereIn('slug', $slugs)->get()->keyBy('slug');
+        $uniqueFields = [];
+        foreach ($fieldsBySlug as $categoryFields) {
+            foreach ($categoryFields as $field) {
+                // Используем 'key' поля как ключ массива, чтобы автоматически убрать дубликаты
+                $uniqueFields[$field['key']] = $field;
+            }
+        }
 
-        // Step 3: Loop through the data structure and insert fields for each category.
-        foreach ($fieldsBySlug as $slug => $fields) {
-            // Check if a category with this slug was found in the database
+        // 4. Вставляем уникальные поля в базу данных
+        // Функция array_values() преобразует ассоциативный массив в простой, который нужен для insert
+        if (!empty($uniqueFields)) {
+            CategoryField::insert(array_values($uniqueFields));
+        }
+
+        // 5. Теперь, когда все поля созданы, привязываем их к категориям
+        $categories = Category::whereIn('slug', array_keys($fieldsBySlug))->get()->keyBy('slug');
+        $createdFields = CategoryField::all()->keyBy('key');
+
+        foreach ($fieldsBySlug as $slug => $fieldsData) {
             if (isset($categories[$slug])) {
-                $categoryId = $categories[$slug]->id;
-
-                // Add the 'category_id' to each field definition before inserting
-                $fieldsWithCategoryId = array_map(function ($field) use ($categoryId) {
-                    $field['category_id'] = $categoryId;
-                    return $field;
-                }, $fields);
-
-                // Perform a bulk insert for all fields of the current category
-                CategoryField::insert($fieldsWithCategoryId);
+                $category = $categories[$slug];
+                $idsToAttach = [];
+                foreach ($fieldsData as $fieldData) {
+                    if (isset($createdFields[$fieldData['key']])) {
+                        $idsToAttach[] = $createdFields[$fieldData['key']]->id;
+                    }
+                }
+                // Привязываем все поля к категории за один раз
+                if (!empty($idsToAttach)) {
+                    $category->fields()->sync($idsToAttach);
+                }
             }
         }
     }
