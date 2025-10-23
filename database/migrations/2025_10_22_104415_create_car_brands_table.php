@@ -14,6 +14,9 @@ return new class extends Migration
             $table->string('name_en')->unique()->comment('Название марки на английском (из API)');
             $table->string('name_ru')->nullable()->comment('Название марки на русском (перевод)');
             $table->timestamps();
+
+            // ДОБАВЬТЕ ЭТУ СТРОКУ ДЛЯ УСКОРЕНИЯ СОРТИРОВКИ
+            $table->index('name_ru');
         });
     }
 

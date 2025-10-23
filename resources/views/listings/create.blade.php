@@ -110,30 +110,25 @@
             const categorySelect = document.getElementById('category_id');
             const fieldsContainer = document.getElementById('custom-fields-container');
             const fieldsWrapper = document.getElementById('fields-wrapper');
+            const apiBase = 'http://localhost:8000'; // Убедитесь, что это ваш правильный URL
 
-            // При изменении категории загружаем поля
+            // --- ОСНОВНАЯ ЛОГИКА ЗАГРУЗКИ ПОЛЕЙ (остается почти без изменений) ---
             categorySelect.addEventListener('change', loadCustomFields);
-
-            // Если категория уже выбрана (при валидации ошибок), загружаем поля
             if (categorySelect.value) {
                 loadCustomFields();
             }
 
             function loadCustomFields() {
                 const categoryId = categorySelect.value;
-
                 if (!categoryId) {
                     fieldsContainer.style.display = 'none';
                     fieldsWrapper.innerHTML = '';
                     return;
                 }
 
-                // Показываем контейнер и показываем загрузку
                 fieldsContainer.style.display = 'block';
-                fieldsWrapper.innerHTML = '<p class="text-gray-500">Загрузка...</p>';
+                fieldsWrapper.innerHTML = '<p class="text-gray-500">Загрузка характеристик...</p>';
 
-                // Запрашиваем поля с API
-                const apiBase = 'http://localhost:8000'; // Laravel сервер
                 fetch(`${apiBase}/api/categories/${categoryId}/fields`)
                     .then(response => {
                         if (!response.ok) throw new Error('Network error');
@@ -141,49 +136,22 @@
                     })
                     .then(fields => {
                         fieldsWrapper.innerHTML = '';
-
                         if (fields.length === 0) {
                             fieldsContainer.style.display = 'none';
                             return;
                         }
 
-                        fieldsContainer.style.display = 'block';
-
-                        // START OF MODIFIED LOGIC:
-                        // 1. Define the desired order of keys (e.g., for cars: Brand, Model, Generation).
-                        // This order list can be expanded for other categories if needed.
-                        const desiredOrder = [
-                            'brand', 'model', 'generation', // Cars, Laptops, Phones
-                            'moto_type', 'truck_type',       // Motorcycles, Trucks
-                            'rooms', 'property_type',        // Real Estate
-                            'job_sphere', 'position'         // Jobs/Resumes
-                            // Add more key for other categories if the default DB order is not suitable
-                        ];
-
-                        // 2. Sort the fields array. Fields with keys present in `desiredOrder`
-                        // will be moved to the beginning in the specified order.
+                        // Сортировка полей (если нужна)
+                        const desiredOrder = ['brand', 'model'];
                         fields.sort((a, b) => {
                             const indexA = desiredOrder.indexOf(a.key);
                             const indexB = desiredOrder.indexOf(b.key);
-
-                            // If both keys are in the desiredOrder list: sort by their index (defined order)
-                            if (indexA > -1 && indexB > -1) {
-                                return indexA - indexB;
-                            }
-                            // If only A is in the list: A comes first (moved to the front)
-                            if (indexA > -1) {
-                                return -1;
-                            }
-                            // If only B is in the list: B comes first (moved to the front)
-                            if (indexB > -1) {
-                                return 1;
-                            }
-                            // If neither are in the list: keep their original order from the API (which should be DB order)
+                            if (indexA > -1 && indexB > -1) return indexA - indexB;
+                            if (indexA > -1) return -1;
+                            if (indexB > -1) return 1;
                             return 0;
                         });
-                        // END OF MODIFIED LOGIC
 
-                        // 3. Render the sorted fields.
                         fields.forEach(field => {
                             const fieldGroup = createFieldElement(field);
                             fieldsWrapper.appendChild(fieldGroup);
@@ -195,64 +163,90 @@
                     });
             }
 
-            // ... (function createFieldElement remains unchanged as it works correctly) ...
+            // --- НОВАЯ ЛОГИКА ДЛЯ СВЯЗКИ МАРКА -> МОДЕЛЬ ---
+            fieldsWrapper.addEventListener('change', function(event) {
+                // Проверяем, что событие произошло на поле "Марка"
+                if (event.target.dataset.fieldKey === 'brand') {
+                    const brandId = event.target.value;
+                    // Находим поле "Модель"
+                    const modelSelect = fieldsWrapper.querySelector('[data-field-key="model"]');
+
+                    if (!modelSelect) {
+                        console.error('Поле для моделей не найдено!');
+                        return;
+                    }
+
+                    // Очищаем и блокируем поле моделей
+                    modelSelect.innerHTML = '<option value="">Загрузка...</option>';
+                    modelSelect.disabled = true;
+
+                    if (brandId) {
+                        // Делаем правильный запрос на ваш API
+                        fetch(`${apiBase}/api/brands/${brandId}/models`)
+                            .then(response => response.json())
+                            .then(models => {
+                                modelSelect.innerHTML = '<option value="">Выберите модель</option>';
+                                models.forEach(model => {
+                                    const option = document.createElement('option');
+                                    option.value = model.id;
+                                    option.textContent = model.name;
+                                    modelSelect.appendChild(option);
+                                });
+                                modelSelect.disabled = false; // Активируем поле
+                            })
+                            .catch(error => {
+                                console.error('Ошибка при загрузке моделей:', error);
+                                modelSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
+                                modelSelect.disabled = false;
+                            });
+                    } else {
+                        modelSelect.innerHTML = '<option value="">Сначала выберите марку</option>';
+                        modelSelect.disabled = true;
+                    }
+                }
+            });
+
+
+            // --- ФУНКЦИЯ СОЗДАНИЯ ЭЛЕМЕНТОВ (немного доработана) ---
             function createFieldElement(field) {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'mb-4';
 
-                // NOTE: The PHP side ensures `options` is a JSON string.
-                // In the API response, it should be automatically decoded into a JS array/object.
-                // If it comes as a string, you might need to use `JSON.parse(field.options)`.
-                // For now, let's assume it is an array or null.
                 const fieldOptions = (typeof field.options === 'string' && field.options !== 'null') ? JSON.parse(field.options) : field.options;
-
                 const required = field.is_required ? 'required' : '';
                 const requiredLabel = field.is_required ? '<span class="text-red-500">*</span>' : '';
+                const dataAttribute = `data-field-key="${field.key}"`;
 
-                if (field.type === 'text') {
-                    wrapper.innerHTML = `
-                    <label class="block font-medium text-sm text-gray-700 mb-1">
-                        ${field.name} ${requiredLabel}
-                    </label>
-                    <input type="text"
-                        name="custom_fields[${field.id}]"
-                        class="block w-full border-gray-300 rounded-md shadow-sm p-2"
-                        ${required}>
-                `;
-                }
-                else if (field.type === 'number') {
-                    wrapper.innerHTML = `
-                    <label class="block font-medium text-sm text-gray-700 mb-1">
-                        ${field.name} ${requiredLabel}
-                    </label>
-                    <input type="number"
-                        name="custom_fields[${field.id}]"
-                        class="block w-full border-gray-300 rounded-md shadow-sm p-2"
-                        step="0.01"
-                        ${required}>
-                `;
-                }
-                else if (field.type === 'select') {
-                    // Check if fieldOptions is an array before using map
-                    const options = Array.isArray(fieldOptions)
-                        ? fieldOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')
-                        : '';
+                let fieldHtml = `<label class="block font-medium text-sm text-gray-700 mb-1">${field.name} ${requiredLabel}</label>`;
 
-                    wrapper.innerHTML = `
-                    <label class="block font-medium text-sm text-gray-700 mb-1">
-                        ${field.name} ${requiredLabel}
-                    </label>
-                    <select name="custom_fields[${field.id}]"
-                        class="block w-full border-gray-300 rounded-md shadow-sm p-2"
-                        ${required}>
-                        <option value="">Выберите...</option>
-                        ${options}
-                    </select>
-                `;
+                switch (field.type) {
+                    case 'text':
+                        fieldHtml += `<input type="text" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute}>`;
+                        break;
+                    case 'number':
+                        fieldHtml += `<input type="number" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" step="0.01" ${required} ${dataAttribute}>`;
+                        break;
+                    case 'select':
+                        // ИСПРАВЛЕНИЕ ЗДЕСЬ: используем opt.id для value и opt.name для текста
+                        const options = Array.isArray(fieldOptions)
+                            ? fieldOptions.map(opt => `<option value="${opt.id}">${opt.name}</option>`).join('')
+                            : '';
+
+                        let isDisabled = field.key === 'model' ? 'disabled' : '';
+
+                        fieldHtml += `
+                <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute} ${isDisabled}>
+                    <option value="">Выберите...</option>
+                    ${options}
+                </select>`;
+                        break;
                 }
 
+                wrapper.innerHTML = fieldHtml;
                 return wrapper;
             }
+
+
         });
     </script>
 </x-app-layout>

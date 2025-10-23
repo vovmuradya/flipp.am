@@ -10,26 +10,24 @@ class CategoryFieldController extends Controller
 {
     public function index(Category $category)
     {
-        $fields = $category->fields()->get()->toArray();
+        // Получаем поля как коллекцию объектов, а не массив
+        $fields = $category->fields()->get();
 
-        $brandFieldIndex = -1;
-        foreach ($fields as $index => $field) {
-            if ($field['key'] === 'brand') {
-                $brandFieldIndex = $index;
-                break;
+        // Проходим по каждому полю с помощью map
+        $fields->map(function ($field) {
+            if ($field->key === 'brand') {
+                // ИСПОЛЬЗУЕМ ПРАВИЛЬНОЕ ИМЯ КОЛОНКИ 'name'
+                $field->options = CarBrand::orderBy('name')
+                    ->get(['id', 'name'])
+                    ->toArray();
             }
-        }
+            elseif ($field->key === 'model') {
+                $field->options = [];
+            }
+            return $field;
+        });
 
-        if ($brandFieldIndex !== -1) {
-            // ИСПРАВЛЕНИЕ ЗДЕСЬ:
-            // Мы выбираем id и name_ru, но переименовываем name_ru в 'name'
-            // чтобы фронтенд-код не сломался.
-            $carBrands = CarBrand::orderBy('name_ru')
-                ->get(['id', 'name_ru as name']);
-
-            $fields[$brandFieldIndex]['car_brands'] = $carBrands;
-        }
-
+        // Возвращаем измененную коллекцию в формате JSON
         return response()->json($fields);
     }
 }

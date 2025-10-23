@@ -20,7 +20,7 @@ class SyncCarBrands extends Command
         $this->info('Запуск синхронизации марок автомобилей с NHTSA API...');
 
         // Проверка подключения к API
-        $response = Http::timeout(30)->get(self::API_URL);
+        $response = Http::withoutVerifying()->timeout(30)->get(self::API_URL);
 
         if ($response->failed()) {
             $this->error('Ошибка при получении данных с NHTSA API. Проверьте DNS и сетевое подключение контейнера.');

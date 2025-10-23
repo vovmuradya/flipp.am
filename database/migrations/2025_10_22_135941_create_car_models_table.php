@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('name_en');
             $table->string('name_ru')->nullable();
             $table->timestamps();
+            $table->index('name_en');
         });
     }
 
