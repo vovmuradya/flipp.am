@@ -102,17 +102,14 @@
         </div>
     </div>
 
-    // COMMENTS: The user wants to reorder the fields in the frontend (JS)
-    // to match the logical order defined in the PHP seeder (e.g., brand, model first).
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const categorySelect = document.getElementById('category_id');
             const fieldsContainer = document.getElementById('custom-fields-container');
             const fieldsWrapper = document.getElementById('fields-wrapper');
-            const apiBase = 'http://localhost:8000'; // Убедитесь, что это ваш правильный URL
+            const apiBase = 'http://localhost'; // Убедитесь, что URL правильный
 
-            // --- ОСНОВНАЯ ЛОГИКА ЗАГРУЗКИ ПОЛЕЙ (остается почти без изменений) ---
+            // --- Загрузка полей при смене категории ---
             categorySelect.addEventListener('change', loadCustomFields);
             if (categorySelect.value) {
                 loadCustomFields();
@@ -141,7 +138,7 @@
                             return;
                         }
 
-                        // Сортировка полей (если нужна)
+                        // Сортировка полей
                         const desiredOrder = ['brand', 'model'];
                         fields.sort((a, b) => {
                             const indexA = desiredOrder.indexOf(a.key);
@@ -163,12 +160,10 @@
                     });
             }
 
-            // --- НОВАЯ ЛОГИКА ДЛЯ СВЯЗКИ МАРКА -> МОДЕЛЬ ---
+            // --- Логика для связки Марка -> Модель ---
             fieldsWrapper.addEventListener('change', function(event) {
-                // Проверяем, что событие произошло на поле "Марка"
                 if (event.target.dataset.fieldKey === 'brand') {
                     const brandId = event.target.value;
-                    // Находим поле "Модель"
                     const modelSelect = fieldsWrapper.querySelector('[data-field-key="model"]');
 
                     if (!modelSelect) {
@@ -176,23 +171,23 @@
                         return;
                     }
 
-                    // Очищаем и блокируем поле моделей
                     modelSelect.innerHTML = '<option value="">Загрузка...</option>';
                     modelSelect.disabled = true;
 
                     if (brandId) {
-                        // Делаем правильный запрос на ваш API
                         fetch(`${apiBase}/api/brands/${brandId}/models`)
                             .then(response => response.json())
                             .then(models => {
                                 modelSelect.innerHTML = '<option value="">Выберите модель</option>';
+
+                                // ✅ ИСПРАВЛЕНИЕ ЗДЕСЬ
                                 models.forEach(model => {
                                     const option = document.createElement('option');
-                                    option.value = model.id;
-                                    option.textContent = model.name;
+                                    option.value = model.value; // Было: model.id
+                                    option.textContent = model.label; // Было: model.name
                                     modelSelect.appendChild(option);
                                 });
-                                modelSelect.disabled = false; // Активируем поле
+                                modelSelect.disabled = false;
                             })
                             .catch(error => {
                                 console.error('Ошибка при загрузке моделей:', error);
@@ -207,12 +202,12 @@
             });
 
 
-            // --- ФУНКЦИЯ СОЗДАНИЯ ЭЛЕМЕНТОВ (немного доработана) ---
+            // --- Функция создания элементов ---
             function createFieldElement(field) {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'mb-4';
 
-                const fieldOptions = (typeof field.options === 'string' && field.options !== 'null') ? JSON.parse(field.options) : field.options;
+                const fieldOptions = field.options; // Бэкенд уже отдает массив
                 const required = field.is_required ? 'required' : '';
                 const requiredLabel = field.is_required ? '<span class="text-red-500">*</span>' : '';
                 const dataAttribute = `data-field-key="${field.key}"`;
@@ -227,26 +222,25 @@
                         fieldHtml += `<input type="number" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" step="0.01" ${required} ${dataAttribute}>`;
                         break;
                     case 'select':
-                        // ИСПРАВЛЕНИЕ ЗДЕСЬ: используем opt.id для value и opt.name для текста
+
+                        // ✅ ИСПРАВЛЕНИЕ ЗДЕСЬ
                         const options = Array.isArray(fieldOptions)
-                            ? fieldOptions.map(opt => `<option value="${opt.id}">${opt.name}</option>`).join('')
+                            ? fieldOptions.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('') // Было: opt.id / opt.name
                             : '';
 
                         let isDisabled = field.key === 'model' ? 'disabled' : '';
 
                         fieldHtml += `
-                <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute} ${isDisabled}>
-                    <option value="">Выберите...</option>
-                    ${options}
-                </select>`;
+                        <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute} ${isDisabled}>
+                            <option value="">Выберите...</option>
+                            ${options}
+                        </select>`;
                         break;
                 }
 
                 wrapper.innerHTML = fieldHtml;
                 return wrapper;
             }
-
-
         });
     </script>
 </x-app-layout>

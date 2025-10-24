@@ -19,3 +19,7 @@ Route::get('/brands/{brand}/models', [CarModelController::class, 'getByBrand']);
 
 // Вот ЕДИНСТВЕННЫЙ правильный маршрут для полей
 Route::get('/categories/{category}/fields', [CategoryFieldController::class, 'index']);
+Route::middleware('api')->group(function () {
+    Route::get('/categories/{category}/fields', [CategoryController::class, 'fields']);
+    Route::get('/brands/{brand}/models', [CarModelController::class, 'getByBrand']);
+});

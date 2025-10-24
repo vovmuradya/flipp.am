@@ -5,15 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
-use App\Models\CarBrand; // ДОБАВЛЕНО
-use Illuminate\Support\Facades\App; // ДОБАВЛЕНО
+use App\Models\CarBrand;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
+
 class CategoryController extends Controller
 {
-    // ... (методы getRoot и getChildren остаются без изменений) ...
-
-    public function fields(Category $category)
+    public function fields(Category $category): JsonResponse
     {
+        Log::info('Category ID: ' . $category->id);
+        Log::info('Fields count: ' . $category->fields()->count());
 
         if (empty($category->slug)) {
             $category->refresh();
@@ -21,17 +22,20 @@ class CategoryController extends Controller
 
         Log::info('API Fields: Processing category ' . $category->slug);
 
-        $fields = $category->fields()->orderBy('id')->get()->toArray();
+        // Получаем поля как коллекцию объектов (не массив!)
+        $fields = $category->fields()->orderBy('id')->get();
 
         Log::info('Category slug: ' . $category->slug);
         foreach ($fields as $f) {
-            Log::info('Field key: ' . $f['key']);
+            Log::info('Field key: ' . $f->key);
         }
+
         $currentLocale = App::getLocale();
         $langField = ($currentLocale === 'ru') ? 'name_ru' : 'name_en';
 
-        foreach ($fields as $key => $field) {
-            $is_car_brand_field = (strtolower($field['key']) === 'brand');
+        // Используем map для преобразования коллекции
+        $fields = $fields->map(function ($field) use ($langField) {
+            $is_car_brand_field = (strtolower($field->key) === 'brand');
 
             if ($is_car_brand_field) {
                 Log::info('API Fields: CONDITION MET: Starting to load brands.');
@@ -50,41 +54,36 @@ class CategoryController extends Controller
 
                 Log::info('API Fields: Brands loaded count: ' . count($brands));
 
-                // ВАЖНО — без json_encode
-                $fields[$key]['options'] = $brands;
+                // Присваиваем options к объекту поля
+                $field->options = $brands;
             }
-        }
+
+            return $field;
+        });
 
         return response()->json($fields);
     }
 
-    /**
-     * Получить корневые (родительские) категории
-     */
     public function getRoot(): JsonResponse
     {
         $categories = Category::query()
             ->whereNull('parent_id')
             ->select('id', 'name')
-            ->withCount('children') // Добавляем счетчик дочерних категорий
+            ->withCount('children')
             ->orderBy('name')
             ->get();
 
         return response()->json($categories);
     }
 
-    /**
-     * Получить дочерние категории для указанной
-     */
     public function getChildren(Category $category): JsonResponse
     {
         $children = $category->children()
             ->select('id', 'name')
-            ->withCount('children') // Также добавляем счетчик
+            ->withCount('children')
             ->orderBy('name')
             ->get();
 
         return response()->json($children);
     }
-
 }
