@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateListingRequest;
 use App\Models\Listing;
 use App\Models\Category;
 use App\Models\Region;
+use App\Models\CarBrand;
 use Illuminate\Support\Str;
 
 
@@ -50,9 +51,12 @@ class ListingController extends Controller
         $categories = Category::whereNotNull('parent_id')->orderBy('name')->get();
         $regions = Region::where('type', 'city')->orderBy('name')->get();
 
-        return view('listings.create', compact('categories', 'regions'));
-    }
+        // ↓ ДОБАВЬТЕ ЭТУ СТРОКУ ↓
+        $brands = CarBrand::orderBy('name_ru')->get();
 
+        // ↓ ДОБАВЬТЕ 'brands' В COMPACT ↓
+        return view('listings.create', compact('categories', 'regions', 'brands'));
+    }
     /**
      * Store a newly created resource in storage.
      */
@@ -113,11 +117,15 @@ class ListingController extends Controller
         $categories = Category::whereNotNull('parent_id')->orderBy('name')->get();
         $regions = Region::where('type', 'city')->orderBy('name')->get();
 
+        // ↓ ДОБАВЬТЕ ЭТУ СТРОКУ ↓
+        $brands = CarBrand::orderBy('name_ru')->get();
+
         // Загружаем связи и преобразуем кастомные поля в удобный формат
         $listing->load('customFieldValues');
         $savedCustomFields = $listing->customFieldValues->pluck('value', 'field_id');
 
-        return view('listings.edit', compact('listing', 'categories', 'regions', 'savedCustomFields'));
+        // ↓ ДОБАВЬТЕ 'brands' В COMPACT ↓
+        return view('listings.edit', compact('listing', 'categories', 'regions', 'savedCustomFields', 'brands'));
     }
 
     /**

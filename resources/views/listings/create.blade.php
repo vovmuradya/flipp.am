@@ -108,7 +108,7 @@
             const fieldsContainer = document.getElementById('custom-fields-container');
             const fieldsWrapper = document.getElementById('fields-wrapper');
             const apiBase = 'http://localhost'; // Убедитесь, что URL правильный
-
+            const allBrands = @json($brands->map(fn($brand) => ['value' => $brand->id, 'label' => $brand->name_ru]));
             // --- Загрузка полей при смене категории ---
             categorySelect.addEventListener('change', loadCustomFields);
             if (categorySelect.value) {
@@ -214,28 +214,57 @@
 
                 let fieldHtml = `<label class="block font-medium text-sm text-gray-700 mb-1">${field.name} ${requiredLabel}</label>`;
 
-                switch (field.type) {
-                    case 'text':
-                        fieldHtml += `<input type="text" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute}>`;
-                        break;
-                    case 'number':
-                        fieldHtml += `<input type="number" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" step="0.01" ${required} ${dataAttribute}>`;
-                        break;
-                    case 'select':
+                // --- ✅ ГЛАВНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+                // Мы перехватываем 'brand' и 'model' ДО switch-кейса
 
-                        // ✅ ИСПРАВЛЕНИЕ ЗДЕСЬ
-                        const options = Array.isArray(fieldOptions)
-                            ? fieldOptions.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('') // Было: opt.id / opt.name
-                            : '';
+                if (field.key === 'brand') {
+                    // 1. ЭТО МАРКА (BRAND)
+                    // Генерируем <select> используя 'allBrands' из Шага 1
 
-                        let isDisabled = field.key === 'model' ? 'disabled' : '';
+                    const brandOptions = allBrands.map(opt =>
+                        `<option value="${opt.value}">${opt.label}</option>`
+                    ).join('');
 
-                        fieldHtml += `
-                        <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute} ${isDisabled}>
-                            <option value="">Выберите...</option>
-                            ${options}
-                        </select>`;
-                        break;
+                    fieldHtml += `
+                    <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute}>
+                        <option value="">Выберите марку...</option>
+                        ${brandOptions}
+                    </select>`;
+
+                } else if (field.key === 'model') {
+                    // 2. ЭТО МОДЕЛЬ (MODEL)
+                    // Генерируем <select>, но пустой и неактивный.
+                    // Он заполнится, когда пользователь выберет марку.
+
+                    fieldHtml += `
+                    <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute} disabled>
+                        <option value="">Сначала выберите марку</option>
+                    </select>`;
+
+                } else {
+                    // 3. ВСЕ ОСТАЛЬНЫЕ ПОЛЯ (text, number, select)
+                    // Используем старую логику
+
+                    switch (field.type) {
+                        case 'text':
+                            fieldHtml += `<input type="text" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute}>`;
+                            break;
+                        case 'number':
+                            fieldHtml += `<input type="number" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" step="0.01" ${required} ${dataAttribute}>`;
+                            break;
+                        case 'select':
+                            // Это для других <select> (например, "Цвет", "Тип кузова")
+                            const options = Array.isArray(fieldOptions)
+                                ? fieldOptions.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')
+                                : '';
+
+                            fieldHtml += `
+                            <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute}>
+                                <option value="">Выберите...</option>
+                                ${options}
+                            </select>`;
+                            break;
+                    }
                 }
 
                 wrapper.innerHTML = fieldHtml;
