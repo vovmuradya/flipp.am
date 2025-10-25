@@ -5,19 +5,20 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CarModelController;
 use App\Http\Controllers\Api\CategoryFieldController;
+use App\Http\Controllers\Api\GenerationController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// Категории
+// ==================== CATEGORIES ====================
 Route::get('/categories/root', [CategoryController::class, 'getRoot']);
 Route::get('/categories/{category}/children', [CategoryController::class, 'getChildren']);
+Route::get('/categories/{category}/fields', [CategoryFieldController::class, 'index']);
 
-// Модели по бренду (оставляем getByBrand, т.к. контроллер его реализует)
+// ==================== BRANDS & MODELS ====================
 Route::get('/brands/{brand}/models', [CarModelController::class, 'getByBrand']);
 
-// Маршрут для полей
-Route::get('/categories/{category}/fields', [CategoryFieldController::class, 'index']);
-Route::get('/models/{model}/generations', [CarModelController::class, 'getGenerationsByModel']);
-Route::get('/models/{modelId}/generations', [\App\Http\Controllers\Api\GenerationController::class, 'getGenerationsByModel']);
+// ==================== GENERATIONS ====================
+// ✅ FIXED: Single route pointing to GenerationController
+Route::get('/models/{modelId}/generations', [GenerationController::class, 'getGenerationsByModel']);

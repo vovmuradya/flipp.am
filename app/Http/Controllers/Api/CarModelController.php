@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CarBrand;
 use App\Models\CarModel;
 use Illuminate\Http\JsonResponse;
+use App\Models\CarGeneration;
 use Illuminate\Support\Facades\App; // App больше не нужен для locale
 
 class CarModelController extends Controller
@@ -34,18 +35,29 @@ class CarModelController extends Controller
         return response()->json($models);
     }
     public function getGenerationsByModel(CarModel $model): JsonResponse
-    {
-        $generations = $model->generations() // Метод generations должен быть добавлен в CarModel.php
-        ->orderBy('year_start', 'desc')
-            ->get(['id', 'name_en', 'name_ru']);
+{
+    // Загружаем связанные поколения
+    $generations = $model->generations()
+        ->orderBy('year_start', 'desc') // Сортируем по году начала
+        // ✅ ИСПРАВЛЕНО: Выбираем правильные колонки
+        ->get(['id', 'name', 'year_start', 'year_end']);
 
-        $formatted = $generations->map(function ($gen) {
-            return [
-                'value' => $gen->id,
-                'label' => $gen->name_ru ?: $gen->name_en, // Используем русское, если есть
-            ];
-        });
+    // Форматируем для выпадающего списка
+    $formatted = $generations->map(function ($gen) {
+        // Формируем label, добавляя годы, если они есть
+        $label = $gen->name;
+        if ($gen->year_start && $gen->year_end) {
+            $label .= " ({$gen->year_start}-{$gen->year_end})";
+        } elseif ($gen->year_start) {
+            $label .= " ({$gen->year_start})";
+        }
 
-        return response()->json($formatted);
-    }
+        return [
+            'value' => $gen->id,
+            'label' => $label, // Отображаем имя + годы
+        ];
+    });
+
+    return response()->json($formatted);
+}
 }
