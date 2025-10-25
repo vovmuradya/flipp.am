@@ -51,10 +51,9 @@ class ListingController extends Controller
         $categories = Category::whereNotNull('parent_id')->orderBy('name')->get();
         $regions = Region::where('type', 'city')->orderBy('name')->get();
 
-        // ↓ ДОБАВЬТЕ ЭТУ СТРОКУ ↓
-        $brands = CarBrand::orderBy('name_ru')->get();
+        // ✅ ИСПРАВЛЕНО: Сортировка по 'name_en'
+        $brands = CarBrand::orderBy('name_en')->get();
 
-        // ↓ ДОБАВЬТЕ 'brands' В COMPACT ↓
         return view('listings.create', compact('categories', 'regions', 'brands'));
     }
     /**
@@ -117,14 +116,13 @@ class ListingController extends Controller
         $categories = Category::whereNotNull('parent_id')->orderBy('name')->get();
         $regions = Region::where('type', 'city')->orderBy('name')->get();
 
-        // ↓ ДОБАВЬТЕ ЭТУ СТРОКУ ↓
-        $brands = CarBrand::orderBy('name_ru')->get();
+        // ✅ ИСПРАВЛЕНО: Сортировка по 'name_en'
+        $brands = CarBrand::orderBy('name_en')->get();
 
         // Загружаем связи и преобразуем кастомные поля в удобный формат
         $listing->load('customFieldValues');
         $savedCustomFields = $listing->customFieldValues->pluck('value', 'field_id');
 
-        // ↓ ДОБАВЬТЕ 'brands' В COMPACT ↓
         return view('listings.edit', compact('listing', 'categories', 'regions', 'savedCustomFields', 'brands'));
     }
 

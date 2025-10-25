@@ -21,9 +21,12 @@ class DatabaseSeeder extends Seeder
 
         // Вызываем остальные сидеры
         $this->call([
-            RegionSeeder::class,
             CategorySeeder::class,
-            CategoryFieldSeeder::class, // <-- ДОБАВЬТЕ ЭТУ СТРОКУ
+            RegionSeeder::class,
+            CategoryFieldSeeder::class,
+            CarBrandSeeder::class,     // <-- Вы это уже сделали
+            CarModelSeeder::class,     // <-- ДОБАВЬТЕ ЭТУ СТРОКУ
+            CarGenerationSeeder::class,
             DemoDataSeeder::class,
         ]);
     }

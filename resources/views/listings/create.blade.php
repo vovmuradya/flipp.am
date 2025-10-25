@@ -108,7 +108,10 @@
             const fieldsContainer = document.getElementById('custom-fields-container');
             const fieldsWrapper = document.getElementById('fields-wrapper');
             const apiBase = 'http://localhost'; // Убедитесь, что URL правильный
-            const allBrands = @json($brands->map(fn($brand) => ['value' => $brand->id, 'label' => $brand->name_ru]));
+
+            // Используем name_en, так как name_ru может быть null
+            const allBrands = @json($brands->map(fn($brand) => ['value' => $brand->id, 'label' => $brand->name_en]));
+
             // --- Загрузка полей при смене категории ---
             categorySelect.addEventListener('change', loadCustomFields);
             if (categorySelect.value) {
@@ -138,15 +141,16 @@
                             return;
                         }
 
-                        // Сортировка полей
-                        const desiredOrder = ['brand', 'model'];
+                        // Сортировка полей (добавлен 'generation')
+                        const desiredOrder = ['brand', 'model', 'generation']; // ✅ Порядок: Марка, Модель, Поколение
                         fields.sort((a, b) => {
                             const indexA = desiredOrder.indexOf(a.key);
                             const indexB = desiredOrder.indexOf(b.key);
                             if (indexA > -1 && indexB > -1) return indexA - indexB;
                             if (indexA > -1) return -1;
                             if (indexB > -1) return 1;
-                            return 0;
+                            // Для остальных полей сохраняем их исходный порядок или сортируем по имени
+                            return a.name.localeCompare(b.name);
                         });
 
                         fields.forEach(field => {
@@ -160,31 +164,38 @@
                     });
             }
 
-            // --- Логика для связки Марка -> Модель ---
+            // ✅ ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлена логика для Поколения
+            // --- Логика для связки Марка -> Модель -> Поколение ---
             fieldsWrapper.addEventListener('change', function(event) {
+
+                // 1. Изменение МАРКИ (BRAND)
                 if (event.target.dataset.fieldKey === 'brand') {
                     const brandId = event.target.value;
                     const modelSelect = fieldsWrapper.querySelector('[data-field-key="model"]');
+                    const generationSelect = fieldsWrapper.querySelector('[data-field-key="generation"]'); // Получаем поле поколения
 
-                    if (!modelSelect) {
-                        console.error('Поле для моделей не найдено!');
-                        return;
+                    // Сброс поля МОДЕЛЬ
+                    if (modelSelect) {
+                        modelSelect.innerHTML = '<option value="">Загрузка...</option>';
+                        modelSelect.disabled = true;
                     }
 
-                    modelSelect.innerHTML = '<option value="">Загрузка...</option>';
-                    modelSelect.disabled = true;
+                    // Сброс поля ПОКОЛЕНИЕ (если оно есть)
+                    if (generationSelect) {
+                        generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>';
+                        generationSelect.disabled = true;
+                    }
 
-                    if (brandId) {
+                    if (brandId && modelSelect) {
                         fetch(`${apiBase}/api/brands/${brandId}/models`)
                             .then(response => response.json())
                             .then(models => {
                                 modelSelect.innerHTML = '<option value="">Выберите модель</option>';
 
-                                // ✅ ИСПРАВЛЕНИЕ ЗДЕСЬ
                                 models.forEach(model => {
                                     const option = document.createElement('option');
-                                    option.value = model.value; // Было: model.id
-                                    option.textContent = model.label; // Было: model.name
+                                    option.value = model.value;
+                                    option.textContent = model.label;
                                     modelSelect.appendChild(option);
                                 });
                                 modelSelect.disabled = false;
@@ -194,14 +205,59 @@
                                 modelSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
                                 modelSelect.disabled = false;
                             });
-                    } else {
+                    } else if (modelSelect) {
                         modelSelect.innerHTML = '<option value="">Сначала выберите марку</option>';
                         modelSelect.disabled = true;
+                    }
+                }
+
+                // 2. Изменение МОДЕЛИ (MODEL)
+                else if (event.target.dataset.fieldKey === 'model') {
+                    const modelId = event.target.value;
+                    const generationSelect = fieldsWrapper.querySelector('[data-field-key="generation"]');
+
+                    // Если поля 'generation' нет на странице, ничего не делаем
+                    if (!generationSelect) return;
+
+                    generationSelect.innerHTML = '<option value="">Загрузка...</option>';
+                    generationSelect.disabled = true;
+
+                    if (modelId) {
+                        // Делаем запрос к API для получения поколений
+                        fetch(`${apiBase}/api/models/${modelId}/generations`)
+                            .then(response => {
+                                if (!response.ok) throw new Error('Network error');
+                                return response.json();
+                            })
+                            .then(generations => {
+                                generationSelect.innerHTML = '<option value="">Выберите поколение (необязательно)</option>';
+
+                                // Если API вернул пустой массив, опций не будет, но поле останется активным
+                                generations.forEach(generation => {
+                                    const option = document.createElement('option');
+                                    option.value = generation.value;
+                                    option.textContent = generation.label;
+                                    generationSelect.appendChild(option);
+                                });
+                                // Делаем поле активным, даже если список поколений пуст
+                                generationSelect.disabled = false;
+                            })
+                            .catch(error => {
+                                console.error('Ошибка при загрузке поколений:', error);
+                                generationSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
+                                // Оставляем поле активным, чтобы пользователь мог вручную ввести, если нужно
+                                generationSelect.disabled = false;
+                            });
+                    } else {
+                        // Если модель сброшена, сбрасываем поколение
+                        generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>';
+                        generationSelect.disabled = true;
                     }
                 }
             });
 
 
+            // ✅ ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлена логика для Поколения
             // --- Функция создания элементов ---
             function createFieldElement(field) {
                 const wrapper = document.createElement('div');
@@ -214,13 +270,10 @@
 
                 let fieldHtml = `<label class="block font-medium text-sm text-gray-700 mb-1">${field.name} ${requiredLabel}</label>`;
 
-                // --- ✅ ГЛАВНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-                // Мы перехватываем 'brand' и 'model' ДО switch-кейса
+                // --- Перехватываем 'brand', 'model', и 'generation' ДО switch ---
 
                 if (field.key === 'brand') {
                     // 1. ЭТО МАРКА (BRAND)
-                    // Генерируем <select> используя 'allBrands' из Шага 1
-
                     const brandOptions = allBrands.map(opt =>
                         `<option value="${opt.value}">${opt.label}</option>`
                     ).join('');
@@ -233,18 +286,20 @@
 
                 } else if (field.key === 'model') {
                     // 2. ЭТО МОДЕЛЬ (MODEL)
-                    // Генерируем <select>, но пустой и неактивный.
-                    // Он заполнится, когда пользователь выберет марку.
-
                     fieldHtml += `
                     <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute} disabled>
                         <option value="">Сначала выберите марку</option>
                     </select>`;
 
-                } else {
-                    // 3. ВСЕ ОСТАЛЬНЫЕ ПОЛЯ (text, number, select)
-                    // Используем старую логику
+                } else if (field.key === 'generation') {
+                    // 3. НОВОЕ ПОЛЕ: ПОКОЛЕНИЕ (GENERATION)
+                    fieldHtml += `
+                    <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute} disabled>
+                        <option value="">Сначала выберите модель</option>
+                    </select>`;
 
+                } else {
+                    // 4. ВСЕ ОСТАЛЬНЫЕ ПОЛЯ
                     switch (field.type) {
                         case 'text':
                             fieldHtml += `<input type="text" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute}>`;
@@ -253,7 +308,6 @@
                             fieldHtml += `<input type="number" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" step="0.01" ${required} ${dataAttribute}>`;
                             break;
                         case 'select':
-                            // Это для других <select> (например, "Цвет", "Тип кузова")
                             const options = Array.isArray(fieldOptions)
                                 ? fieldOptions.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')
                                 : '';
@@ -264,6 +318,7 @@
                                 ${options}
                             </select>`;
                             break;
+                        // Добавьте другие типы полей (textarea, checkbox), если они есть
                     }
                 }
 

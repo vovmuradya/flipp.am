@@ -14,12 +14,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::get('/categories/root', [CategoryController::class, 'getRoot']);
 Route::get('/categories/{category}/children', [CategoryController::class, 'getChildren']);
 
-// Модели по бренду
+// Модели по бренду (оставляем getByBrand, т.к. контроллер его реализует)
 Route::get('/brands/{brand}/models', [CarModelController::class, 'getByBrand']);
 
-// Вот ЕДИНСТВЕННЫЙ правильный маршрут для полей
+// Маршрут для полей
 Route::get('/categories/{category}/fields', [CategoryFieldController::class, 'index']);
-Route::middleware('api')->group(function () {
-    Route::get('/categories/{category}/fields', [CategoryController::class, 'fields']);
-    Route::get('/brands/{brand}/models', [CarModelController::class, 'getByBrand']);
-});
+Route::get('/models/{model}/generations', [CarModelController::class, 'getGenerationsByModel']);
+Route::get('/models/{modelId}/generations', [\App\Http\Controllers\Api\GenerationController::class, 'getGenerationsByModel']);

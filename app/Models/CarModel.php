@@ -20,4 +20,8 @@ class CarModel extends Model
     {
         return $this->belongsTo(CarBrand::class);
     }
+    public function generations()
+    {
+        return $this->hasMany(CarGeneration::class, 'car_model_id');
+    }
 }
