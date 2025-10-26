@@ -41,7 +41,7 @@
                                         <option value="">Все категории</option>
                                         @foreach($categories as $category)
                                             <option value="{{ $category->id }}" @selected(request('category_id') == $category->id)>
-                                                {{ $category->name }}
+                                                {{ $category->current_name }}
                                             </option>
                                         @endforeach
                                     </select>
@@ -189,7 +189,7 @@
                                             {{ $listing->title }}
                                         </h3>
                                         <p class="text-gray-600 mt-1 text-sm">
-                                            {{ $listing->category?->name }} • {{ $listing->region?->name }}
+                                            {{ $listing->category?->current_name }} • {{ $listing->region?->name }}
                                         </p>
                                         <div class="flex justify-between items-center mt-4">
                                             <p class="text-xl font-semibold text-indigo-600">

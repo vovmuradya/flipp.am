@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('parent_id')->nullable()->constrained('categories')->nullOnDelete();
-            $table->string('name');
+            $table->json('name');
             $table->string('slug')->unique();
             $table->string('icon', 50)->nullable();
             $table->integer('sort_order')->default(0);

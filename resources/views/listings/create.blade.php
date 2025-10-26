@@ -20,19 +20,14 @@
                                         @error('title')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
                                     </div>
 
-                                    <div>
-                                        <label for="category_id" class="block font-medium text-sm text-gray-700">Категория <span class="text-red-500">*</span></label>
-                                        <select name="category_id" id="category_id" required
-                                                class="block mt-1 w-full border-gray-300 rounded-md shadow-sm @error('category_id') border-red-500 @enderror">
-                                            <option value="">Выберите категорию</option>
-                                            @foreach($categories as $category)
-                                                <option value="{{ $category->id }}" @selected(old('category_id') == $category->id)>
-                                                    {{ $category->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        @error('category_id')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
+                                    {{-- ✅ ИЗМЕНЕНИЕ: Блок для динамической загрузки категорий --}}
+                                    <div id="category-selection-wrapper" class="space-y-4">
+                                        {{-- Сюда JavaScript будет добавлять выпадающие списки категорий --}}
                                     </div>
+                                    {{-- Скрытое поле, куда записывается ID финальной выбранной категории --}}
+                                    <input type="hidden" name="category_id" id="final_category_id">
+                                    @error('category_id')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
+                                    {{-- Конец блока категорий --}}
 
                                     <div>
                                         <label for="description" class="block font-medium text-sm text-gray-700">Описание</label>
@@ -67,7 +62,7 @@
                                             <option value="">Выберите регион</option>
                                             @foreach($regions as $region)
                                                 <option value="{{ $region->id }}" @selected(old('region_id') == $region->id)>
-                                                    {{ $region->name }}
+                                                    {{ $region->current_name ?? $region->name }} {{-- Используем current_name для регионов, если он есть --}}
                                                 </option>
                                             @endforeach
                                         </select>
@@ -83,6 +78,8 @@
                                     <label for="images" class="block font-medium text-sm text-gray-700">Загрузите фото (макс. 6)</label>
                                     <input type="file" name="images[]" id="images" multiple accept="image/*"
                                            class="block mt-1 w-full">
+                                    @error('images.*')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
+                                    @error('images')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
                                 </div>
                             </div>
 
@@ -102,24 +99,108 @@
         </div>
     </div>
 
+    {{-- ✅ ИЗМЕНЕНИЕ: Полностью новый JavaScript --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const categorySelect = document.getElementById('category_id');
+            const categorySelectionWrapper = document.getElementById('category-selection-wrapper');
+            const finalCategoryIdInput = document.getElementById('final_category_id');
             const fieldsContainer = document.getElementById('custom-fields-container');
             const fieldsWrapper = document.getElementById('fields-wrapper');
             const apiBase = 'http://localhost'; // Убедитесь, что URL правильный
 
-            // Используем name_en, так как name_ru может быть null
+            // Категории верхнего уровня (Транспорт, Недвижимость...)
+            // Мы используем $category->current_name, который вы добавили в Модель Category
+            const initialCategories = @json($categories->map(fn($cat) => ['id' => $cat->id, 'name' => $cat->current_name]));
+
+            // Все марки (Бренды)
             const allBrands = @json($brands->map(fn($brand) => ['value' => $brand->id, 'label' => $brand->name_en]));
 
-            // --- Загрузка полей при смене категории ---
-            categorySelect.addEventListener('change', loadCustomFields);
-            if (categorySelect.value) {
-                loadCustomFields();
+            // --- 1. ЛОГИКА ДЛЯ КАТЕГОРИЙ ---
+
+            function createCategorySelect(categories, level) {
+                const selectId = `category_level_${level}`;
+
+                // Удаляем все select-ы следующих уровней
+                let nextLevel = level + 1;
+                let nextSelect;
+                while (nextSelect = document.getElementById(`category_level_${nextLevel}`)) {
+                    nextSelect.parentElement.remove(); // Удаляем div-обертку
+                    nextLevel++;
+                }
+
+                // Сбрасываем ID и скрываем поля
+                finalCategoryIdInput.value = '';
+                fieldsContainer.style.display = 'none';
+                fieldsWrapper.innerHTML = '';
+
+                // Если детей нет (вернулся пустой массив), значит предыдущий выбор был финальным
+                if (categories.length === 0 && level > 0) {
+                    const previousSelect = document.getElementById(`category_level_${level - 1}`);
+                    if (previousSelect && previousSelect.value) {
+                        const finalId = previousSelect.value;
+                        finalCategoryIdInput.value = finalId;
+                        console.log('Final category selected:', finalId);
+                        loadCustomFields(finalId); // Загружаем поля!
+                    }
+                    return; // Не создаем новый select
+                }
+
+                if (categories.length === 0 && level === 0) {
+                    categorySelectionWrapper.innerHTML = '<p class="text-red-500">Нет доступных категорий.</p>';
+                    return;
+                }
+
+                const wrapper = document.createElement('div');
+                const labelText = level === 0 ? 'Категория' : 'Подкатегория';
+                const requiredStar = level === 0 ? ' <span class="text-red-500">*</span>' : '';
+
+                wrapper.innerHTML = `
+                    <label for="${selectId}" class="block font-medium text-sm text-gray-700">${labelText}${requiredStar}</label>
+                    <select id="${selectId}" data-level="${level}" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" ${level === 0 ? 'required' : ''}>
+                        <option value="">-- Выберите --</option>
+                        ${categories.map(category => `<option value="${category.id}">${category.name}</option>`).join('')}
+                    </select>
+                `;
+
+                categorySelectionWrapper.appendChild(wrapper);
+                // Навешиваем событие на только что созданный select
+                document.getElementById(selectId).addEventListener('change', handleCategoryChange);
             }
 
-            function loadCustomFields() {
-                const categoryId = categorySelect.value;
+            function handleCategoryChange(event) {
+                const selectedId = event.target.value;
+                const level = parseInt(event.target.dataset.level);
+
+                if (!selectedId) {
+                    // Если выбрали "-- Выберите --", удаляем следующие уровни и сбрасываем поля
+                    let nextLevel = level + 1;
+                    let nextSelect;
+                    while (nextSelect = document.getElementById(`category_level_${nextLevel}`)) {
+                        nextSelect.parentElement.remove();
+                        nextLevel++;
+                    }
+                    finalCategoryIdInput.value = '';
+                    fieldsContainer.style.display = 'none';
+                    fieldsWrapper.innerHTML = '';
+                    return;
+                }
+
+                // Запрашиваем дочерние категории
+                fetch(`${apiBase}/api/categories/${selectedId}/children`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network error');
+                        return response.json();
+                    })
+                    .then(children => {
+                        // API должен вернуть 'name' на текущем языке (благодаря current_name в Модели)
+                        createCategorySelect(children, level + 1);
+                    })
+                    .catch(error => console.error('Error loading subcategories:', error));
+            }
+
+            // --- 2. ЛОГИКА ДЛЯ ПОЛЕЙ (МАРКА, МОДЕЛЬ, ПОКОЛЕНИЕ) ---
+
+            function loadCustomFields(categoryId) {
                 if (!categoryId) {
                     fieldsContainer.style.display = 'none';
                     fieldsWrapper.innerHTML = '';
@@ -136,24 +217,24 @@
                     })
                     .then(fields => {
                         fieldsWrapper.innerHTML = '';
-                        if (fields.length === 0) {
+                        if (!Array.isArray(fields) || fields.length === 0) {
                             fieldsContainer.style.display = 'none';
                             return;
                         }
 
-                        // Сортировка полей (добавлен 'generation')
-                        const desiredOrder = ['brand', 'model', 'generation']; // ✅ Порядок: Марка, Модель, Поколение
+                        // Сортировка полей
+                        const desiredOrder = ['brand', 'model', 'generation'];
                         fields.sort((a, b) => {
                             const indexA = desiredOrder.indexOf(a.key);
                             const indexB = desiredOrder.indexOf(b.key);
                             if (indexA > -1 && indexB > -1) return indexA - indexB;
                             if (indexA > -1) return -1;
                             if (indexB > -1) return 1;
-                            // Для остальных полей сохраняем их исходный порядок или сортируем по имени
                             return a.name.localeCompare(b.name);
                         });
 
                         fields.forEach(field => {
+                            // API должен вернуть 'name' на текущем языке (благодаря current_name в Модели)
                             const fieldGroup = createFieldElement(field);
                             fieldsWrapper.appendChild(fieldGroup);
                         });
@@ -164,23 +245,19 @@
                     });
             }
 
-            // ✅ ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлена логика для Поколения
             // --- Логика для связки Марка -> Модель -> Поколение ---
             fieldsWrapper.addEventListener('change', function(event) {
+                const fieldKey = event.target.dataset.fieldKey;
 
-                // 1. Изменение МАРКИ (BRAND)
-                if (event.target.dataset.fieldKey === 'brand') {
+                if (fieldKey === 'brand') {
                     const brandId = event.target.value;
                     const modelSelect = fieldsWrapper.querySelector('[data-field-key="model"]');
-                    const generationSelect = fieldsWrapper.querySelector('[data-field-key="generation"]'); // Получаем поле поколения
+                    const generationSelect = fieldsWrapper.querySelector('[data-field-key="generation"]');
 
-                    // Сброс поля МОДЕЛЬ
                     if (modelSelect) {
                         modelSelect.innerHTML = '<option value="">Загрузка...</option>';
                         modelSelect.disabled = true;
                     }
-
-                    // Сброс поля ПОКОЛЕНИЕ (если оно есть)
                     if (generationSelect) {
                         generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>';
                         generationSelect.disabled = true;
@@ -191,12 +268,8 @@
                             .then(response => response.json())
                             .then(models => {
                                 modelSelect.innerHTML = '<option value="">Выберите модель</option>';
-
                                 models.forEach(model => {
-                                    const option = document.createElement('option');
-                                    option.value = model.value;
-                                    option.textContent = model.label;
-                                    modelSelect.appendChild(option);
+                                    modelSelect.add(new Option(model.label, model.value));
                                 });
                                 modelSelect.disabled = false;
                             })
@@ -210,121 +283,99 @@
                         modelSelect.disabled = true;
                     }
                 }
-
-                // 2. Изменение МОДЕЛИ (MODEL)
-                else if (event.target.dataset.fieldKey === 'model') {
+                else if (fieldKey === 'model') {
                     const modelId = event.target.value;
                     const generationSelect = fieldsWrapper.querySelector('[data-field-key="generation"]');
 
-                    // Если поля 'generation' нет на странице, ничего не делаем
                     if (!generationSelect) return;
 
                     generationSelect.innerHTML = '<option value="">Загрузка...</option>';
                     generationSelect.disabled = true;
 
                     if (modelId) {
-                        // Делаем запрос к API для получения поколений
                         fetch(`${apiBase}/api/models/${modelId}/generations`)
-                            .then(response => {
-                                if (!response.ok) throw new Error('Network error');
-                                return response.json();
-                            })
+                            .then(response => response.json())
                             .then(generations => {
                                 generationSelect.innerHTML = '<option value="">Выберите поколение (необязательно)</option>';
-
-                                // Если API вернул пустой массив, опций не будет, но поле останется активным
-                                generations.forEach(generation => {
-                                    const option = document.createElement('option');
-                                    option.value = generation.value;
-                                    option.textContent = generation.label;
-                                    generationSelect.appendChild(option);
+                                generations.forEach(gen => {
+                                    generationSelect.add(new Option(gen.label, gen.value));
                                 });
-                                // Делаем поле активным, даже если список поколений пуст
                                 generationSelect.disabled = false;
                             })
                             .catch(error => {
                                 console.error('Ошибка при загрузке поколений:', error);
                                 generationSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
-                                // Оставляем поле активным, чтобы пользователь мог вручную ввести, если нужно
                                 generationSelect.disabled = false;
                             });
                     } else {
-                        // Если модель сброшена, сбрасываем поколение
                         generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>';
                         generationSelect.disabled = true;
                     }
                 }
             });
 
-
-            // ✅ ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлена логика для Поколения
-            // --- Функция создания элементов ---
+            // --- Функция создания элементов полей ---
             function createFieldElement(field) {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'mb-4';
 
-                const fieldOptions = field.options; // Бэкенд уже отдает массив
+                const fieldOptions = field.options;
                 const required = field.is_required ? 'required' : '';
                 const requiredLabel = field.is_required ? '<span class="text-red-500">*</span>' : '';
                 const dataAttribute = `data-field-key="${field.key}"`;
 
                 let fieldHtml = `<label class="block font-medium text-sm text-gray-700 mb-1">${field.name} ${requiredLabel}</label>`;
 
-                // --- Перехватываем 'brand', 'model', и 'generation' ДО switch ---
-
                 if (field.key === 'brand') {
-                    // 1. ЭТО МАРКА (BRAND)
                     const brandOptions = allBrands.map(opt =>
                         `<option value="${opt.value}">${opt.label}</option>`
                     ).join('');
-
                     fieldHtml += `
                     <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute}>
                         <option value="">Выберите марку...</option>
                         ${brandOptions}
                     </select>`;
-
                 } else if (field.key === 'model') {
-                    // 2. ЭТО МОДЕЛЬ (MODEL)
                     fieldHtml += `
                     <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute} disabled>
                         <option value="">Сначала выберите марку</option>
                     </select>`;
-
                 } else if (field.key === 'generation') {
-                    // 3. НОВОЕ ПОЛЕ: ПОКОЛЕНИЕ (GENERATION)
                     fieldHtml += `
                     <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute} disabled>
                         <option value="">Сначала выберите модель</option>
                     </select>`;
-
                 } else {
-                    // 4. ВСЕ ОСТАЛЬНЫЕ ПОЛЯ
+                    // --- ВСЕ ОСТАЛЬНЫЕ ПОЛЯ ---
                     switch (field.type) {
                         case 'text':
                             fieldHtml += `<input type="text" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute}>`;
                             break;
                         case 'number':
-                            fieldHtml += `<input type="number" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" step="0.01" ${required} ${dataAttribute}>`;
+                            fieldHtml += `<input type="number" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" step="any" ${required} ${dataAttribute}>`;
                             break;
                         case 'select':
                             const options = Array.isArray(fieldOptions)
                                 ? fieldOptions.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')
                                 : '';
-
                             fieldHtml += `
                             <select name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute}>
                                 <option value="">Выберите...</option>
                                 ${options}
                             </select>`;
                             break;
-                        // Добавьте другие типы полей (textarea, checkbox), если они есть
+                        // ... (добавьте 'textarea', 'checkbox' по необходимости)
+                        default:
+                            fieldHtml += `<input type="text" name="custom_fields[${field.id}]" class="block w-full border-gray-300 rounded-md shadow-sm p-2" ${required} ${dataAttribute}>`;
                     }
                 }
-
                 wrapper.innerHTML = fieldHtml;
                 return wrapper;
             }
+
+            // --- Инициализация: создаем первый Select категорий ---
+            createCategorySelect(initialCategories, 0);
+
         });
     </script>
 </x-app-layout>

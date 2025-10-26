@@ -20,5 +20,5 @@ Route::get('/categories/{category}/fields', [CategoryFieldController::class, 'in
 Route::get('/brands/{brand}/models', [CarModelController::class, 'getByBrand']);
 
 // ==================== GENERATIONS ====================
-// ✅ FIXED: Single route pointing to GenerationController
+// ✅ ONLY THIS ROUTE - Remove the duplicate below!
 Route::get('/models/{modelId}/generations', [GenerationController::class, 'getGenerationsByModel']);

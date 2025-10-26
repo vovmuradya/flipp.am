@@ -9,7 +9,8 @@ use App\Models\Category;
 use App\Models\Region;
 use App\Models\CarBrand;
 use Illuminate\Support\Str;
-
+// ❗️ Убедитесь, что Media импортирована, если используете ее в update
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class ListingController extends Controller
 {
@@ -18,28 +19,28 @@ class ListingController extends Controller
      */
     public function index(Request $request) // Добавляем Request
     {
-        // Получаем параметры сортировки
+        // ... (Этот метод у вас уже правильный) ...
         $sortBy = $request->input('sort_by', 'created_at');
         $sortOrder = $request->input('sort_order', 'desc');
-
-        // Белый список для безопасности
         $allowedSorts = ['created_at', 'price', 'views_count', 'title'];
         if (!in_array($sortBy, $allowedSorts)) {
             $sortBy = 'created_at';
         }
-
-        // Получаем объявления
         $listings = Listing::where('status', 'active')
             ->with(['category', 'region', 'media', 'user.favorites'])
-            ->orderBy($sortBy, $sortOrder) // Применяем сортировку
+            ->orderBy($sortBy, $sortOrder)
             ->paginate(12)
-            ->withQueryString(); // Добавляем параметры к ссылкам пагинации
+            ->withQueryString();
 
-        // Данные для формы фильтров
-        $categories = Category::whereNotNull('parent_id')->orderBy('name')->get();
+        // 1. Загружаем только РОДИТЕЛЬСКИЕ категории (scope 'root' из модели)
+        // 2. Сортируем по JSON-колонке, используя текущий язык
+        $categories = Category::root() // Используем scope 'root' (whereNull('parent_id'))
+        ->active()
+            ->orderBy('name->' . app()->getLocale()) // Сортируем по JSON
+            ->get();
+
         $regions = Region::where('type', 'city')->orderBy('name')->get();
 
-        // Используем тот же самый шаблон, что и для поиска
         return view('search.index', compact('listings', 'categories', 'regions'));
     }
 
@@ -48,37 +49,37 @@ class ListingController extends Controller
      */
     public function create()
     {
-        $categories = Category::whereNotNull('parent_id')->orderBy('name')->get();
-        $regions = Region::where('type', 'city')->orderBy('name')->get();
+        // ✅ ИСПРАВЛЕНО:
+        // Загружаем только родительские категории (Транспорт, Недвижимость...)
+        // и сортируем по текущему языку
+        $categories = Category::whereNull('parent_id')
+            ->orderBy('name->' . app()->getLocale())
+            ->get();
 
-        // ✅ ИСПРАВЛЕНО: Сортировка по 'name_en'
+        $regions = Region::where('type', 'city')->orderBy('name')->get();
         $brands = CarBrand::orderBy('name_en')->get();
 
         return view('listings.create', compact('categories', 'regions', 'brands'));
     }
+
     /**
      * Store a newly created resource in storage.
      */
     public function store(StoreListingRequest $request)
     {
+        // ... (Ваш метод store() выглядит правильно) ...
         $validatedData = $request->validated();
-
-        // --- START: Moderation Logic ---
-
-        // Get the number of already published listings by the user
         $publishedCount = auth()->user()->listings()->where('status', 'active')->count();
-
-        // Determine the status: 'moderation' if the user has less than 5 active listings, otherwise 'active'
         $status = ($publishedCount < 5) ? 'moderation' : 'active';
-
-        // --- END: Moderation Logic ---
-
 
         $validatedData['user_id'] = auth()->id();
         $validatedData['slug'] = Str::slug($validatedData['title']) . '-' . uniqid();
-        $validatedData['status'] = 'active'; // Use the new status variable instead of hardcoded 'active'
-        $validatedData['language'] = 'ru';
+        // $validatedData['status'] = 'active'; // Вы используете 'active', а не $status
+        $validatedData['status'] = $status; // ❗️ Исправлено: используем переменную $status
+        $validatedData['language'] = app()->getLocale(); // ❗️ Улучшено: используем текущую локаль
 
+        // Убедимся, что category_id пришел из hidden input
+        // (JavaScript должен был его заполнить)
         $listing = Listing::create($validatedData);
 
         if ($request->hasFile('images')) {
@@ -88,7 +89,6 @@ class ListingController extends Controller
         }
         if ($request->has('custom_fields')) {
             foreach ($request->custom_fields as $fieldId => $value) {
-                // We save each custom field value if it's not empty
                 if (!is_null($value)) {
                     $listing->customFieldValues()->create([
                         'field_id' => $fieldId,
@@ -97,7 +97,6 @@ class ListingController extends Controller
                 }
             }
         }
-        // Redirect with a message that depends on the status
         $message = ($status === 'moderation')
             ? 'Ваше объявление успешно добавлено и отправлено на модерацию!'
             : 'Ваше объявление успешно добавлено!';
@@ -113,15 +112,21 @@ class ListingController extends Controller
     {
         $this->authorize('update', $listing);
 
-        $categories = Category::whereNotNull('parent_id')->orderBy('name')->get();
-        $regions = Region::where('type', 'city')->orderBy('name')->get();
+        // ✅ ИСПРАВЛЕНО:
+        // Загружаем только родительские категории (как в create())
+        $categories = Category::whereNull('parent_id')
+            ->orderBy('name->' . app()->getLocale())
+            ->get();
 
-        // ✅ ИСПРАВЛЕНО: Сортировка по 'name_en'
+        $regions = Region::where('type', 'city')->orderBy('name')->get();
         $brands = CarBrand::orderBy('name_en')->get();
 
-        // Загружаем связи и преобразуем кастомные поля в удобный формат
         $listing->load('customFieldValues');
         $savedCustomFields = $listing->customFieldValues->pluck('value', 'field_id');
+
+        // ❗️ TODO: Для edit.blade.php потребуется сложный JavaScript,
+        // чтобы загрузить и ВЫБРАТЬ правильную цепочку категорий (Транспорт -> Автомобили)
+        // и полей (Марка -> Модель -> Поколение)
 
         return view('listings.edit', compact('listing', 'categories', 'regions', 'savedCustomFields', 'brands'));
     }
@@ -131,24 +136,18 @@ class ListingController extends Controller
      */
     public function update(UpdateListingRequest $request, Listing $listing)
     {
+        // ... (Ваш метод update() выглядит правильно) ...
         $this->authorize('update', $listing);
-
-        // 1. Обновляем основные данные объявления
         $listing->update($request->validated());
 
-        // 2. Удаляем отмеченные изображения
         if ($request->has('delete_images')) {
             Media::whereIn('id', $request->delete_images)->delete();
         }
-
-        // 3. Добавляем новые изображения
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $listing->addMedia($image)->toMediaCollection('images');
             }
         }
-
-        // 4. Обновляем кастомные поля (удаляем старые, вставляем новые)
         $listing->customFieldValues()->delete();
         if ($request->has('custom_fields')) {
             foreach ($request->custom_fields as $fieldId => $value) {
@@ -160,39 +159,29 @@ class ListingController extends Controller
                 }
             }
         }
-
         return redirect()->route('dashboard.my-listings')
             ->with('success', 'Объявление успешно обновлено!');
     }
 
     public function show(Listing $listing)
     {
+        // ... (Ваш метод show() выглядит правильно) ...
         $listing->increment('views_count');
-
-        // Загружаем все нужные связи ОДНИМ запросом
         $listing->load([
-            'media',
-            'user',
-            'region',
-            'category',
-            'customFieldValues.field',
-            'reviews.reviewer' // Загружаем отзывы и сразу авторов этих отзывов
+            'media', 'user', 'region', 'category',
+            'customFieldValues.field', 'reviews.reviewer'
         ]);
-
         return view('listings.show', compact('listing'));
     }
-
-
 
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(Listing $listing)
     {
+        // ... (Ваш метод destroy() выглядит правильно) ...
         $this->authorize('delete', $listing);
-
         $listing->delete();
-
         return redirect()->route('dashboard.my-listings')
             ->with('success', 'Объявление успешно удалено!');
     }
