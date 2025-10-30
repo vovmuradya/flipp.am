@@ -118,7 +118,7 @@ class ListingController extends Controller
                 'category_id' => $request->category_id,
                 'region_id' => $request->region_id,
                 'listing_type' => $request->listing_type ?? 'parts', // ТЗ v2.1
-                'status' => 'active' // Изменено с pending на active для тестирования
+                'status' => 'pending' // Изменено с pending на active для тестирования
             ]);
 
             // ТЗ v2.1: Если это объявление об автомобиле - создаём vehicle_details
