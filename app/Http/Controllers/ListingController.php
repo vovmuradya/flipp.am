@@ -149,35 +149,47 @@ class ListingController extends Controller
                     ]);
                 }
             }
-
-            // ТЗ v2.1: Обработка фотографий с аукциона (по URL)
+// ТЗ v2.1: Обработка фотографий с аукциона (по URL)
             if ($request->has('auction_photos')) {
                 foreach ($request->auction_photos as $photoUrl) {
                     if (!empty($photoUrl)) {
-                        // Преобразуем относительные ссылки на прокси в абсолютные для addMediaFromUrl
-                        if (str_starts_with($photoUrl, '/image-proxy')) {
-                            $absolute = rtrim(config('app.url'), '/').$photoUrl;
-                            Log::info('Using absolute proxy URL for media import', ['absolute' => $absolute]);
-                            $photoUrl = $absolute;
-                        }
-                        if (filter_var($photoUrl, FILTER_VALIDATE_URL)) {
-                            try {
-                                $listing->addMediaFromUrl($photoUrl)
-                                    ->toMediaCollection('images');
 
-                                Log::info('✅ Successfully added auction photo from URL', ['url' => $photoUrl]);
-                            } catch (\Exception $e) {
-                                // Логируем ошибку, но не прерываем процесс создания объявления
-                                Log::error('❌ Failed to add auction photo from URL', [
-                                    'url' => $photoUrl,
-                                    'error' => $e->getMessage()
-                                ]);
+                        try {
+                            $realUrl = $photoUrl; // По умолчанию считаем, что URL уже настоящий
+
+                            // Если это наш прокси-URL, "разбираем" его
+                            if (str_starts_with($photoUrl, '/image-proxy')) {
+                                // Разбираем строку запроса (т.е. то, что после "?")
+                                parse_str(parse_url($photoUrl, PHP_URL_QUERY), $query);
+
+                                // Если мы успешно нашли 'url' в ?url=...
+                                if (!empty($query['url'])) {
+                                    $realUrl = $query['url'];
+                                } else {
+                                    // Если URL-прокси не удалось разобрать, логируем и пропускаем
+                                    Log::warning('Could not parse proxied image URL: ' . $photoUrl, ['listing_id' => $listing->id]);
+                                    continue; // Переходим к следующему фото
+                                }
                             }
+
+                            // Скачиваем фото по НАСТОЯЩЕМУ URL
+                            $listing->addMediaFromUrl($realUrl)
+                                ->toMediaCollection('images'); // Убедись, что 'images' - правильная коллекция
+
+                            Log::info('✅ Successfully added auction photo from URL', ['url' => $realUrl]);
+
+                        } catch (\Exception $e) {
+                            // Логируем любую ошибку при скачивании
+                            Log::error('❌ Failed to add auction photo from URL', [
+                                'original_url' => $photoUrl,
+                                'real_url' => $realUrl ?? $photoUrl, // URL, который пытались скачать
+                                'error' => $e->getMessage()
+                            ]);
+                            // Продолжаем, даже если одно фото не скачалось
                         }
                     }
                 }
             }
-
             // Обработка изображений, загруженных вручную
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
