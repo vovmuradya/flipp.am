@@ -14,8 +14,8 @@ class DemoDataSeeder extends Seeder
     {
         // Создаем 10 обычных пользователей
         User::factory(10)->create(['role' => 'individual']);
-        // Создаем 3 агентства
-        User::factory(3)->create(['role' => 'agency']);
+        // Создаем 3 дилера (ТЗ v2.1: роль 'dealer' вместо 'agency')
+        User::factory(3)->create(['role' => 'dealer']);
 
         $categories = Category::whereNotNull('parent_id')->get();
         $regions = Region::where('type', 'city')->get();

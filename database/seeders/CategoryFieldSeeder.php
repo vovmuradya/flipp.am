@@ -10,11 +10,23 @@ class CategoryFieldSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Безопасно очищаем таблицы, чтобы избежать ошибок с ключами
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        // Универсальная поддержка MySQL и SQLite
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = OFF;');
+        }
+
         DB::table('category_category_field')->truncate();
         CategoryField::query()->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+        if ($driver === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = ON;');
+        }
 
         // 2. Ваша большая структура данных со всеми полями для всех категорий
         $fieldsBySlug = [

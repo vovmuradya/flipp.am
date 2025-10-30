@@ -7,11 +7,24 @@ use Illuminate\Support\Str;
 
 class CarBrandSeeder extends Seeder {
     public function run(): void {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        // Универсальная поддержка MySQL и SQLite
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = OFF;');
+        }
+
         DB::table('car_generations')->truncate();
         DB::table('car_models')->truncate();
         DB::table('car_brands')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+        if ($driver === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = ON;');
+        }
 
         $brandsFile = database_path('seeders/data/brands.csv');
         if (!file_exists($brandsFile)) { $this->command->error('Файл brands.csv не найден!'); return; }

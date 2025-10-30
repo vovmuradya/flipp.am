@@ -1,14 +1,14 @@
+// Original backup of routes/api.php
+// Created automatically by assistant
+
 <?php
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\CarBrandController;
 use App\Http\Controllers\Api\CarModelController;
 use App\Http\Controllers\Api\CategoryFieldController;
 use App\Http\Controllers\Api\GenerationController;
-use App\Http\Controllers\Api\AuctionListingController; // ТЗ v2.1
-use App\Http\Controllers\Api\AuctionParserController; // ТЗ v2.1 - Парсер аукционов
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -20,12 +20,9 @@ Route::get('/categories/{category}/children', [CategoryController::class, 'getCh
 Route::get('/categories/{category}/fields', [CategoryFieldController::class, 'index']);
 
 // ==================== BRANDS & MODELS ====================
-Route::get('/brands', [CarBrandController::class, 'index']);
-Route::get('/brands/{brand}/models', [CarBrandController::class, 'getModels']);
-Route::get('/models/{modelId}/generations', [GenerationController::class, 'getGenerationsByModel']);
+Route::get('/brands/{brand}/models', [CarModelController::class, 'getByBrand']);
 
-// ==================== AUCTION PARSER (ТЗ v2.1) ====================
-Route::post('/v1/dealer/listings/fetch-from-url', [AuctionParserController::class, 'fetchFromUrl'])
-    ->middleware('auth:sanctum')
-    ->name('api.auction.fetch');
+// ==================== GENERATIONS ====================
+// NOTE: keep only one route for generations
+Route::get('/models/{modelId}/generations', [GenerationController::class, 'getGenerationsByModel']);
 

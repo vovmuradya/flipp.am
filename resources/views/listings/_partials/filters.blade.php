@@ -17,7 +17,7 @@
                 <select name="category_id" class="w-full rounded-md border-gray-300" x-model="selectedCategory" @change="fetchFields">
                     <option value="">Все категории</option>
                     @foreach($categories as $category)
-                        <option value="{{ $category->id }}">{{ $category->name }}</option>
+                        <option value="{{ $category->id }}">{{ $category->localized_name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -27,7 +27,7 @@
                 <select name="region_id" class="w-full rounded-md border-gray-300">
                     <option value="">Все регионы</option>
                     @foreach($regions as $region)
-                        <option value="{{ $region->id }}" @selected(request('region_id') == $region->id)>{{ $region->name }}</option>
+                        <option value="{{ $region->id }}" @selected(request('region_id') == $region->id)>{{ $region->localized_name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -49,34 +49,7 @@
 
             {{-- Контейнер для кастомных полей --}}
             <div x-show="customFields.length > 0" class="grid grid-cols-1 md:grid-cols-5 gap-4 pt-4 border-t">
-                <template x-for="field in customFields" :key="field.id">
-                    {{-- Для числовых полей создаём два инпута "от" и "до" --}}
-                    <template x-if="field.type === 'number'">
-                        <div class="md:col-span-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="field.name + ' от'"></label>
-                            <input type="number" :name="'filters[' + field.key + '][from]'" class="w-full rounded-md border-gray-300">
-                        </div>
-                    </template>
-                    <template x-if="field.type === 'number'">
-                        <div class="md:col-span-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="field.name + ' до'"></label>
-                            <input type="number" :name="'filters[' + field.key + '][to]'" class="w-full rounded-md border-gray-300">
-                        </div>
-                    </template>
-
-                    {{-- Для полей типа select создаём выпадающий список --}}
-                    <template x-if="field.type === 'select'">
-                        <div class="md:col-span-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="field.name"></label>
-                            <select :name="'filters[' + field.key + ']'" class="w-full rounded-md border-gray-300">
-                                <option value="">Любой</option>
-                                <template x-for="option in field.options">
-                                    <option :value="option" x-text="option"></option>
-                                </template>
-                            </select>
-                        </div>
-                    </template>
-                </template>
+                <!-- Динамические поля будут добавлены через Alpine.js -->
             </div>
         </div>
     </form>

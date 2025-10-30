@@ -8,6 +8,9 @@ use App\Http\Controllers\MessageController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\Api\AuctionListingController; // ТЗ v2.1
+use App\Http\Controllers\ImageProxyController; // Прокси изображений
+use App\Http\Controllers\ProxyController; // Новый прокси-контроллер
 
 /*
 |--------------------------------------------------------------------------
@@ -20,9 +23,21 @@ Route::get('/', [ListingController::class, 'index'])->name('home');
 Route::get('/search', [SearchController::class, 'index'])->name('search.index');
 Route::resource('listings', ListingController::class)->only(['index']);
 
+// Прокси изображений (публично, т.к. фото в публичных объявлениях)
+Route::get('/image-proxy', [ImageProxyController::class, 'show'])->name('image.proxy');
+Route::get('/proxy/image', [ProxyController::class, 'image'])->name('proxy.image'); // Новый маршрут для прокси-контроллера изображений
+
 // Защищённые
 Route::middleware('auth')->group(function () {
     Route::get('/listings/create', [ListingController::class, 'create'])->name('listings.create');
+
+    // ТЗ v2.1: Добавить авто с аукциона (только для dealer)
+    Route::get('/listings/create-from-auction', [ListingController::class, 'createFromAuction'])->name('listings.create-from-auction');
+
+    // ✅ НОВЫЙ МАРШРУТ: Сохранение данных аукциона в session
+    Route::post('/listings/save-auction-data', [ListingController::class, 'saveAuctionData'])
+        ->name('listings.save-auction-data');
+
     Route::post('/listings', [ListingController::class, 'store'])->name('listings.store');
     Route::resource('listings', ListingController::class)->except(['index','show','create','store']);
 
@@ -44,10 +59,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/listings/{listing}/messages', [MessageController::class, 'store'])->name('listings.messages.store');
     Route::post('/listings/{listing}/favorite', [FavoriteController::class, 'toggle'])->name('listings.favorite.toggle');
     Route::post('/listings/{listing}/reviews', [ReviewController::class, 'store'])->name('listings.reviews.store');
+    Route::post('/listings/draft', [ListingController::class, 'storeDraft'])->name('listings.draft');
+
+    // ТЗ v2.1: API для парсинга аукционов (работает с веб-сессией)
+    Route::post('/api/v1/dealer/listings/fetch-from-url', [AuctionListingController::class, 'fetchFromUrl'])->name('api.auction.fetch');
 });
 
 // Публичные resource-маршруты
 Route::get('/listings/{listing}', [ListingController::class, 'show'])->name('listings.show');
 
 require __DIR__.'/auth.php';
-

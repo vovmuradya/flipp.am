@@ -18,7 +18,7 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('phone', 20)->nullable();
-            $table->enum('role', ['individual', 'agency', 'admin'])->default('individual');
+            $table->enum('role', ['individual', 'dealer', 'admin'])->default('individual');
             $table->string('avatar')->nullable();
             $table->text('two_factor_secret')->nullable();
             $table->text('two_factor_recovery_codes')->nullable();

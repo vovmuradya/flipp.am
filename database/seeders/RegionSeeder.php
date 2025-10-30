@@ -9,10 +9,22 @@ class RegionSeeder extends Seeder
 {
     public function run(): void
     {
-        // Для SQLite
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        // Универсальная поддержка MySQL и SQLite
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = OFF;');
+        }
+
         DB::table('regions')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+        if ($driver === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = ON;');
+        }
 
         // Создаём страну
         $country = Region::create([

@@ -21,12 +21,13 @@ class CategoryField extends Model
         'sort_order',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'options' => 'array', // Laravel будет работать с этим полем как с массивом
-        ];
-    }
+    /**
+     * Исправлено: используем свойство $casts вместо метода
+     */
+    protected $casts = [
+        'options' => 'array', // Laravel будет работать с этим полем как с массивом
+        'is_required' => 'boolean',
+    ];
 
     public function category()
     {

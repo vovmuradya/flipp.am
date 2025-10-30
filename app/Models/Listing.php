@@ -16,6 +16,7 @@ class Listing extends Model implements HasMedia
     protected $fillable = [
         'user_id',
         'category_id',
+        'listing_type',  // Новое поле для ТЗ v2.1
         'region_id',
         'title',
         'slug',
@@ -42,8 +43,8 @@ class Listing extends Model implements HasMedia
      */
     public function toSearchableArray(): array
     {
-        // Загружаем связи, чтобы избежать лишних запросов к БД
-        $this->load('customFieldValues.field');
+        // Загружаем связи, чтобы избежать N+1
+        $this->loadMissing(['customFieldValues.field', 'vehicleDetail']);
 
         $searchableData = [
             'id'                => $this->id,
@@ -54,19 +55,31 @@ class Listing extends Model implements HasMedia
             'category_id'       => $this->category_id,
             'region_id'         => $this->region_id,
             'user_id'           => $this->user_id,
-            'created_timestamp' => $this->created_at->timestamp,
+            'listing_type'      => $this->listing_type,
+            'created_timestamp' => optional($this->created_at)->timestamp,
         ];
 
-        // Добавляем кастомные поля в индекс поиска
+        // Поля автомобиля (ТЗ v2.1)
+        if ($this->vehicleDetail) {
+            $searchableData = array_merge($searchableData, [
+                'make'                   => $this->vehicleDetail->make,
+                'model'                  => $this->vehicleDetail->model,
+                'year'                   => (int) $this->vehicleDetail->year,
+                'mileage'                => (int) $this->vehicleDetail->mileage,
+                'body_type'              => $this->vehicleDetail->body_type,
+                'transmission'           => $this->vehicleDetail->transmission,
+                'fuel_type'              => $this->vehicleDetail->fuel_type,
+                'engine_displacement_cc' => $this->vehicleDetail->engine_displacement_cc,
+                'exterior_color'         => $this->vehicleDetail->exterior_color,
+                'is_from_auction'        => (bool) $this->vehicleDetail->is_from_auction,
+            ]);
+        }
+
+        // Кастомные поля (оставляем для обратной совместимости)
         foreach ($this->customFieldValues as $value) {
-            // Проверяем, что связь с полем существует, чтобы избежать ошибок
             if ($value->field) {
-                // ИСПРАВЛЕНИЕ: Используем системный 'key' вместо 'name'
                 $key = $value->field->key;
-
-                // Преобразуем числовые значения в числа для правильной фильтрации
-                $fieldValue = $value->field->type === 'number' ? (int)$value->value : $value->value;
-
+                $fieldValue = $value->field->type === 'number' ? (int) $value->value : $value->value;
                 $searchableData[$key] = $fieldValue;
             }
         }
@@ -133,6 +146,13 @@ class Listing extends Model implements HasMedia
         return $this->belongsTo(Region::class);
     }
 
+    // ==================== ТЗ v2.1: Связь с деталями автомобиля ====================
+
+    public function vehicleDetail()
+    {
+        return $this->hasOne(VehicleDetail::class);
+    }
+
     public function messages()
     {
         return $this->hasMany(Message::class);
@@ -153,7 +173,7 @@ class Listing extends Model implements HasMedia
         return $this->hasMany(ListingFieldValue::class);
     }
 
-    // ========== SCOPES ==========
+    // ==================== Scopes ====================
 
     public function scopeActive($query)
     {
@@ -188,5 +208,29 @@ class Listing extends Model implements HasMedia
     public function scopeRecent($query, $days = 7)
     {
         return $query->where('created_at', '>=', now()->subDays($days));
+    }
+
+    // ==================== ТЗ v2.1: Scope-методы для типов объявлений ====================
+
+    public function scopeVehicles($query)
+    {
+        return $query->where('listing_type', 'vehicle');
+    }
+
+    public function scopeParts($query)
+    {
+        return $query->where('listing_type', 'parts');
+    }
+
+    public function scopeFromAuction($query)
+    {
+        return $query->whereHas('vehicleDetail', function ($q) {
+            $q->where('is_from_auction', true);
+        });
+    }
+
+    public function scopeWithVehicleDetails($query)
+    {
+        return $query->with('vehicleDetail');
     }
 }

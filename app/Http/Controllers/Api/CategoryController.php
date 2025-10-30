@@ -68,10 +68,16 @@ class CategoryController extends Controller
     {
         $categories = Category::query()
             ->whereNull('parent_id')
-            ->select('id', 'name')
             ->withCount('children')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($c) {
+                return [
+                    'id' => $c->id,
+                    'name' => $c->current_name ?? (is_array($c->name) ? (array_values($c->name)[0] ?? '') : $c->name),
+                    'children_count' => $c->children_count ?? 0,
+                ];
+            });
 
         return response()->json($categories);
     }
@@ -79,10 +85,16 @@ class CategoryController extends Controller
     public function getChildren(Category $category): JsonResponse
     {
         $children = $category->children()
-            ->select('id', 'name')
             ->withCount('children')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($c) {
+                return [
+                    'id' => $c->id,
+                    'name' => $c->current_name ?? (is_array($c->name) ? (array_values($c->name)[0] ?? '') : $c->name),
+                    'children_count' => $c->children_count ?? 0,
+                ];
+            });
 
         return response()->json($children);
     }

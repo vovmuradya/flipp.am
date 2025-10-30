@@ -11,10 +11,22 @@ class CarGenerationSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Очистка (оставляем)
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        // Универсальная поддержка MySQL и SQLite
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = OFF;');
+        }
+
         DB::table('car_generations')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+        if ($driver === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = ON;');
+        }
 
         $generationsFile = database_path('seeders/data/generations.csv');
 

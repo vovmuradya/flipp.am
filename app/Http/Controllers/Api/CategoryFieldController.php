@@ -27,36 +27,39 @@ class CategoryFieldController extends Controller
         }
 
         $currentLocale = App::getLocale();
-        $langField = ($currentLocale === 'ru') ? 'name_ru' : 'name_en';
 
-        // Используем map для преобразования коллекции
-        $fields = $fields->map(function ($field) use ($langField) {
+        // Преобразуем в унифицированный массив
+        $result = $fields->map(function ($field) use ($currentLocale) {
             $is_car_brand_field = (strtolower($field->key) === 'brand');
 
+            $options = $field->options ?? [];
             if ($is_car_brand_field) {
-                Log::info('API Fields: CONDITION MET: Starting to load brands.');
-
+                // Загружаем марки и преобразуем в {value,label}
                 $brands = CarBrand::query()
                     ->orderBy('name_en')
                     ->get()
-                    ->map(function ($brand) use ($langField) {
-                        return [
-                            'value' => $brand->id,
-                            'label' => $brand->{$langField} ?: $brand->name_en,
-                        ];
-                    })
-                    ->values()
-                    ->toArray();
+                    ->map(function ($brand) use ($currentLocale) {
+                        $label = $brand->name_en ?? $brand->name;
+                        // Если в будущем понадобятся локализованные названия, добавьте соответствующие поля в модель
+                        return ['value' => $brand->id, 'label' => $label];
+                    })->values()->toArray();
 
-                Log::info('API Fields: Brands loaded count: ' . count($brands));
-
-                // Присваиваем options к объекту поля
-                $field->options = $brands;
+                $options = $brands;
             }
 
-            return $field;
+            // Приводим name к строке (если надо локализовать, в будущем можно сделать JSON)
+            $name = is_array($field->name) ? ($field->name[$currentLocale] ?? array_values($field->name)[0]) : $field->name;
+
+            return [
+                'id' => $field->id,
+                'key' => $field->key,
+                'name' => $name,
+                'type' => $field->type,
+                'is_required' => (bool)$field->is_required,
+                'options' => $options,
+            ];
         });
 
-        return response()->json($fields);
+        return response()->json($result);
     }
 }
