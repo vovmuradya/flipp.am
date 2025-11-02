@@ -103,37 +103,25 @@ class AuctionParserController extends Controller
     }
 
     /**
-     * Парсинг Copart (упрощённая версия с моками)
+     * Парсинг Copart (возвращает пустые значения, ожидая реальной реализации)
      */
     private function parseCopart(string $url): array
     {
-        // В реальном проекте здесь был бы HTTP запрос и парсинг HTML
-        // Сейчас возвращаем моковые данные для демонстрации
-
-        // Генерируем случайные данные на основе URL
-        $lotId = $this->extractLotId($url);
-
-        $makes = ['Toyota', 'Honda', 'BMW', 'Mercedes-Benz', 'Audi', 'Jeep', 'Ford'];
-        $models = ['Camry', 'Civic', 'X5', 'E-Class', 'A4', 'Wrangler', 'F-150'];
-        $colors = ['Белый', 'Черный', 'Серебристый', 'Синий', 'Красный', 'Серый'];
-        $transmissions = ['automatic', 'manual', 'semi-automatic'];
-        $fuelTypes = ['gasoline', 'diesel', 'hybrid'];
-
-        $makeIndex = crc32($lotId) % count($makes);
-        $modelIndex = crc32($lotId . 'model') % count($models);
+        // ВНИМАНИЕ: Здесь должна быть ваша реальная логика парсинга с помощью Http::get() и DOM-парсера.
+        // Сейчас возвращаем пустую структуру, чтобы не использовать фиксированные моковые данные.
 
         return [
-            'make' => $makes[$makeIndex],
-            'model' => $models[$modelIndex],
-            'year' => rand(2015, 2023),
-            'mileage' => rand(20000, 150000),
-            'body_type' => 'Sedan',
-            'transmission' => $transmissions[rand(0, 2)],
-            'fuel_type' => $fuelTypes[rand(0, 2)],
-            'engine_displacement_cc' => rand(1500, 3500),
-            'exterior_color' => $colors[rand(0, count($colors) - 1)],
+            'make' => null,
+            'model' => null,
+            'year' => null,
+            'mileage' => null,
+            'body_type' => null,
+            'transmission' => null,
+            'fuel_type' => null,
+            'engine_displacement_cc' => null,
+            'exterior_color' => null,
             'source_auction_url' => $url,
-            'photos' => $this->generateMockPhotos(6)
+            'photos' => $this->generateMockPhotos(0) // Вернет пустой массив
         ];
     }
 
@@ -142,7 +130,7 @@ class AuctionParserController extends Controller
      */
     private function parseIAAI(string $url): array
     {
-        // Аналогично Copart - моковые данные
+        // Аналогично Copart - возвращаем пустую структуру
         return $this->parseCopart($url);
     }
 
@@ -159,20 +147,11 @@ class AuctionParserController extends Controller
     }
 
     /**
-     * Генерируем URL для моковых фото
+     * Генерируем URL для моковых фото (теперь возвращает пустой массив)
      */
     private function generateMockPhotos(int $count): array
     {
-        $photos = [];
-
-        for ($i = 1; $i <= $count; $i++) {
-            // Используем Picsum Photos для демонстрации (работающий API)
-            // В реальном проекте здесь будут реальные URL с аукциона
-            $seed = time() + $i;
-            $photos[] = "https://picsum.photos/seed/{$seed}/800/600";
-        }
-
-        return $photos;
+        // В реальном проекте здесь будут реальные URL с аукциона.
+        return [];
     }
 }
-

@@ -24,10 +24,12 @@ class Category extends Model
         'is_active' => 'boolean',
         'name' => 'array',
     ];
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }
+
     protected $appends = ['localized_name'];
 
     /**
@@ -36,13 +38,37 @@ class Category extends Model
     public function getLocalizedNameAttribute(): string
     {
         $locale = app()->getLocale();
-        $nameData = $this->name ?? [];
+        $nameData = $this->getAttributeFromArray('name') ?? [];
 
-        return $nameData[$locale]
-            ?? $nameData['ru']
-            ?? $nameData['en']
-            ?? $this->slug
-            ?? 'Без названия';
+        // Если name хранится как JSON-массив, берём локализованное значение
+        if (is_array($nameData)) {
+            return $nameData[$locale]
+                ?? ($nameData['ru'] ?? null)
+                ?? ($nameData['en'] ?? null)
+                ?? $this->slug
+                ?? 'Без названия';
+        }
+
+        // Фоллбек: если вдруг пришла строка
+        return is_string($nameData) ? $nameData : ($this->slug ?? 'Без названия');
+    }
+
+    /**
+     * АКСЕССОР: всегда возвращаем строку для $category->name,
+     * чтобы Blade и прочие места не падали на htmlspecialchars(array ...)
+     */
+    public function getNameAttribute($value): string
+    {
+        // $value уже приведён кастом к массиву, но на всякий случай нормализуем
+        $names = is_array($value)
+            ? $value
+            : (is_string($value) ? (json_decode($value, true) ?: []) : []);
+
+        $locale = app()->getLocale();
+        return $names[$locale]
+            ?? ($names['ru'] ?? null)
+            ?? ($names['en'] ?? null)
+            ?? (is_string($value) ? $value : ($this->slug ?? 'Без названия'));
     }
 
     public function getParentKeyName(): string

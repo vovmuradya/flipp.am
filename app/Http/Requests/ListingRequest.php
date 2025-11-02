@@ -14,36 +14,50 @@ class ListingRequest extends FormRequest
 
     public function rules()
     {
+        $maxImages = auth()->user()?->getMaxPhotosPerListing() ?? 6;
+
         $rules = [
-            'title' => ['required', 'string', 'min:10', 'max:255'],
+            'title' => ['required', 'string', 'min:3', 'max:255'],
             'description' => ['required', 'string', 'min:20', 'max:5000'],
             'price' => ['required', 'numeric', 'min:0', 'max:999999999'],
             'category_id' => ['required', 'exists:categories,id'],
-            'region_id' => ['required', 'exists:regions,id'],
-            'images' => ['nullable', 'array', 'max:' . (auth()->user()?->getMaxPhotosPerListing() ?? 6)],
+            'region_id' => ['nullable', 'exists:regions,id'],
+            'images' => ['nullable', 'array', 'max:'.$maxImages],
             'images.*' => ['image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
-            'custom_fields' => ['array'],
-            'custom_fields.*' => ['sometimes', 'required'],
+            'custom_fields' => ['sometimes', 'array'],
+            'custom_fields.*' => ['sometimes'],
 
             // ТЗ v2.1: listing_type
             'listing_type' => ['sometimes', 'in:vehicle,parts'],
         ];
 
-        // ТЗ v2.1: Если это объявление об автомобиле - добавляем валидацию vehicle_details
+        if ($this->boolean('from_auction') || $this->input('vehicle.is_from_auction') == 1) {
+            $rules['region_id'] = ['nullable', 'exists:regions,id'];
+        }
+
+        $listing = $this->route('listing');
+        if (in_array($this->method(), ['PUT','PATCH']) && $listing && method_exists($listing, 'isFromAuction') && $listing->isFromAuction()) {
+            $rules['title'] = ['sometimes', 'string', 'min:3', 'max:255'];
+            $rules['category_id'] = ['sometimes', 'exists:categories,id'];
+        }
+
         if ($this->input('listing_type') === 'vehicle') {
-            $rules = array_merge($rules, [
-                'make' => ['required', 'string', 'max:100'],
-                'model' => ['required', 'string', 'max:100'],
-                'year' => ['required', 'integer', 'min:1900', 'max:' . (date('Y') + 1)],
-                'mileage' => ['required', 'integer', 'min:0'],
-                'body_type' => ['nullable', 'string', 'max:50'],
-                'transmission' => ['nullable', 'in:automatic,manual,cvt,semi-automatic'],
-                'fuel_type' => ['nullable', 'in:gasoline,diesel,hybrid,electric,lpg'],
-                'engine_displacement_cc' => ['nullable', 'integer', 'min:0'],
-                'exterior_color' => ['nullable', 'string', 'max:50'],
-                'is_from_auction' => ['nullable', 'boolean'],
-                'source_auction_url' => ['nullable', 'url', 'max:512'],
-            ]);
+            $vehicleRules = [
+                'vehicle.make' => ['required_unless:vehicle.is_from_auction,1', 'nullable', 'string', 'max:100'],
+                'vehicle.model' => ['required_unless:vehicle.is_from_auction,1', 'nullable', 'string', 'max:100'],
+                'vehicle.year' => ['required_unless:vehicle.is_from_auction,1', 'nullable', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
+                'vehicle.mileage' => ['nullable', 'integer', 'min:0'],
+                'vehicle.body_type' => ['nullable', 'string', 'max:50'],
+                'vehicle.transmission' => ['nullable', 'in:automatic,manual,cvt,semi-automatic'],
+                'vehicle.fuel_type' => ['nullable', 'in:gasoline,diesel,hybrid,electric,lpg'],
+                'vehicle.engine_displacement_cc' => ['nullable', 'integer', 'min:0'],
+                'vehicle.exterior_color' => ['nullable', 'string', 'max:50'],
+                'vehicle.is_from_auction' => ['nullable', 'boolean'],
+                'vehicle.source_auction_url' => ['nullable', 'url', 'max:512'],
+            ];
+            foreach ($vehicleRules as $k => $v) {
+                $rules[$k] = $v;
+            }
         }
 
         return $rules;
@@ -53,17 +67,17 @@ class ListingRequest extends FormRequest
     {
         return [
             'title.required' => 'Заголовок обязателен',
-            'title.min' => 'Заголовок должен быть не менее 10 символов',
+            'title.min' => 'Заголовок должен быть не менее 3 символов',
             'description.required' => 'Описание обязательно',
-            'description.min' => 'Описание должно быть не менее 50 символов',
+            'description.min' => 'Описание должно быть не менее 20 символов',
             'price.required' => 'Цена обязательна',
             'price.numeric' => 'Цена должна быть числом',
             'price.min' => 'Цена не может быть отрицательной',
             'category_id.required' => 'Выберите категорию',
-            'region_id.required' => 'Выберите регион',
-            'images.required' => 'Добавьте хотя бы одно изображение',
-            'images.*.image' => 'Файл должен быть изображением',
-            'images.*.max' => 'Размер изображения не должен превышать 5MB',
+
+            'vehicle.make.required_unless' => 'Марка обязательна (кроме объявлений с аукциона).',
+            'vehicle.model.required_unless' => 'Модель обязательна (кроме объявлений с аукциона).',
+            'vehicle.year.required_unless' => 'Год обязателен (кроме объявлений с аукциона).',
         ];
     }
 }

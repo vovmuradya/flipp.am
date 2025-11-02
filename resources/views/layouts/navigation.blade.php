@@ -18,6 +18,14 @@
                         <x-nav-link :href="route('dashboard.my-listings')" :active="request()->routeIs('dashboard.my-listings')">
                             {{ __('Мои объявления') }}
                         </x-nav-link>
+
+                        {{-- ✅ НОВАЯ ССЫЛКА: Мои аукционы --}}
+                        @if(auth()->user()->isDealer() || auth()->user()->isAdmin())
+                            <x-nav-link :href="route('dashboard.my-auctions')" :active="request()->routeIs('dashboard.my-auctions')">
+                                {{ __('Мои аукционы') }}
+                            </x-nav-link>
+                        @endif
+
                         <x-nav-link :href="route('dashboard.messages')" :active="request()->routeIs('dashboard.messages')">
                             {{ __('Сообщения') }}
                         </x-nav-link>

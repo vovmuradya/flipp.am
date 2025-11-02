@@ -19,9 +19,9 @@ class DashboardController extends Controller
         // 1. Получаем пользователя, который сейчас вошёл в систему
         $user = Auth::user();
 
-        // 2. Загружаем все его объявления (включая неактивные)
-        //    и сортируем их по дате (новые вверху)
+        // 2. Загружаем все его ОБЫЧНЫЕ объявления
         $listings = $user->listings()
+            ->regular() // Используем scope
             ->with('category', 'region')
             ->latest()
             ->paginate(10);
@@ -29,6 +29,29 @@ class DashboardController extends Controller
         // 3. Возвращаем вид и передаём в него объявления
         return view('dashboard.my-listings', compact('listings'));
     }
+
+    /**
+     * Показать аукционные объявления текущего пользователя.
+     */
+    public function myAuctions()
+    {
+        // Берём объявления текущего пользователя, у которых есть vehicleDetail с source_auction_url или флаг is_from_auction
+        $listings = Listing::query()
+            ->where('user_id', Auth::id())
+            ->whereHas('vehicleDetail', function ($q) {
+                $q->whereNotNull('source_auction_url')
+                  ->orWhere('is_from_auction', 1);
+            })
+            ->with(['vehicleDetail', 'media', 'category'])
+            ->latest()
+            ->paginate(10);
+
+        return view('dashboard.my-auctions', compact('listings'));
+    }
+
+    /**
+     * Показать избранные объявления пользователя
+     */
     public function favorites()
     {
         $listings = auth()->user()

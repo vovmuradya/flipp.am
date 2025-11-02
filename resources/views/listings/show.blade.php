@@ -34,23 +34,51 @@
                     </div>
 
                     {{-- ГАЛЕРЕЯ, ИНФОРМАЦИЯ, ЦЕНА, ОПИСАНИЕ --}}
-                    <div class="mt-6" x-data="{ mainImage: '{{ $listing->getFirstMediaUrl('images', 'medium') ?: '' }}' }">
-                        @if($listing->hasMedia('images'))
-                            {{-- Главное изображение --}}
-                            <div class="mb-4">
-                                <img :src="mainImage" alt="{{ $listing->title }}" class="rounded-lg shadow-lg w-full object-cover">
-                            </div>
-                            {{-- Миниатюры --}}
-                            <div class="grid grid-cols-5 gap-2">
-                                @foreach($listing->getMedia('images') as $media)
-                                    <div @click="mainImage = '{{ $media->getUrl('medium') }}'" class="cursor-pointer border-2 rounded-lg" :class="{ 'border-blue-500': mainImage === '{{ $media->getUrl('medium') }}' }">
-                                        <img src="{{ $media->getUrl('thumb') }}" alt="thumbnail" class="w-full h-24 object-cover rounded-md">
+                    <div class="mt-6" x-data="{
+                        @php
+                            // Получаем все изображения (локальные + аукционные)
+                            $allImages = [];
+
+                            // 1. Локальные медиа
+                            if ($listing->hasMedia('images')) {
+                                foreach ($listing->getMedia('images') as $media) {
+                                    $allImages[] = $media->getUrl(); // Полный размер
+                                }
+                            }
+
+                            // 2. Если это аукцион - добавляем главное фото
+                            if ($listing->vehicleDetail && $listing->vehicleDetail->main_image_url && !$listing->hasMedia('images')) {
+                                $externalUrl = $listing->vehicleDetail->main_image_url;
+                                try {
+                                    $allImages[] = route('proxy.image', ['u' => $externalUrl]);
+                                } catch (\Exception $e) {
+                                    $allImages[] = $externalUrl;
+                                }
+                            }
+
+                            // Первое изображение или заглушка
+                            $initialImage = $allImages[0] ?? 'https://placehold.co/800x600/e5e7eb/6b7280?text=No+Image+Available';
+                        @endphp
+                        mainImage: '{{ $initialImage }}',
+                        images: @json($allImages)
+                    }">
+                        {{-- Главное изображение --}}
+                        <div class="mb-4">
+                            <img :src="mainImage" alt="{{ $listing->title }}" class="rounded-lg shadow-xl w-full max-h-[600px] object-contain bg-gray-100 border-2 border-gray-200">
+                        </div>
+
+                        {{-- Миниатюры (если есть больше 1 изображения) --}}
+                        <template x-if="images.length > 1">
+                            <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                                <template x-for="(img, idx) in images" :key="idx">
+                                    <div @click="mainImage = img"
+                                         class="cursor-pointer border-2 rounded-lg hover:border-blue-500 hover:shadow-lg transition-all transform hover:scale-105 overflow-hidden"
+                                         :class="{ 'border-blue-500 shadow-lg ring-2 ring-blue-300': mainImage === img }">
+                                        <img :src="img" alt="thumbnail" class="w-full h-20 object-cover">
                                     </div>
-                                @endforeach
+                                </template>
                             </div>
-                        @else
-                            {{-- Заглушка --}}
-                        @endif
+                        </template>
                     </div>
                     <div class="mt-4 text-gray-600">
                         <span>Опубликовано: {{ $listing->created_at->format('d.m.Y') }}</span> |

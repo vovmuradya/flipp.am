@@ -35,7 +35,34 @@
                                         {{ $listing->title }}
                                     </a>
                                     <div class="text-sm text-gray-500 mt-1">
-                                        <span>Категория: {{ $listing->category->name }}</span>
+                                        @php
+                                            $cat = $listing->category ?? null;
+                                            if ($cat) {
+                                                if (isset($cat->localized_name)) {
+                                                    $catName = $cat->localized_name;
+                                                } else {
+                                                    $raw = $cat->name ?? '';
+                                                    if (is_string($raw)) {
+                                                        $dec = json_decode($raw, true);
+                                                        if (is_array($dec)) {
+                                                            $catName = $dec[app()->getLocale()] ?? $dec['ru'] ?? $dec['en'] ?? (array_values($dec)[0] ?? '');
+                                                        } else {
+                                                            $catName = $raw;
+                                                        }
+                                                    } elseif (is_array($raw)) {
+                                                        $catName = $raw[app()->getLocale()] ?? $raw['ru'] ?? $raw['en'] ?? (array_values($raw)[0] ?? '');
+                                                    } elseif (is_object($raw)) {
+                                                        $arr = (array) $raw;
+                                                        $catName = $arr[app()->getLocale()] ?? $arr['ru'] ?? $arr['en'] ?? (array_values($arr)[0] ?? '');
+                                                    } else {
+                                                        $catName = (string)$raw;
+                                                    }
+                                                }
+                                            } else {
+                                                $catName = '—';
+                                            }
+                                        @endphp
+                                        <span>Категория: {{ $catName }}</span>
                                         <span class="mx-2">|</span>
                                         <span>Статус: <span class="font-bold">{{ $listing->status }}</span></span>
                                         <span class="mx-2">|</span>

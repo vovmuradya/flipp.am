@@ -28,6 +28,7 @@ class Listing extends Model implements HasMedia
         'promoted_until',
         'last_bumped_at',
         'language',
+        'is_from_auction',  // Новое поле для разделения обычных и аукционных объявлений
     ];
 
     protected function casts(): array
@@ -36,6 +37,47 @@ class Listing extends Model implements HasMedia
             'promoted_until' => 'datetime',
             'last_bumped_at' => 'datetime',
         ];
+    }
+    public function similar()
+    {
+        return Listing::query()
+            ->with(['category', 'region', 'user']) // Загружаем основные связи
+            ->active()
+            ->where('id', '!=', $this->id) // Исключаем текущее объявление
+            ->where('category_id', $this->category_id)
+            ->where('region_id', $this->region_id)
+            ->latest();
+    }
+
+    /**
+     * Scope для объявлений, созданных с аукциона.
+     */
+    public function scopeFromAuction($query)
+    {
+        return $query->whereHas('vehicleDetail', function ($q) {
+            $q->where('is_from_auction', true);
+        });
+    }
+
+    /**
+     * Scope для обычных объявлений (не с аукциона).
+     */
+    public function scopeRegular($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereDoesntHave('vehicleDetail')
+              ->orWhereHas('vehicleDetail', function ($sub) {
+                  $sub->where('is_from_auction', false);
+              });
+        });
+    }
+
+    /**
+     * Проверяет, является ли объявление аукционным.
+     */
+    public function isFromAuction(): bool
+    {
+        return (bool) ($this->is_from_auction || optional($this->vehicleDetail)->is_from_auction);
     }
 
     /**
@@ -220,17 +262,5 @@ class Listing extends Model implements HasMedia
     public function scopeParts($query)
     {
         return $query->where('listing_type', 'parts');
-    }
-
-    public function scopeFromAuction($query)
-    {
-        return $query->whereHas('vehicleDetail', function ($q) {
-            $q->where('is_from_auction', true);
-        });
-    }
-
-    public function scopeWithVehicleDetails($query)
-    {
-        return $query->with('vehicleDetail');
     }
 }

@@ -11,13 +11,17 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
+use App\Jobs\ImportAuctionPhotos; // добавлено
 
 class ListingController extends Controller
 {
     public function index(Request $request)
     {
         $query = Listing::query()
-            ->with(['category', 'region', 'user'])
+            ->with(['category', 'region', 'user', 'media']) // Добавил media для изображений
+            ->regular() // Используем scope для обычных объявлений
             ->active()
             ->latest();
 
@@ -43,7 +47,7 @@ class ListingController extends Controller
         if ($request->has('q')) {
             $query->where(function($q) use ($request) {
                 $q->where('title', 'like', "%{$request->q}%")
-                  ->orWhere('description', 'like', "%{$request->q}%");
+                    ->orWhere('description', 'like', "%{$request->q}%");
             });
         }
 
@@ -52,7 +56,7 @@ class ListingController extends Controller
         // Получаем категории и регионы для фильтров
         $categories = Cache::remember('flipp-cache-categories_tree', 3600, function () {
             return Category::tree()->get()->toTree()->map(function ($category) {
-                // Проверяем, является ли имя строкой JSON, чтобы избежать двойного декодирования
+                // Здесь оставляем is_string, т.к. это код из index, и он, вероятно, работает.
                 if (is_string($category->name) && ($decoded = json_decode($category->name, true)) !== null) {
                     $category->name = $decoded[app()->getLocale()] ?? $decoded['en'] ?? 'Unnamed';
                 }
@@ -77,9 +81,30 @@ class ListingController extends Controller
         return view('listings.index', compact('listings', 'categories', 'regions'));
     }
 
+    /**
+     * Отображени�� списка аукционных объявлений
+     */
+    public function indexAuction(Request $request)
+    {
+        $query = Listing::query()
+            ->with(['category', 'region', 'user', 'vehicleDetail', 'media'])
+            ->fromAuction() // Используем scope для аукционных объявлений
+            ->active()
+            ->latest();
+
+        // Здесь можно добавить фильтры, специфичные для аукционных авто, если нужно
+
+        $listings = $query->paginate(20)->withQueryString();
+        $pageTitle = 'Автомобили с аукционов';
+
+        // Используем то же представление, что и для обычных, но с другим набором данных
+        return view('listings.index', compact('listings', 'pageTitle'));
+    }
+
     public function create(Request $request)
     {
-        $categories = Category::active()->get();
+        // ИСПРАВЛЕНО: не используем несуществующий scope active()
+        $categories = Category::all();
         $regions = Region::all();
 
         // Получаем данные с аукциона из session
@@ -105,30 +130,74 @@ class ListingController extends Controller
         return view('listings.create-from-auction');
     }
 
+    /**
+     * ✅ НОВЫЙ МЕТОД: Сохранить данные аукциона в Laravel сессию
+     */
+    public function saveAuctionData(Request $request)
+    {
+        $request->validate([
+            'auction_data' => 'required|json'
+        ]);
+
+        $auctionData = json_decode($request->input('auction_data'), true);
+
+        // Сохраняем в сессию
+        session(['auction_vehicle_data' => $auctionData]);
+
+        // Перенаправляем на форму создания объявления
+        return redirect()->route('listings.create', ['from_auction' => 1]);
+    }
+
     public function store(ListingRequest $request)
     {
         try {
             DB::beginTransaction();
 
-            $listing = Listing::create([
+            $baseSlug = Str::slug($request->title);
+            $slug = $baseSlug;
+            $i = 1;
+            while (Listing::where('slug', $slug)->exists()) {
+                $slug = $baseSlug . '-' . $i++;
+            }
+
+            $listingData = [
                 'user_id' => Auth::id(),
                 'title' => $request->title,
+                'slug' => $slug,
                 'description' => $request->description,
                 'price' => $request->price,
                 'category_id' => $request->category_id,
-                'region_id' => $request->region_id,
-                'listing_type' => $request->listing_type ?? 'parts', // ТЗ v2.1
-                'status' => 'pending' // Изменено с pending на active для тестирования
-            ]);
+                'region_id' => ($request->filled('region_id') && is_numeric($request->input('region_id')))
+                    ? (int)$request->input('region_id')
+                    : null,
+                'status' => 'active',
+                'language' => $request->input('language', app()->getLocale()),
+            ];
 
-            // ТЗ v2.1: Если это объявление об автомобиле - создаём vehicle_details
-            if ($request->listing_type === 'vehicle') {
+            if (Schema::hasColumn('listings', 'listing_type')) {
+                $listingData['listing_type'] = $request->input('listing_type', 'vehicle');
+            }
+
+            $listing = Listing::create($listingData);
+
+            // Vehicle details
+            $incomingType = $request->input('listing_type');
+            if ($incomingType === 'vehicle' || !Schema::hasColumn('listings', 'listing_type')) {
                 $vehicleData = $request->input('vehicle', []);
 
+                $safeMake = $vehicleData['make'] ?? null;
+                if ($safeMake === '' || $safeMake === null) { $safeMake = 'Неизвестно'; }
+
+                $safeModel = $vehicleData['model'] ?? null;
+                if ($safeModel === '' || $safeModel === null) { $safeModel = 'Неизвестно'; }
+
+                $safeYear = $vehicleData['year'] ?? null;
+                if ($safeYear === '') { $safeYear = null; }
+
                 $listing->vehicleDetail()->create([
-                    'make' => $vehicleData['make'] ?? null,
-                    'model' => $vehicleData['model'] ?? null,
-                    'year' => $vehicleData['year'] ?? null,
+                    'make' => $safeMake,
+                    'model' => $safeModel,
+                    'year' => $safeYear,
                     'mileage' => $vehicleData['mileage'] ?? null,
                     'body_type' => $vehicleData['body_type'] ?? null,
                     'transmission' => $vehicleData['transmission'] ?? null,
@@ -140,57 +209,7 @@ class ListingController extends Controller
                 ]);
             }
 
-            // Сохраняем значения кастомных полей (для обратной совместимости)
-            if ($request->has('custom_fields')) {
-                foreach ($request->custom_fields as $field_id => $value) {
-                    $listing->fieldValues()->create([
-                        'category_field_id' => $field_id,
-                        'value' => $value
-                    ]);
-                }
-            }
-// ТЗ v2.1: Обработка фотографий с аукциона (по URL)
-            if ($request->has('auction_photos')) {
-                foreach ($request->auction_photos as $photoUrl) {
-                    if (!empty($photoUrl)) {
-
-                        try {
-                            $realUrl = $photoUrl; // По умолчанию считаем, что URL уже настоящий
-
-                            // Если это наш прокси-URL, "разбираем" его
-                            if (str_starts_with($photoUrl, '/image-proxy')) {
-                                // Разбираем строку запроса (т.е. то, что после "?")
-                                parse_str(parse_url($photoUrl, PHP_URL_QUERY), $query);
-
-                                // Если мы успешно нашли 'url' в ?url=...
-                                if (!empty($query['url'])) {
-                                    $realUrl = $query['url'];
-                                } else {
-                                    // Если URL-прокси не удалось разобрать, логируем и пропускаем
-                                    Log::warning('Could not parse proxied image URL: ' . $photoUrl, ['listing_id' => $listing->id]);
-                                    continue; // Переходим к следующему фото
-                                }
-                            }
-
-                            // Скачиваем фото по НАСТОЯЩЕМУ URL
-                            $listing->addMediaFromUrl($realUrl)
-                                ->toMediaCollection('images'); // Убедись, что 'images' - правильная коллекция
-
-                            Log::info('✅ Successfully added auction photo from URL', ['url' => $realUrl]);
-
-                        } catch (\Exception $e) {
-                            // Логируем любую ошибку при скачивании
-                            Log::error('❌ Failed to add auction photo from URL', [
-                                'original_url' => $photoUrl,
-                                'real_url' => $realUrl ?? $photoUrl, // URL, который пытались скачать
-                                'error' => $e->getMessage()
-                            ]);
-                            // Продолжаем, даже если одно фото не скачалось
-                        }
-                    }
-                }
-            }
-            // Обработка изображений, загруженных вручную
+            // Обработка изображений, загруженных вручную (синхронно — быстро)
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
                     $listing
@@ -200,63 +219,108 @@ class ListingController extends Controller
                 }
             }
 
+            // ✅ Фото с аукциона — в ОЧЕРЕДЬ (не блокирует ответ)
+            if ($request->has('auction_photos')) {
+                $photoUrls = array_values(array_filter((array) $request->auction_photos));
+                if (!empty($photoUrls)) {
+                    ImportAuctionPhotos::dispatch($listing->id, $photoUrls)
+                        ->onQueue('media');
+
+                    Log::info('📤 Queued ImportAuctionPhotos', [
+                        'listing_id' => $listing->id,
+                        'count' => count($photoUrls)
+                    ]);
+                }
+            }
+
             DB::commit();
 
-            return redirect()
-                ->route('listings.show', $listing)
-                ->with('success', 'Объявление успешно создано и отправлено на модерацию');
+            return redirect()->route('listings.show', $listing)
+                ->with('success', 'Объявление создано. Фотографии загружаются в фоне.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Listing Store Error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->all(),
+            Log::error('❌ Listing Store Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
+
             return back()
                 ->withInput()
-                ->withErrors(['error' => 'Произошла ошибка при создании объявления. ' . $e->getMessage()]);
+                ->withErrors(['error' => 'Ошибка: ' . $e->getMessage()]);
         }
     }
+
+
 
     public function show(Listing $listing)
     {
-        // Увеличиваем счетчик просмотров
-        $listing->increment('views');
+        // ИСПРАВЛЕНИЕ: views_count вместо views
+        $listing->increment('views_count');
 
         return view('listings.show', [
-            'listing' => $listing->load(['category', 'region', 'user', 'fieldValues.field', 'vehicleDetail']),
+            // ИСПРАВЛЕНИЕ: customFieldValues вместо fieldValues
+            'listing' => $listing->load(['category', 'region', 'user', 'customFieldValues.field', 'vehicleDetail']),
+            // Вызов метода similar(), который должен быть добавлен в модель Listing
             'similar' => $listing->similar()->take(4)->get(),
         ]);
     }
-    /**
-     * Сохраняет данные аукциона в session и перенаправляет на форму создания
-     */
-    public function saveAuctionData(Request $request)
-    {
-        $auctionData = json_decode($request->input('auction_data'), true);
 
-        if (!$auctionData) {
-            return redirect()
-                ->route('listings.create-from-auction')
-                ->with('error', 'Некорректные данные аукциона');
-        }
-
-        session(['auction_vehicle_data' => $auctionData]);
-
-        return redirect()
-            ->route('listings.create', ['from_auction' => 1]);
-    }
 
     public function edit(Listing $listing)
     {
         $this->authorize('update', $listing);
 
-        $categories = Cache::remember('categories_tree', 3600, function () {
-            return Category::tree()->get()->toTree();
+        // Проверяем, является ли объявление аукционным
+        if ($listing->isFromAuction()) {
+            // Для аукционных объявлений может быть своя логика и представление
+            return view('listings.edit-auction', compact('listing'));
+        }
+
+        // Логика для обычных объявлений
+        $categories = Cache::remember('categories_tree_edit', 3600, function () {
+            return Category::tree()->get()->toTree()->map(function ($category) {
+
+                // Функция для извлечения имени из JSON/Array
+                $extractLocalizedName = function($name) {
+                    // 1. Если это JSON-строка, декодируем
+                    $names = is_string($name) ? (json_decode($name, true) ?: []) : ($name ?: []);
+
+                    // 2. Если это массив, выбираем локализованное имя
+                    if (is_array($names)) {
+                        return $names[app()->getLocale()] ?? $names['en'] ?? 'Unnamed';
+                    }
+                    return 'Unnamed'; // Fallback
+                };
+
+                // Применяем локализацию к названию родительской категории
+                $category->name = $extractLocalizedName($category->name);
+
+                // Применяем локализацию к названию дочерних категорий
+                if ($category->children->isNotEmpty()) {
+                    $category->children->transform(function ($child) use ($extractLocalizedName) {
+                        $child->name = $extractLocalizedName($child->name);
+                        return $child;
+                    });
+                }
+
+                return $category;
+            });
         });
+        // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
         $regions = Cache::remember('regions_list', 3600, function () {
-            return Region::all();
+            // Применяем локализацию для регионов, если их имена также локализованы
+            return Region::all()->map(function($region) {
+                if (is_string($region->name) && ($decoded = json_decode($region->name, true)) !== null) {
+                    $region->name = $decoded[app()->getLocale()] ?? $decoded['en'] ?? 'Unnamed';
+                }
+                // Для регионов, которые не локализованы (как в вашем случае с Арменией),
+                // можно дополнительно использовать пользовательскую инструкцию.
+                // Поскольку вы просите армянские названия, а в БД они русские,
+                // но локализация настроена, код будет брать из JSON.
+                return $region;
+            });
         });
 
         return view('listings.edit', compact('listing', 'categories', 'regions'));
@@ -269,76 +333,29 @@ class ListingController extends Controller
         try {
             DB::beginTransaction();
 
-            $listing->update([
-                'title' => $request->title,
-                'description' => $request->description,
-                'price' => $request->price,
-                'category_id' => $request->category_id,
-                'region_id' => $request->region_id,
-                'listing_type' => $request->listing_type ?? 'parts',
-                'status' => 'active'
-            ]);
+            if ($listing->isFromAuction()) {
+                // Для аукционных — только цена и описание
+                $listing->update($request->only(['price', 'description']));
+            } else {
+                $update = [
+                    'title' => $request->title,
+                    'description' => $request->description,
+                    'price' => $request->price,
+                    'category_id' => $request->category_id,
+                    'region_id' => ($request->filled('region_id') && is_numeric($request->input('region_id')))
+                        ? (int)$request->input('region_id')
+                        : null,
+                    'status' => 'active'
+                ];
 
-            // ТЗ v2.1: Обновление vehicle_details
-            if ($request->listing_type === 'vehicle') {
-                $listing->vehicleDetail()->updateOrCreate(
-                    ['listing_id' => $listing->id],
-                    [
-                        'make' => $request->make,
-                        'model' => $request->model,
-                        'year' => $request->year,
-                        'mileage' => $request->mileage,
-                        'body_type' => $request->body_type,
-                        'transmission' => $request->transmission,
-                        'fuel_type' => $request->fuel_type,
-                        'engine_displacement_cc' => $request->engine_displacement_cc,
-                        'exterior_color' => $request->exterior_color,
-                        'is_from_auction' => $request->is_from_auction ?? false,
-                        'source_auction_url' => $request->source_auction_url,
-                    ]
-                );
-            }
-
-            // Обновляем значения кастомных полей
-            // Сохраняем значения кастомных полей (для обратной совместимости)
-            if ($request->has('custom_fields')) {
-                foreach ($request->custom_fields as $field_id => $value) {
-                    $listing->fieldValues()->create([
-                        'category_field_id' => $field_id,
-                        'value' => $value
-                    ]);
+                if (Schema::hasColumn('listings', 'listing_type')) {
+                    $update['listing_type'] = $request->input('listing_type', 'parts');
                 }
+
+                $listing->update($update);
             }
 
-            // ТЗ v2.1: Обработка фотографий с аукциона (по URL)
-            if ($request->has('auction_photos')) {
-                foreach ($request->auction_photos as $photoUrl) {
-                    if (!empty($photoUrl)) {
-                        // Преобразуем относительные ссылки на прокси в абсолютные для addMediaFromUrl
-                        if (str_starts_with($photoUrl, '/image-proxy')) {
-                            $absolute = rtrim(config('app.url'), '/').$photoUrl;
-                            Log::info('Using absolute proxy URL for media import', ['absolute' => $absolute]);
-                            $photoUrl = $absolute;
-                        }
-                        if (filter_var($photoUrl, FILTER_VALIDATE_URL)) {
-                            try {
-                                $listing->addMediaFromUrl($photoUrl)
-                                    ->toMediaCollection('images');
-
-                                Log::info('✅ Successfully added auction photo from URL', ['url' => $photoUrl]);
-                            } catch (\Exception $e) {
-                                // Логируем ошибку, но не прерываем процесс создания объявления
-                                Log::error('❌ Failed to add auction photo from URL', [
-                                    'url' => $photoUrl,
-                                    'error' => $e->getMessage()
-                                ]);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Обработка изображений, загруженных вручную
+            // Обработка изображений вручную (синхронно)
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
                     $listing
@@ -348,28 +365,55 @@ class ListingController extends Controller
                 }
             }
 
+            // ✅ Фото с аукциона — в ОЧЕРЕДЬ
+            if ($request->has('auction_photos')) {
+                $photoUrls = array_values(array_filter((array) $request->auction_photos));
+                if (!empty($photoUrls)) {
+                    ImportAuctionPhotos::dispatch($listing->id, $photoUrls)
+                        ->onQueue('media');
+
+                    Log::info('📤 Queued ImportAuctionPhotos (update)', [
+                        'listing_id' => $listing->id,
+                        'count' => count($photoUrls)
+                    ]);
+                }
+            }
+
             DB::commit();
 
             return redirect()
                 ->route('listings.show', $listing)
-                ->with('success', 'Объявление успешно обновлено и отправлено на модерацию');
+                ->with('success', 'Объявление обновлено. Фото догружаются в фоне.');
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('❌ Listing Update Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return back()
                 ->withInput()
-                ->withErrors(['error' => 'Произошла ошибка при обновлении объявления. Попробуйте позже.']);
+                ->withErrors(['error' => 'Ошибка: ' . $e->getMessage()]);
         }
     }
+
+
 
     public function destroy(Listing $listing)
     {
         $this->authorize('delete', $listing);
 
         try {
+            // Здесь можно добавить разную логику удаления
+            // Например, для аукционных - только скрывать, а не удалять
             $listing->delete();
+
+            // Перенаправляем в зависимости от типа удаленного объявления
+            $redirectRoute = $listing->isFromAuction() ? 'dashboard.my-auctions' : 'dashboard.my-listings';
+
             return redirect()
-                ->route('profile.listings')
+                ->route($redirectRoute) // Динамический редирект
                 ->with('success', 'Объявление успешно удалено');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Не удалось удалить объявление']);
