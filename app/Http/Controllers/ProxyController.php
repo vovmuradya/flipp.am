@@ -94,39 +94,17 @@ class ProxyController extends Controller
             };
 
             // Генерируем массив альтернативных URL для попыток (для Copart)
+            // Основной URL уже содержит правильный путь от API
             $urlsToTry = [$url];
 
-            if ($lotId && str_contains($host, 'copart.com')) {
-                // Извлекаем номер фото (001, 002 и т.д.)
-                $photoNum = '001';
-                if (preg_match('#/(\d{3})\.(jpg|jpeg|png|webp)$#i', $url, $m)) {
-                    $photoNum = $m[1];
-                }
-
-                // Строим альтернативные шаблоны URL для Copart
-                $patterns = [
-                    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/{$lotId}/{$photoNum}.jpg",
-                    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/ids-c-prod-lpp/{$lotId}/{$photoNum}.jpg",
-                    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/{$lotId}/{$photoNum}_ful.jpg",
-                    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/ids-c-prod-lpp/{$lotId}/{$photoNum}_ful.jpg",
-                    "https://pics.copart.com/{$lotId}/{$photoNum}.jpg",
-                    "https://images.copart.com/{$lotId}/{$photoNum}.jpg",
-                ];
-
-                foreach ($patterns as $p) {
-                    if (!in_array($p, $urlsToTry, true)) {
-                        $urlsToTry[] = $p;
-                    }
-                }
-            }
-
-            // Также добавляем варианты с заменой суффиксов
+            // Добавляем только варианты с заменой суффиксов (не генерируем несуществующие пути)
             $additionalVariants = [];
-            foreach ($urlsToTry as $u) {
-                $additionalVariants[] = preg_replace('#_thn\.(jpg|jpeg|png|webp)$#i', '_ful.$1', $u);
-                $additionalVariants[] = preg_replace('#_hrs\.(jpg|jpeg|png|webp)$#i', '_ful.$1', $u);
-                $additionalVariants[] = preg_replace('#_thb\.(jpg|jpeg|png|webp)$#i', '_ful.$1', $u);
-                $additionalVariants[] = preg_replace('#_tmb\.(jpg|jpeg|png|webp)$#i', '_ful.$1', $u);
+            if (str_contains($host, 'copart.com')) {
+                // Пробуем разные суффиксы качества изображения
+                $additionalVariants[] = preg_replace('#_thn\.(jpg|jpeg|png|webp)$#i', '_ful.$1', $url);
+                $additionalVariants[] = preg_replace('#_hrs\.(jpg|jpeg|png|webp)$#i', '_ful.$1', $url);
+                $additionalVariants[] = preg_replace('#_thb\.(jpg|jpeg|png|webp)$#i', '_ful.$1', $url);
+                $additionalVariants[] = preg_replace('#_tmb\.(jpg|jpeg|png|webp)$#i', '_ful.$1', $url);
             }
             $urlsToTry = array_values(array_unique(array_merge($urlsToTry, array_filter($additionalVariants))));
 

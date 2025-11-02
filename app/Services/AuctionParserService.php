@@ -1,5 +1,13 @@
 <?php
-
+/*
+ * This is a comment.
+ * Per user request, comments should be in English.
+ *
+ * This service implements parsing for Copart and IAAI.
+ * Copart is parsed via its public JSON API.
+ * IAAI is parsed by scraping the HTML page and extracting the
+ * embedded '__NEXT_DATA__' JSON blob, as no public API is readily available.
+ */
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
@@ -26,18 +34,15 @@ class AuctionParserService
     {
         try {
             Log::info('🔍 Parsing Copart URL: ' . $url);
-
-            // Извлекаем ID лота
             preg_match('/\/lot\/(\d+)/', $url, $lotMatches);
             $lotId = $lotMatches[1] ?? null;
+
             if (!$lotId) {
                 Log::warning('❌ Could not extract lot ID from URL');
                 return null;
             }
 
             Log::info('✅ Lot ID extracted: ' . $lotId);
-
-            // ======== ПОЛУЧАЕМ ДАННЫЕ ЧЕРЕЗ API (обходим Incapsula) ========
             $photos = [];
             $make = null;
             $model = null;
@@ -46,34 +51,14 @@ class AuctionParserService
             $color = null;
             $engineStr = null;
 
-            // 🔥 НОВЫЙ ПОДХОД: используем множественные API endpoints с ротацией User-Agent
-            $userAgents = [
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-            ];
-            $randomUA = $userAgents[array_rand($userAgents)];
-
-            // Пробуем основной API endpoint
             $apiUrl = "https://www.copart.com/public/data/lotdetails/solr/{$lotId}";
-
             try {
                 Log::info('📡 Fetching from API: ' . $apiUrl);
-
                 $apiResp = Http::timeout(15)
                     ->withHeaders([
-                        'User-Agent' => $randomUA,
+                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                         'Accept' => 'application/json, text/plain, */*',
-                        'Accept-Language' => 'en-US,en;q=0.9',
                         'Referer' => 'https://www.copart.com/',
-                        'Origin' => 'https://www.copart.com',
-                        'DNT' => '1',
-                        'sec-ch-ua' => '"Chromium";v="131", "Not_A Brand";v="24", "Google Chrome";v="131"',
-                        'sec-ch-ua-mobile' => '?0',
-                        'sec-ch-ua-platform' => '"Windows"',
-                        'sec-fetch-dest' => 'empty',
-                        'sec-fetch-mode' => 'cors',
-                        'sec-fetch-site' => 'same-origin',
                     ])
                     ->withOptions(['verify' => false])
                     ->get($apiUrl);
@@ -81,252 +66,132 @@ class AuctionParserService
                 if ($apiResp->successful()) {
                     $apiData = $apiResp->json();
                     Log::info('✅ API response successful');
-
                     if (isset($apiData['data']['lotDetails'])) {
                         $details = $apiData['data']['lotDetails'];
-
                         $make = $details['mkn'] ?? null;
                         $model = $details['lm'] ?? null;
                         $year = $details['lcy'] ?? null;
                         $mileage = isset($details['od']) ? (int)$details['od'] : null;
                         $color = $details['clr'] ?? null;
                         $engineStr = $details['egn'] ?? null;
-
                         Log::info('✅ Got vehicle data: ' . json_encode(compact('make', 'model', 'year', 'mileage', 'color')));
                     }
-                } else {
-                    Log::warning('⚠️ API returned status: ' . $apiResp->status());
                 }
             } catch (\Exception $e) {
                 Log::warning('⚠️ API request failed: ' . $e->getMessage());
             }
 
-            // ======== ПОЛУЧАЕМ ИЗОБРАЖЕНИЯ (МНОЖЕСТВЕННЫЕ МЕТОДЫ) ========
-            $imageUrls = [];
-
-            // 🔥 МЕТОД 0: Публичный GraphQL API (самый надёжный)
-            try {
-                Log::info('📸 Method 0: Trying Copart public GraphQL API');
-
-                $graphqlUrl = 'https://www.copart.com/lotDetailsApi';
-                $graphqlQuery = [
-                    'query' => "query GetLotImages(\$lotId: String!) {
-                        lotDetails(lotId: \$lotId) {
-                            images {
-                                url
-                                sequence
-                            }
-                        }
-                    }",
-                    'variables' => ['lotId' => (string)$lotId]
-                ];
-
-                $graphqlResp = Http::timeout(15)
-                    ->withHeaders([
-                        'User-Agent' => $randomUA,
-                        'Content-Type' => 'application/json',
-                        'Accept' => 'application/json',
-                        'Referer' => $url,
-                    ])
-                    ->withOptions(['verify' => false])
-                    ->post($graphqlUrl, $graphqlQuery);
-
-                if ($graphqlResp->successful()) {
-                    $graphqlData = $graphqlResp->json();
-                    $images = $graphqlData['data']['lotDetails']['images'] ?? [];
-
-                    if (!empty($images)) {
-                        foreach ($images as $img) {
-                            if (!empty($img['url'])) {
-                                $imgUrl = $img['url'];
-                                if (!str_starts_with($imgUrl, 'http')) {
-                                    $imgUrl = 'https://cs.copart.com' . $imgUrl;
-                                }
-                                $imageUrls[] = $imgUrl;
-                            }
-                        }
-                        Log::info('✅ Method 0 (GraphQL) found ' . count($imageUrls) . ' images');
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::warning('⚠️ Method 0 error: ' . $e->getMessage());
-            }
-
-            // 🔥 МЕТОД 1: Основной API endpoint для изображений
+            // GETTING PHOTOS FROM COPART API
             $imageApiUrl = "https://www.copart.com/public/data/lotdetails/solr/lotImages/{$lotId}";
-
             try {
-                Log::info('📸 Method 1: Fetching images from: ' . $imageApiUrl);
-
-                usleep(500000); // 0.5 сек задержка
+                Log::info('📸 Fetching images from: ' . $imageApiUrl);
+                usleep(500000); // delay
 
                 $imgResp = Http::timeout(15)
                     ->withHeaders([
-                        'User-Agent' => $randomUA,
-                        'Accept' => 'application/json, text/plain, */*',
-                        'Accept-Language' => 'en-US,en;q=0.9',
+                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept' => 'application/json',
                         'Referer' => $url,
-                        'Origin' => 'https://www.copart.com',
-                        'DNT' => '1',
-                        'sec-ch-ua' => '"Chromium";v="131", "Not_A Brand";v="24", "Google Chrome";v="131"',
-                        'sec-ch-ua-mobile' => '?0',
-                        'sec-ch-ua-platform' => '"Windows"',
-                        'sec-fetch-dest' => 'empty',
-                        'sec-fetch-mode' => 'cors',
-                        'sec-fetch-site' => 'same-origin',
                     ])
                     ->withOptions(['verify' => false])
                     ->get($imageApiUrl);
 
                 if ($imgResp->successful()) {
                     $imgData = $imgResp->json();
-                    Log::debug('📊 Method 1 API response: ' . json_encode($imgData));
+                    Log::info('✅ Image API response received');
 
-                    if (isset($imgData['data']['imagesList']) && is_array($imgData['data']['imagesList'])) {
-                        foreach ($imgData['data']['imagesList'] as $img) {
-                            // Пробуем разные поля для URL
-                            $imgUrl = $img['link'] ?? $img['url'] ?? $img['href'] ?? null;
+                    // CORRECTLY HANDLING API STRUCTURE
+                    $imagesArray = [];
 
-                            if ($imgUrl) {
-                                // Нормализация URL
-                                if (!str_starts_with($imgUrl, 'http')) {
-                                    $imgUrl = 'https://cs.copart.com' . $imgUrl;
-                                }
+                    if (isset($imgData['data']['imagesList'])) {
+                        $imagesList = $imgData['data']['imagesList'];
 
-                                // Заменяем миниатюры на полноразмерные (_thn -> _ful)
-                                $imgUrl = preg_replace('/_(thn|thb|tmb)\.(jpg|jpeg|png|webp)$/i', '_ful.$2', $imgUrl);
-
-                                $imageUrls[] = $imgUrl;
-                                Log::debug('🖼️ Added image: ' . $imgUrl);
-                            }
+                        // ✅ FIX: Check if imagesList has 'content' field (object structure)
+                        if (isset($imagesList['content']) && is_array($imagesList['content'])) {
+                            $imagesArray = $imagesList['content'];
+                            Log::info('✅ Found imagesList.content with ' . count($imagesArray) . ' images');
                         }
-                        Log::info('✅ Method 1 found ' . count($imageUrls) . ' images');
+                        // Fallback: check if imagesList is directly an array of images
+                        elseif (is_array($imagesList) && isset($imagesList[0])) {
+                            $imagesArray = $imagesList;
+                            Log::info('✅ Found direct imagesList array with ' . count($imagesArray) . ' items');
+                        }
+                    }
+
+                    if (!empty($imagesArray)) {
+                        $imageUrls = [];
+
+                        foreach ($imagesArray as $img) {
+                            // Try different URL fields from API response
+                            $imgUrl = $img['fullUrl'] ?? $img['highResUrl'] ?? $img['thumbnailUrl'] ?? $img['link'] ?? null;
+
+                            if (!$imgUrl) {
+                                continue;
+                            }
+
+                            // Ensure absolute URL
+                            if (!str_starts_with($imgUrl, 'http')) {
+                                $imgUrl = 'https://cs.copart.com' . $imgUrl;
+                            }
+
+
+                            $imageUrls[] = $imgUrl;
+                        }
+
+                        Log::info('📸 Extracted ' . count($imageUrls) . ' image URLs from API');
+
+                        // Deduplicate by normalized path
+                        $seenPaths = [];
+                        foreach ($imageUrls as $imgUrl) {
+                            $path = parse_url($imgUrl, PHP_URL_PATH) ?? '';
+                            $normalized = preg_replace('/_(thn|hrs|thb|tmb|ful)\.(jpg|jpeg|png|webp)$/i', '.$2', $path);
+
+                            if (isset($seenPaths[$normalized])) {
+                                continue;
+                            }
+                            $seenPaths[$normalized] = true;
+
+                            // Create proxy URL
+                            $proxyUrl = config('app.url') . '/proxy/image?u=' . rawurlencode($imgUrl) . '&r=' . rawurlencode($url);
+                            $photos[] = $proxyUrl;
+                        }
+
+                        $photos = array_slice($photos, 0, 14); // limit to 14
+                        Log::info('✅ Successfully processed ' . count($photos) . ' unique images');
                     } else {
-                        Log::warning('⚠️ Method 1: imagesList not found in response');
+                        Log::warning('⚠️ No images found in API response');
                     }
                 } else {
-                    Log::warning('⚠️ Method 1 failed: status ' . $imgResp->status());
+                    Log::warning('⚠️ Image API returned status: ' . $imgResp->status());
                 }
             } catch (\Exception $e) {
-                Log::warning('⚠️ Method 1 error: ' . $e->getMessage());
+                Log::error('❌ Image API request failed: ' . $e->getMessage());
             }
 
-            // 🔥 МЕТОД 2: Альтернативный API endpoint (если первый не сработал)
-            if (empty($imageUrls)) {
-                usleep(300000);
-                $altApiUrl = "https://www.copart.com/public/data/lotDetails/json/{$lotId}?requestType=en_US";
-
-                try {
-                    Log::info('📸 Method 2: Trying alternative API: ' . $altApiUrl);
-
-                    $altResp = Http::timeout(15)
-                        ->withHeaders([
-                            'User-Agent' => $randomUA,
-                            'Accept' => 'application/json',
-                            'Referer' => $url,
-                        ])
-                        ->withOptions(['verify' => false])
-                        ->get($altApiUrl);
-
-                    if ($altResp->successful()) {
-                        $altData = $altResp->json();
-                        $imagesList = $altData['data']['lotDetails']['imagesList'] ?? null;
-
-                        if ($imagesList && is_array($imagesList)) {
-                            foreach ($imagesList as $img) {
-                                if (isset($img['link'])) {
-                                    $imgUrl = $img['link'];
-                                    if (!str_starts_with($imgUrl, 'http')) {
-                                        $imgUrl = 'https://cs.copart.com' . $imgUrl;
-                                    }
-                                    $imageUrls[] = $imgUrl;
-                                }
-                            }
-                            Log::info('✅ Method 2 found ' . count($imageUrls) . ' images');
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('⚠️ Method 2 error: ' . $e->getMessage());
-                }
-            }
-
-            // 🔥 МЕТОД 3: Прямое построение URL по стандартному паттерну Copart
-            if (empty($imageUrls)) {
-                Log::info('📸 Method 3: Generating standard Copart image URLs');
-
-                // Copart использует предсказуемую структуру URL для изображений
-                $baseImageUrl = "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/";
-
-                // Генерируем стандартные позиции фото (обычно 1-14)
-                $standardPositions = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011', '012', '013', '014'];
-
-                foreach ($standardPositions as $pos) {
-                    // Стандартный паттерн: lotId + позиция
-                    $imageUrls[] = $baseImageUrl . $lotId . '/' . $pos . '.jpg';
-                }
-
-                Log::info('✅ Method 3 generated ' . count($imageUrls) . ' potential image URLs');
-            }
-
-            // Обработка и нормализация найденных URL
-            $seenPaths = [];
-            foreach ($imageUrls as $imgUrl) {
-                // Заменяем миниатюры на полноразмерные
-                $imgUrl = preg_replace('/_(thn|thb|tmb)\.(jpg|jpeg|png|webp)$/i', '_ful.$2', $imgUrl);
-
-                $path = parse_url($imgUrl, PHP_URL_PATH) ?? '';
-                $normalized = preg_replace('/_(thn|hrs|thb|tmb|ful)\.(jpg|jpeg|png|webp)$/i', '.$2', $path);
-
-                if (isset($seenPaths[$normalized])) continue;
-                $seenPaths[$normalized] = true;
-
-                // ✅ ИСПРАВЛЕНО: используем полный URL http://localhost:8000
-                $proxyUrl = 'http://localhost:8000/proxy/image?u=' . rawurlencode($imgUrl);
-                $photos[] = $proxyUrl;
-            }
-
-            $photos = array_slice($photos, 0, 14);
-
-            if (!empty($photos)) {
-                Log::info('✅ Total unique photos prepared: ' . count($photos));
-            }
-
-            // ======== FALLBACK: парсим из URL если нет данных ========
+            // Fallback parsing from URL
             if (!$year || !$make || !$model) {
                 Log::info('⚡ Parsing basic info from URL...');
-
                 preg_match('/(\d{4})[-\s]([a-zA-Z]+)[-\s]([a-zA-Z0-9\s\-]+)/i', $url, $matches);
-
                 $year = $year ?? ($matches[1] ?? date('Y'));
                 $make = $make ?? (isset($matches[2]) ? ucfirst(strtolower($matches[2])) : 'Неизвестно');
                 $modelRaw = $model ?? ($matches[3] ?? 'Неизвестно');
-
-                // Очищаем модель от кодов регионов
                 $model = preg_replace('/(nb|ak|ca|tx|fl|ny|ga|me)-[\w]+$/i', '', $modelRaw);
                 $model = ucwords(strtolower(trim($model)));
             }
 
+            // Fallback mileage generation
             if (!$mileage) {
                 $age = date('Y') - (int)$year;
                 $mileage = max(0, $age * 12000 + rand(-3000, 5000));
                 Log::info('⚡ Generated mileage estimate: ' . $mileage);
             }
 
-            // Определяем объем двигателя
-            $engineCc = null;
-            if ($engineStr) {
-                if (preg_match('/(\d+\.?\d*)\s*[lL]/', $engineStr, $eM)) {
-                    $engineCc = (int) ((float) $eM[1] * 1000);
-                } elseif (preg_match('/(\d{3,4})\s*cc/i', $engineStr, $ccM)) {
-                    $engineCc = (int) $ccM[1];
-                }
-            }
+            $engineCc = $this->parseEngineString($engineStr);
 
-            // Placeholder если нет фото
             if (empty($photos)) {
                 Log::warning('⚠️ No photos found, using placeholder');
                 $placeholderUrl = 'https://via.placeholder.com/800x600/e5e7eb/6b7280?text=No+Image+Available';
-                $photos = ['http://localhost:8000/proxy/image?u=' . rawurlencode($placeholderUrl)];
+                $photos = [config('app.url') . '/proxy/image?u=' . rawurlencode($placeholderUrl)];
             }
 
             $data = [
@@ -344,7 +209,6 @@ class AuctionParserService
             ];
 
             Log::info('📦 Final parsed data:', $data);
-
             return $data;
         } catch (\Exception $e) {
             Log::error('❌ Copart parsing error: ' . $e->getMessage());
@@ -352,9 +216,158 @@ class AuctionParserService
         }
     }
 
+    /**
+     * Parses IAAI by scraping the embedded __NEXT_DATA__ JSON from the HTML.
+     */
     private function parseIAAI(string $url): ?array
     {
+        try {
+            Log::info('🔍 Parsing IAA URL: ' . $url);
+            $photos = [];
+            $make = null;
+            $model = null;
+            $year = null;
+            $mileage = null;
+            $color = null;
+            $engineStr = null;
+
+            // 1. Fetch the HTML content of the page
+            Log::info('📡 Fetching HTML from: ' . $url);
+            $response = Http::timeout(20)
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
+                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                    'Accept-Language' => 'en-US,en;q=0.9',
+                    'Referer' => 'https://www.iaai.com/',
+                ])
+                ->withOptions(['verify' => false]) // Matching Copart parser
+                ->get($url);
+
+            if (!$response->successful()) {
+                Log::warning('⚠️ IAA request failed with status: ' . $response->status());
+                return null;
+            }
+
+            $html = $response->body();
+
+            // 2. Extract the embedded __NEXT_DATA__ JSON blob
+            if (!preg_match('/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/', $html, $matches)) {
+                Log::warning('❌ Could not find __NEXT_DATA__ JSON blob in IAA HTML');
+                return null;
+            }
+
+            $jsonString = $matches[1];
+            $data = json_decode($jsonString, true);
+
+            if (!$data) {
+                Log::warning('❌ Failed to decode __NEXT_DATA__ JSON');
+                return null;
+            }
+
+            // 3. Navigate the JSON structure to get vehicle data
+            // Using data_get (Laravel helper) for safe nested array access
+            $vehicleData = data_get($data, 'props.pageProps.data.vehicle');
+
+            if (!$vehicleData) {
+                Log::warning('❌ Could not find "vehicle" data in JSON blob');
+                return null;
+            }
+
+            $make = data_get($vehicleData, 'make');
+            $model = data_get($vehicleData, 'model');
+            $year = data_get($vehicleData, 'year');
+            $mileage = (int) data_get($vehicleData, 'odometer.value');
+            $color = data_get($vehicleData, 'exteriorColor');
+            $engineStr = data_get($vehicleData, 'engine');
+
+            Log::info('✅ Got vehicle data: ' . json_encode(compact('make', 'model', 'year', 'mileage', 'color')));
+
+            // 4. Extract photos
+            $images = data_get($vehicleData, 'media.images', []);
+            if (!empty($images)) {
+                $tempPhotos = [];
+                foreach ($images as $img) {
+                    // IAA provides a map of image sizes
+                    $imgUrl = data_get($img, 'urlMap.FULL_IMAGE')
+                        ?? data_get($img, 'urlMap.LARGE')
+                        ?? data_get($img, 'url'); // Fallback
+
+                    if ($imgUrl) {
+                        // Ensure it's a full URL
+                        if (!str_starts_with($imgUrl, 'http')) {
+                            $imgUrl = 'https://c.iaai.com' . $imgUrl; // Default IAA image CDN
+                        }
+
+                        // Create proxy URL just like in parseCopart
+                        $proxyUrl = config('app.url') . '/proxy/image?u=' . rawurlencode($imgUrl) . '&r=' . rawurlencode($url);
+                        $tempPhotos[] = $proxyUrl;
+                    }
+                }
+
+                $photos = array_values(array_unique($tempPhotos)); // Deduplicate
+                $photos = array_slice($photos, 0, 14); // Limit
+                Log::info('✅ Successfully processed ' . count($photos) . ' unique images');
+            } else {
+                Log::warning('⚠️ No images found in IAA JSON blob');
+            }
+
+            // 5. Parse engine string
+            $engineCc = $this->parseEngineString($engineStr);
+
+            // 6. Set fallbacks
+            if (empty($photos)) {
+                Log::warning('⚠️ No photos found, using placeholder');
+                $placeholderUrl = 'https://via.placeholder.com/800x600/e5e7eb/6b7280?text=No+Image+Available';
+                $photos = [config('app.url') . '/proxy/image?u=' . rawurlencode($placeholderUrl)];
+            }
+
+            if (!$mileage) {
+                $age = date('Y') - (int)$year;
+                $mileage = max(0, $age * 12000 + rand(-3000, 5000));
+                Log::info('⚡ Generated mileage estimate: ' . $mileage);
+            }
+
+            // 7. Build final data array
+            $data = [
+                'make' => $make ?: 'Неизвестно',
+                'model' => $model ?: 'Неизвестно',
+                'year' => is_numeric($year) ? (int)$year : date('Y'),
+                'mileage' => $mileage,
+                'exterior_color' => $color ?: 'Неизвестно',
+                'transmission' => 'automatic', // Default
+                'fuel_type' => 'gasoline', // Default
+                'engine_displacement_cc' => $engineCc,
+                'body_type' => 'SUV', // Default
+                'photos' => array_values($photos),
+                'source_auction_url' => $url,
+            ];
+
+            Log::info('📦 Final parsed data:', $data);
+            return $data;
+
+        } catch (\Exception $e) {
+            Log::error('❌ IAA parsing error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Helper function to parse engine string into CC
+     */
+    private function parseEngineString(?string $engineStr): ?int
+    {
+        if (!$engineStr) {
+            return null;
+        }
+
+        if (preg_match('/(\d+\.?\d*)\s*[lL]/', $engineStr, $eM)) {
+            // Found "2.0L" or "2L"
+            return (int) ((float) $eM[1] * 1000);
+        } elseif (preg_match('/(\d{3,4})\s*cc/i', $engineStr, $ccM)) {
+            // Found "1998cc"
+            return (int) $ccM[1];
+        }
+
         return null;
     }
 }
-
