@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
 use App\Jobs\ImportAuctionPhotos; // добавлено
+use App\Jobs\ExpireAuctionListing;
+use Carbon\Carbon;
 
 class ListingController extends Controller
 {
@@ -78,7 +80,15 @@ class ListingController extends Controller
             return Region::all();
         });
 
-        return view('listings.index', compact('listings', 'categories', 'regions'));
+        $auctionListings = Listing::query()
+            ->with(['vehicleDetail', 'media'])
+            ->fromAuction()
+            ->active()
+            ->latest()
+            ->take(8)
+            ->get();
+
+        return view('listings.index', compact('listings', 'categories', 'regions', 'auctionListings'));
     }
 
     /**
@@ -107,11 +117,21 @@ class ListingController extends Controller
         $categories = Category::all();
         $regions = Region::all();
 
-        // Получаем данные с аукциона из session
+        // Получаем данные с аукциона из session или из параметра запроса
         $auctionData = null;
-        if ($request->has('from_auction') && session()->has('auction_vehicle_data')) {
-            $auctionData = session('auction_vehicle_data');
-            // НЕ удаляем из session до успешного сохранения
+        if ($request->has('from_auction')) {
+            // Сначала ищем в сессии
+            if (session()->has('auction_vehicle_data')) {
+                $auctionData = session('auction_vehicle_data');
+            }
+            // Если в сессии нет, но есть параметр URL с лотом, парсим его
+            else if ($request->has('lot_url')) {
+                $service = app(\App\Services\AuctionParserService::class);
+                $auctionData = $service->parseFromUrl($request->lot_url);
+                if ($auctionData) {
+                    session(['auction_vehicle_data' => $auctionData]);
+                }
+            }
         }
 
         return view('listings.create', compact('categories', 'regions', 'auctionData'));
@@ -154,11 +174,16 @@ class ListingController extends Controller
             DB::beginTransaction();
 
             $baseSlug = Str::slug($request->title);
+            if ($baseSlug === '') {
+                $baseSlug = 'listing-' . Str::random(6);
+            }
             $slug = $baseSlug;
             $i = 1;
-            while (Listing::where('slug', $slug)->exists()) {
+            while (Listing::withTrashed()->where('slug', $slug)->exists()) {
                 $slug = $baseSlug . '-' . $i++;
             }
+
+            $isFromAuction = $request->boolean('from_auction') || (int) $request->input('vehicle.is_from_auction', 0) === 1;
 
             $listingData = [
                 'user_id' => Auth::id(),
@@ -177,11 +202,16 @@ class ListingController extends Controller
             if (Schema::hasColumn('listings', 'listing_type')) {
                 $listingData['listing_type'] = $request->input('listing_type', 'vehicle');
             }
+            if (Schema::hasColumn('listings', 'is_from_auction')) {
+                $listingData['is_from_auction'] = $isFromAuction;
+            }
 
             $listing = Listing::create($listingData);
 
             // Vehicle details
             $incomingType = $request->input('listing_type');
+            $detail = null;
+
             if ($incomingType === 'vehicle' || !Schema::hasColumn('listings', 'listing_type')) {
                 $vehicleData = $request->input('vehicle', []);
 
@@ -194,7 +224,10 @@ class ListingController extends Controller
                 $safeYear = $vehicleData['year'] ?? null;
                 if ($safeYear === '') { $safeYear = null; }
 
-                $listing->vehicleDetail()->create([
+                $auctionEndsAtInput = $vehicleData['auction_ends_at'] ?? null;
+                $auctionEndsAt = $auctionEndsAtInput ? Carbon::parse($auctionEndsAtInput) : null;
+
+                $detail = $listing->vehicleDetail()->create([
                     'make' => $safeMake,
                     'model' => $safeModel,
                     'year' => $safeYear,
@@ -204,8 +237,9 @@ class ListingController extends Controller
                     'fuel_type' => $vehicleData['fuel_type'] ?? null,
                     'engine_displacement_cc' => $vehicleData['engine_displacement_cc'] ?? null,
                     'exterior_color' => $vehicleData['exterior_color'] ?? null,
-                    'is_from_auction' => $vehicleData['is_from_auction'] ?? false,
+                    'is_from_auction' => $vehicleData['is_from_auction'] ?? $isFromAuction,
                     'source_auction_url' => $vehicleData['source_auction_url'] ?? null,
+                    'auction_ends_at' => $auctionEndsAt,
                 ]);
             }
 
@@ -219,21 +253,67 @@ class ListingController extends Controller
                 }
             }
 
-            // ✅ Фото с аукциона — в ОЧЕРЕДЬ (не блокирует ответ)
+            // ✅ Фото с аукциона — отправляем в очередь (чтобы не блокировать сохранение)
             if ($request->has('auction_photos')) {
                 $photoUrls = array_values(array_filter((array) $request->auction_photos));
                 if (!empty($photoUrls)) {
-                    ImportAuctionPhotos::dispatch($listing->id, $photoUrls)
-                        ->onQueue('media');
+                    $firstCandidate = $photoUrls[0];
+                    $normalizedFirst = $this->normalizeAuctionPhotoUrl($firstCandidate);
 
-                    Log::info('📤 Queued ImportAuctionPhotos', [
-                        'listing_id' => $listing->id,
-                        'count' => count($photoUrls)
-                    ]);
+                    if ($normalizedFirst) {
+                        try {
+                            $listing
+                                ->addMediaFromUrl($normalizedFirst)
+                                ->withResponsiveImages()
+                                ->toMediaCollection('auction_photos');
+
+                            // убираем первый элемент, чтобы не загружать повторно в очереди
+                            array_shift($photoUrls);
+                        } catch (\Throwable $e) {
+                            Log::warning('⚠️ Listing store: immediate auction photo failed', [
+                                'listing_id' => $listing->id,
+                                'url' => substr($normalizedFirst, 0, 120),
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
+
+                    if (!empty($photoUrls)) {
+                        ImportAuctionPhotos::dispatch($listing->id, $photoUrls)
+                            ->onQueue('media');
+
+                        Log::info('📤 Queued ImportAuctionPhotos (create)', [
+                            'listing_id' => $listing->id,
+                            'count' => count($photoUrls)
+                        ]);
+                    }
                 }
             }
 
             DB::commit();
+
+            session()->forget('auction_vehicle_data');
+
+            if (!$detail) {
+                $detail = $listing->vehicleDetail;
+            }
+
+            if ($detail && $detail->auction_ends_at) {
+                $job = new ExpireAuctionListing($listing->id);
+                $end = $detail->auction_ends_at instanceof Carbon ? $detail->auction_ends_at : Carbon::parse($detail->auction_ends_at);
+
+                if ($end->isFuture()) {
+                    $job->delay($end);
+                }
+
+                dispatch($job);
+            }
+
+            if ($isFromAuction) {
+                return redirect()
+                    ->route('dashboard.my-auctions')
+                    ->with('success', 'Аукционное объявление создано и доступно в разделе «Мои аукционные объявления».');
+            }
 
             return redirect()->route('listings.show', $listing)
                 ->with('success', 'Объявление создано. Фотографии загружаются в фоне.');
@@ -369,13 +449,35 @@ class ListingController extends Controller
             if ($request->has('auction_photos')) {
                 $photoUrls = array_values(array_filter((array) $request->auction_photos));
                 if (!empty($photoUrls)) {
-                    ImportAuctionPhotos::dispatch($listing->id, $photoUrls)
-                        ->onQueue('media');
+                    $firstCandidate = $photoUrls[0];
+                    $normalizedFirst = $this->normalizeAuctionPhotoUrl($firstCandidate);
 
-                    Log::info('📤 Queued ImportAuctionPhotos (update)', [
-                        'listing_id' => $listing->id,
-                        'count' => count($photoUrls)
-                    ]);
+                    if ($normalizedFirst) {
+                        try {
+                            $listing
+                                ->addMediaFromUrl($normalizedFirst)
+                                ->withResponsiveImages()
+                                ->toMediaCollection('auction_photos');
+
+                            array_shift($photoUrls);
+                        } catch (\Throwable $e) {
+                            Log::warning('⚠️ Listing update: immediate auction photo failed', [
+                                'listing_id' => $listing->id,
+                                'url' => substr($normalizedFirst, 0, 120),
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
+
+                    if (!empty($photoUrls)) {
+                        ImportAuctionPhotos::dispatch($listing->id, $photoUrls)
+                            ->onQueue('media');
+
+                        Log::info('📤 Queued ImportAuctionPhotos (update)', [
+                            'listing_id' => $listing->id,
+                            'count' => count($photoUrls)
+                        ]);
+                    }
                 }
             }
 
@@ -418,5 +520,33 @@ class ListingController extends Controller
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Не удалось удалить объявление']);
         }
+    }
+
+    /**
+     * Приводит ссылку на фото с аукциона к пригодному виду.
+     */
+    private function normalizeAuctionPhotoUrl(?string $url): ?string
+    {
+        if (!is_string($url) || trim($url) === '') {
+            return null;
+        }
+
+        $realUrl = trim($url);
+
+        if (str_contains($realUrl, '/proxy/image') || str_contains($realUrl, 'image-proxy')) {
+            $parsed = parse_url($realUrl);
+            if (!empty($parsed['query'])) {
+                parse_str($parsed['query'], $params);
+                if (!empty($params['u'])) {
+                    $realUrl = urldecode($params['u']);
+                }
+            }
+        }
+
+        if (str_starts_with($realUrl, '/')) {
+            $realUrl = rtrim(config('app.url'), '/') . $realUrl;
+        }
+
+        return filter_var($realUrl, FILTER_VALIDATE_URL) ? $realUrl : null;
     }
 }

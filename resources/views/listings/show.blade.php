@@ -39,18 +39,26 @@
                             // Получаем все изображения (локальные + аукционные)
                             $allImages = [];
 
-                            // 1. Локальные медиа
+                            // 1. Локальные медиа (загруженные вручную)
                             if ($listing->hasMedia('images')) {
                                 foreach ($listing->getMedia('images') as $media) {
                                     $allImages[] = $media->getUrl(); // Полный размер
                                 }
                             }
 
-                            // 2. Если это аукцион - добавляем главное фото
-                            if ($listing->vehicleDetail && $listing->vehicleDetail->main_image_url && !$listing->hasMedia('images')) {
+                            // 2. Фотографии с аукциона (медиа-коллекция 'auction_photos')
+                            if ($listing->hasMedia('auction_photos')) {
+                                foreach ($listing->getMedia('auction_photos') as $media) {
+                                    $allImages[] = $media->getUrl(); // Полный размер
+                                }
+                            }
+
+                            // 3. Если это аукцион и нет фото - добавляем главное фото
+                            if (empty($allImages) && $listing->vehicleDetail && $listing->vehicleDetail->main_image_url) {
                                 $externalUrl = $listing->vehicleDetail->main_image_url;
                                 try {
-                                    $allImages[] = route('proxy.image', ['u' => $externalUrl]);
+                                    $ref = $listing->vehicleDetail->source_auction_url ?? 'https://www.copart.com/';
+                                    $allImages[] = route('proxy.image') . '?u=' . rawurlencode($externalUrl) . '&r=' . rawurlencode($ref);
                                 } catch (\Exception $e) {
                                     $allImages[] = $externalUrl;
                                 }

@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'copart' => [
+        'cookies' => env('COPART_COOKIES'),
+        'resolve' => env('COPART_RESOLVE'),
+    ],
+
 ];

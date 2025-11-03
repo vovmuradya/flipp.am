@@ -10,7 +10,7 @@ echo "🧪 Быстрый тест парсера Copart\n";
 echo str_repeat('=', 60) . "\n\n";
 
 $service = app(\App\Services\AuctionParserService::class);
-$url = 'https://www.copart.com/ru/lot/85336305/clean-title-2008-lexus-rx-400h-ny-long-island';
+$url = 'https://www.copart.com/ru/lot/71097795/salvage-2016-nissan-sentra-s-sc-columbia';
 
 echo "📍 URL: {$url}\n\n";
 echo "⏳ Запуск парсинга...\n\n";

@@ -22,6 +22,7 @@ class VehicleDetail extends Model
         'exterior_color',
         'is_from_auction',
         'source_auction_url',
+        'auction_ends_at',
     ];
     /**
      * The attributes that should be cast.
@@ -33,6 +34,7 @@ class VehicleDetail extends Model
         'mileage' => 'integer',
         'engine_displacement_cc' => 'integer',
         'is_from_auction' => 'boolean',
+        'auction_ends_at' => 'datetime',
     ];
     /**
      * Get the listing that owns the vehicle details.

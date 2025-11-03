@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\AuctionParserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -103,36 +104,95 @@ class AuctionParserController extends Controller
     }
 
     /**
-     * Парсинг Copart (возвращает пустые значения, ожидая реальной реализации)
+     * Парсинг Copart с использованием AuctionParserService
      */
     private function parseCopart(string $url): array
     {
-        // ВНИМАНИЕ: Здесь должна быть ваша реальная логика парсинга с помощью Http::get() и DOM-парсера.
-        // Сейчас возвращаем пустую структуру, чтобы не использовать фиксированные моковые данные.
+        try {
+            $service = new AuctionParserService();
+            $data = $service->parseFromUrl($url);
 
-        return [
-            'make' => null,
-            'model' => null,
-            'year' => null,
-            'mileage' => null,
-            'body_type' => null,
-            'transmission' => null,
-            'fuel_type' => null,
-            'engine_displacement_cc' => null,
-            'exterior_color' => null,
-            'source_auction_url' => $url,
-            'photos' => $this->generateMockPhotos(0) // Вернет пустой массив
-        ];
+            if ($data && !empty($data['make'])) {
+                return $data;
+            }
+
+            // Fallback если парсер вернул пусто
+            return [
+                'make' => null,
+                'model' => null,
+                'year' => null,
+                'mileage' => null,
+                'body_type' => null,
+                'transmission' => null,
+                'fuel_type' => null,
+                'engine_displacement_cc' => null,
+                'exterior_color' => null,
+                'source_auction_url' => $url,
+                'photos' => []
+            ];
+        } catch (\Exception $e) {
+            Log::error('Copart parsing failed: ' . $e->getMessage());
+            return [
+                'make' => null,
+                'model' => null,
+                'year' => null,
+                'mileage' => null,
+                'body_type' => null,
+                'transmission' => null,
+                'fuel_type' => null,
+                'engine_displacement_cc' => null,
+                'exterior_color' => null,
+                'source_auction_url' => $url,
+                'photos' => []
+            ];
+        }
     }
 
     /**
-     * Парсинг IAAI (упрощённая версия)
+     * Парсинг IAAI с использованием AuctionParserService
      */
     private function parseIAAI(string $url): array
     {
-        // Аналогично Copart - возвращаем пустую структуру
-        return $this->parseCopart($url);
+        try {
+            $service = new AuctionParserService();
+            $data = $service->parseFromUrl($url);
+
+            if ($data && !empty($data['make'])) {
+                return $data;
+            }
+
+            // Fallback если парсер вернул пусто
+            return [
+                'make' => null,
+                'model' => null,
+                'year' => null,
+                'mileage' => null,
+                'body_type' => null,
+                'transmission' => null,
+                'fuel_type' => null,
+                'engine_displacement_cc' => null,
+                'exterior_color' => null,
+                'source_auction_url' => $url,
+                'photos' => []
+            ];
+        } catch (\Exception $e) {
+            Log::error('IAAI parsing failed: ' . $e->getMessage());
+            return [
+                'make' => null,
+                'model' => null,
+                'year' => null,
+                'mileage' => null,
+                'body_type' => null,
+                'transmission' => null,
+                'fuel_type' => null,
+                'engine_displacement_cc' => null,
+                'exterior_color' => null,
+                'source_auction_url' => $url,
+                'photos' => []
+            ];
+        }
     }
+
 
     /**
      * Извлекаем ID лота из URL
@@ -146,12 +206,4 @@ class AuctionParserController extends Controller
         return substr(md5($url), 0, 8);
     }
 
-    /**
-     * Генерируем URL для моковых фото (теперь возвращает пустой массив)
-     */
-    private function generateMockPhotos(int $count): array
-    {
-        // В реальном проекте здесь будут реальные URL с аукциона.
-        return [];
-    }
 }

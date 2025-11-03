@@ -49,10 +49,37 @@
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                 @foreach($listings as $listing)
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <img src="{{ $listing->getFirstMediaUrl('images', 'thumb') ?: 'https://placehold.co/100x80/e5e7eb/6b7280?text=No+Image' }}" alt="{{ $listing->title }}" class="h-16 w-20 object-cover rounded">
-                                        </td>
+                                @php
+                                    $endsAt = $listing->auction_ends_at;
+                                    $isExpired = $endsAt ? $endsAt->isPast() : false;
+                                    $remainingLabel = $endsAt && !$isExpired
+                                        ? $endsAt->diffForHumans(now(), true, false, 2)
+                                        : null;
+                                    $expiresIso = $endsAt?->toIso8601String();
+                                @endphp
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="relative w-20 h-16">
+                                            <img src="{{ $listing->getPreviewUrl('thumb') }}" alt="{{ $listing->title }}" class="h-16 w-20 object-cover rounded">
+                                            @if($endsAt)
+                                                <div
+                                                    class="absolute top-1 left-1 bg-gray-900 bg-opacity-80 text-white text-[10px] px-2 py-1 rounded shadow"
+                                                    data-countdown
+                                                    data-expires="{{ $expiresIso }}"
+                                                    data-prefix="До конца"
+                                                    data-expired-text="Лот завершён"
+                                                >
+                                                    <span data-countdown-text>
+                                                        @if($isExpired)
+                                                            Лот завершён
+                                                        @else
+                                                            До конца: {{ $remainingLabel }}
+                                                        @endif
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm font-medium text-gray-900">{{ $listing->title }}</div>
                                             <div class="text-sm text-gray-500">{{ $listing->created_at->format('d.m.Y') }}</div>
@@ -87,4 +114,3 @@
         </div>
     </div>
 </x-app-layout>
-

@@ -59,7 +59,7 @@ class SearchController extends Controller
         $search->orderBy($sortBy, $sortOrder);
 
         $listings = $search->paginate(12)->withQueryString();
-        $listings->load('category', 'region', 'media', 'user.favorites');
+        $listings->load('category', 'region', 'media', 'vehicleDetail', 'user.favorites');
 
         $allCategories = Category::get(); // Получаем все категории для передачи в JS
         $categories = $allCategories->whereNotNull('parent_id')->sortBy('name');

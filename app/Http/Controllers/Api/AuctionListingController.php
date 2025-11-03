@@ -20,7 +20,7 @@ class AuctionListingController extends Controller
         try {
             /** @var AuctionParserService $service */
             $service = app(AuctionParserService::class);
-            $parsed = $service->parseFromUrl($url); // array|null
+            $parsed = $service->parseFromUrl($url, aggressive: false); // array|null
 
             if (!$parsed) {
                 $parsed = $this->fallbackFromUrl($url);
@@ -39,6 +39,7 @@ class AuctionListingController extends Controller
                 'body_type' => $parsed['body_type'] ?? 'SUV',
                 'photos' => array_values(array_filter($parsed['photos'] ?? [], fn($u) => is_string($u) && strlen($u) > 5)),
                 'source_auction_url' => $parsed['source_auction_url'] ?? $url,
+                'auction_ends_at' => $parsed['auction_ends_at'] ?? null,
             ];
 
             // Заголовок и описание

@@ -56,6 +56,9 @@ class ImageProxyController extends Controller
         }
 
         try {
+            // ✅ ИСПРАВЛЕНИЕ: Динамически используем Referer из запроса, если он есть
+            $referer = $request->query('r', 'https://www.copart.com/');
+
             // 🔥 УЛУЧШЕННЫЕ ЗАГОЛОВКИ для обхода защиты Copart
             $response = Http::timeout(25)
                 ->withHeaders([
@@ -63,7 +66,7 @@ class ImageProxyController extends Controller
                     'Accept' => 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
                     'Accept-Language' => 'en-US,en;q=0.9',
                     'Accept-Encoding' => 'gzip, deflate, br',
-                    'Referer' => 'https://www.copart.com/',
+                    'Referer' => $referer, // Используем динамический Referer
                     'Origin' => 'https://www.copart.com',
                     'DNT' => '1',
                     'Connection' => 'keep-alive',

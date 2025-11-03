@@ -18,12 +18,37 @@
                 </div>
 
                 <div class="p-6">
+
+                {{-- ФОРМА ВВОДА URL ДЛЯ АУКЦИОНА (когда from_auction=1 но данных еще нет) --}}
+                @if(request()->has('from_auction') && !$auctionData)
+                    <div class="mb-6 bg-yellow-50 border-2 border-yellow-300 p-4 rounded-lg">
+                        <h2 class="text-lg font-semibold mb-3 text-gray-800">
+                            🔗 Введите ссылку на аукцион
+                        </h2>
+                        <form id="auctionUrlForm" class="flex gap-2">
+                            <input type="text"
+                                   id="auctionUrl"
+                                   placeholder="Например: https://www.copart.com/ru/lot/80812965/clean-title-2015-chevrolet-trax-ls-nb-moncton"
+                                   class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                                   required>
+                            <button type="button"
+                                    id="parseBtn"
+                                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition">
+                                Загрузить
+                            </button>
+                        </form>
+                        <p id="loadingMsg" class="text-sm text-gray-600 mt-2 hidden">⏳ Загрузка данных...</p>
+                        <p id="errorMsg" class="text-sm text-red-600 mt-2 hidden"></p>
+                    </div>
+                @endif
+
                 @php
                     // Нормализуем данные аукциона
                     $ad = $auctionData ?? null;
 
                     // Если есть вложенный массив vehicle, используем его, иначе берем из корня
                     $adV = [];
+
                     if ($ad && isset($ad['vehicle']) && is_array($ad['vehicle'])) {
                         $adV = $ad['vehicle'];
                     } elseif ($ad) {
@@ -38,59 +63,146 @@
                             'fuel_type' => $ad['fuel_type'] ?? null,
                             'engine_displacement_cc' => $ad['engine_displacement_cc'] ?? null,
                             'body_type' => $ad['body_type'] ?? null,
+                            'auction_ends_at' => $ad['auction_ends_at'] ?? null,
                         ];
                     }
-                @endphp
 
-                <!-- Галерея фото с аукциона (Компактная) -->
-                @if($ad && !empty($ad['photos']) && is_array($ad['photos']))
-                        @php
-                            $uniquePhotos = [];
+                    if ($ad && empty(data_get($adV, 'auction_ends_at')) && !empty(data_get($ad, 'auction_ends_at'))) {
+                        $adV['auction_ends_at'] = $ad['auction_ends_at'];
+                    }
+
+                    $displayPhotos = [];
+                    if ($ad) {
+                        $rawPhotos = [];
+
+                        if (!empty($ad['photos']) && is_array($ad['photos'])) {
+                            $rawPhotos = array_merge($rawPhotos, $ad['photos']);
+                        }
+                        if (isset($ad['vehicle']['photos']) && is_array($ad['vehicle']['photos'])) {
+                            $rawPhotos = array_merge($rawPhotos, $ad['vehicle']['photos']);
+                        }
+
+                        if (!empty($rawPhotos)) {
                             $seenPaths = [];
+                            $cleanPhotos = [];
 
-                            foreach ($ad['photos'] as $photo) {
-                                $photoUrl = is_string($photo) ? trim($photo) : (isset($photo['url']) ? trim($photo['url']) : '');
-                                if (empty($photoUrl)) continue;
+                            foreach ($rawPhotos as $photo) {
+                                $photoUrl = null;
 
-                                // Пропускаем только явные заглушки
-                                if (stripos($photoUrl, 'No+Image') !== false || stripos($photoUrl, 'No%20Image') !== false) continue;
-                                if (stripos($photoUrl, 'No_Image') !== false) continue;
-                                if (stripos($photoUrl, 'text=No') !== false) continue;
+                                if (is_string($photo)) {
+                                    $photoUrl = trim($photo);
+                                } elseif (is_array($photo)) {
+                                    foreach (['url', 'full', 'large', 'src', 'path'] as $key) {
+                                        if (!empty($photo[$key]) && is_string($photo[$key])) {
+                                            $photoUrl = trim($photo[$key]);
+                                            break;
+                                        }
+                                    }
+                                }
 
-                                // Извлекаем реальный URL из прокси
+                                if (empty($photoUrl)) {
+                                    continue;
+                                }
+
+                                // Пропускаем явные заглушки
+                                if (stripos($photoUrl, 'No+Image') !== false
+                                    || stripos($photoUrl, 'No%20Image') !== false
+                                    || stripos($photoUrl, 'No_Image') !== false
+                                    || stripos($photoUrl, 'text=No') !== false) {
+                                    continue;
+                                }
+
+                                // Извлекаем реальный URL из прокси для дедупликации
                                 $realUrl = $photoUrl;
                                 if (str_contains($photoUrl, '/proxy/image') || str_contains($photoUrl, 'image-proxy')) {
-                                    $p = parse_url($photoUrl);
-                                    if (!empty($p['query'])) {
-                                        parse_str($p['query'], $params);
+                                    $parsed = parse_url($photoUrl);
+                                    if (!empty($parsed['query'])) {
+                                        parse_str($parsed['query'], $params);
                                         if (!empty($params['u'])) {
                                             $realUrl = urldecode($params['u']);
                                         }
                                     }
                                 }
 
-                                // Нормализуем путь для исключения дубликатов (_thn, _hrs = один файл)
                                 $path = parse_url($realUrl, PHP_URL_PATH) ?? $realUrl;
-                                $normalizedPath = preg_replace('/_(thn|hrs|thb|tmb|ful)\.(jpg|jpeg|png|webp)$/i', '.$2', $path);
+                                $normalizedPath = strtolower(preg_replace('/_(thn|hrs|thb|tmb|ful)\.(jpg|jpeg|png|webp)$/i', '.$2', $path));
 
-                                if (isset($seenPaths[$normalizedPath])) continue;
+                                if (isset($seenPaths[$normalizedPath])) {
+                                    continue;
+                                }
+
                                 $seenPaths[$normalizedPath] = true;
-                                $uniquePhotos[] = $photoUrl;
+                                $cleanPhotos[] = $photoUrl;
                             }
 
-                            $uniquePhotos = array_values($uniquePhotos);
-                            $uniquePhotos = array_slice($uniquePhotos, 0, 14); // макс 14 миниатюр
-                            $photoCount = count($uniquePhotos);
-                            $firstPhotoUrl = $uniquePhotos[0] ?? 'https://placehold.co/200x150/e5e7eb/6b7280?text=Нет+фото';
-                        @endphp
+                            $displayPhotos = array_slice(array_values($cleanPhotos), 0, 14);
+                        }
+                    }
 
+                    $mainImageDefault = $displayPhotos[0] ?? 'https://placehold.co/200x150/e5e7eb/6b7280?text=Нет+фото';
+                @endphp
+
+                @php
+                    $allCategories = $categories ?? collect();
+                    $typeCategoryMap = [
+                        'vehicle' => $allCategories->whereIn('slug', ['cars', 'motorcycles', 'trucks'])->pluck('id')->values()->all(),
+                        'parts' => $allCategories->where('slug', 'auto-parts')->pluck('id')->values()->all(),
+                        'tires' => $allCategories->where('slug', 'tires')->pluck('id')->values()->all(),
+                    ];
+
+                    $sectionCards = [
+                        'vehicle' => [
+                            'title' => 'Автомобили',
+                            'description' => 'Легковые, мотоциклы и коммерческий транспорт.',
+                            'icon' => '🚗',
+                        ],
+                        'parts' => [
+                            'title' => 'Запчасти',
+                            'description' => 'Двигатели, кузовные элементы и аксессуары.',
+                            'icon' => '🛠️',
+                        ],
+                        'tires' => [
+                            'title' => 'Шины и диски',
+                            'description' => 'Резина, диски, комплекты и расходники.',
+                            'icon' => '🛞',
+                        ],
+                    ];
+
+                    $initialType = old('section', old('listing_type'));
+                    if ($ad) {
+                        $initialType = 'vehicle';
+                    }
+                    if (!$initialType || !array_key_exists($initialType, $sectionCards)) {
+                        $initialType = 'vehicle';
+                    }
+
+                    $initialCategory = old('category_id');
+                    if ($ad) {
+                        $initialCategory = $initialCategory ?? 1;
+                    } elseif (!$initialCategory && !empty($typeCategoryMap[$initialType])) {
+                        $initialCategory = $typeCategoryMap[$initialType][0];
+                    }
+
+                    $allMappedCategoryIds = collect($typeCategoryMap)->flatten()->filter()->unique()->values()->all();
+                    $fallbackToAllCategories = empty($allMappedCategoryIds);
+
+                    $listingFormConfig = [
+                        'initialType' => $initialType,
+                        'initialCategory' => $initialCategory ? (string) $initialCategory : null,
+                        'categoryMap' => $typeCategoryMap,
+                        'isAuction' => (bool) $ad,
+                    ];
+                @endphp
+
+                <!-- Галерея фото с аукциона (Компактная) -->
+                @if($ad && !empty($displayPhotos))
                         <div class="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-2 border-blue-200">
                             <h3 class="text-lg font-semibold mb-3 text-gray-800 flex items-center">
-                                📸 Фотографии с аукциона ({{ $photoCount }})
+                                📸 Фотографии с аукциона ({{ count($displayPhotos) }})
                             </h3>
 
                             {{-- Главное превью (компактное 200x150px) --}}
-                            <div x-data="{ mainImage: '{{ addslashes($firstPhotoUrl) }}' }">
+                            <div x-data="{ mainImage: '{{ addslashes($mainImageDefault) }}' }">
                                 <div class="mb-4 relative mx-auto bg-gray-200 rounded-lg overflow-hidden shadow-md" style="width: 200px; height: 150px;">
                                     <img :src="mainImage"
                                          alt="Главное фото"
@@ -104,7 +216,7 @@
 
                                 {{-- Галерея миниатюр (квадраты 70px) --}}
                                 <div class="flex flex-wrap gap-2">
-                                    @foreach($uniquePhotos as $index => $photoUrl)
+                                    @foreach($displayPhotos as $index => $photoUrl)
                                         <div class="relative group cursor-pointer flex-shrink-0 hover:scale-105 transition-transform"
                                              @click="mainImage = '{{ addslashes($photoUrl) }}'"
                                              style="width: 70px; height: 70px;">
@@ -149,19 +261,56 @@
                         </div>
                     @endif
 
-                    <form method="POST" action="{{ route('listings.store') }}" enctype="multipart/form-data" class="space-y-6">
+                    <form method="POST"
+                          action="{{ route('listings.store') }}"
+                          enctype="multipart/form-data"
+                          class="space-y-6"
+                          x-data="listingCreateForm(@js($listingFormConfig))"
+                          x-init="init()">
                         @csrf
+
+                        <input type="hidden" name="listing_type" value="{{ $initialType }}" x-model="selectedType">
+
+                        @if(!$ad)
+                            <div class="mb-6">
+                                <h2 class="text-lg font-semibold text-gray-800 mb-3">Выберите раздел</h2>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    @foreach($sectionCards as $typeKey => $card)
+                                        <button
+                                            type="button"
+                                            class="border rounded-lg p-4 text-left hover:shadow-md transition flex flex-col gap-2"
+                                            :class="selectedType === '{{ $typeKey }}' ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-gray-200 bg-white'"
+                                            @click="setType('{{ $typeKey }}')"
+                                        >
+                                            <div class="text-2xl leading-none">{{ $card['icon'] }}</div>
+                                            <div>
+                                                <div class="text-sm font-semibold text-gray-900">{{ $card['title'] }}</div>
+                                                <p class="text-xs text-gray-500">{{ $card['description'] }}</p>
+                                            </div>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
 
                         <!-- Скрытые поля для аукциона -->
                         @if($ad)
+                            @php
+                                $auctionEndsAtValue = data_get($adV, 'auction_ends_at')
+                                    ?? data_get($ad, 'vehicle.auction_ends_at')
+                                    ?? data_get($ad, 'auction_ends_at');
+                            @endphp
                             <input type="hidden" name="from_auction" value="1">
                             <input type="hidden" name="listing_type" value="vehicle">
                             <input type="hidden" name="vehicle[is_from_auction]" value="1">
                             <input type="hidden" name="vehicle[source_auction_url]" value="{{ $ad['auction_url'] ?? '' }}">
+                            @if(!empty($auctionEndsAtValue))
+                                <input type="hidden" name="vehicle[auction_ends_at]" value="{{ $auctionEndsAtValue }}">
+                            @endif
                             <input type="hidden" name="category_id" value="1"><!-- Транспорт -->
 
-                            @if(!empty($uniquePhotos))
-                                @foreach($uniquePhotos as $photo)
+                            @if(!empty($displayPhotos))
+                                @foreach($displayPhotos as $photo)
                                     <input type="hidden" name="auction_photos[]" value="{{ $photo }}">
                                 @endforeach
                             @endif
@@ -216,6 +365,7 @@
                                 <select name="category_id"
                                         id="category_id"
                                         required
+                                        x-model="categoryId"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     <option value="">Выберите категорию</option>
                                     @foreach($categories as $category)
@@ -230,8 +380,10 @@
 
                         <!-- Поля автомобиля -->
                         <div id="vehicle-fields"
-                             style="{{ $ad || old('category_id') == 1 ? 'display: block;' : 'display: none;' }}"
-                             class="space-y-6 p-6 {{ $ad ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50' }} rounded-lg">
+                             x-cloak
+                             x-show="selectedType === 'vehicle'"
+                             style="{{ $initialType === 'vehicle' ? '' : 'display: none;' }}"
+                             class="space-y-6 {{ $ad ? 'bg-blue-50 border-2 border-blue-300' : 'bg-gray-50' }} rounded-lg p-6">
 
                             <h3 class="text-lg font-semibold text-gray-900 flex items-center">
                                 <svg class="w-6 h-6 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
@@ -430,16 +582,40 @@
         </div>
     </div>
 
+@push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const categorySelect = document.getElementById('category_id');
-            const vehicleFields = document.getElementById('vehicle-fields');
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('listingCreateForm', (config) => ({
+                selectedType: config.initialType || 'vehicle',
+                categoryId: config.initialCategory || '',
+                categoryMap: config.categoryMap || {},
+                isAuction: Boolean(config.isAuction),
+                init() {
+                    if (!this.categoryId) {
+                        const fallback = this.categoryMap[this.selectedType];
+                        if (Array.isArray(fallback) && fallback.length > 0) {
+                            this.categoryId = String(fallback[0]);
+                        }
+                    }
+                },
+                setType(type) {
+                    if (this.selectedType === type) {
+                        return;
+                    }
+                    this.selectedType = type;
 
-            if (categorySelect && vehicleFields) {
-                categorySelect.addEventListener('change', function () {
-                    vehicleFields.style.display = (this.value == '1') ? 'block' : 'none';
-                });
-            }
+                    const map = this.categoryMap[type] || [];
+                    if (map.length === 0) {
+                        return;
+                    }
+
+                    const currentNumeric = Number(this.categoryId);
+                    if (!map.includes(currentNumeric)) {
+                        this.categoryId = String(map[0]);
+                    }
+                },
+            }));
         });
     </script>
+@endpush
 @endsection

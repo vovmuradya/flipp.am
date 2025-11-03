@@ -54,6 +54,7 @@ class ListingRequest extends FormRequest
                 'vehicle.exterior_color' => ['nullable', 'string', 'max:50'],
                 'vehicle.is_from_auction' => ['nullable', 'boolean'],
                 'vehicle.source_auction_url' => ['nullable', 'url', 'max:512'],
+                'vehicle.auction_ends_at' => ['nullable', 'date'],
             ];
             foreach ($vehicleRules as $k => $v) {
                 $rules[$k] = $v;

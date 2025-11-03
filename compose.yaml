@@ -8,6 +8,8 @@ services:
         image: sail-8.4/app
         extra_hosts:
             - 'host.docker.internal:host-gateway'
+            - 'www.copart.com:45.60.13.242'
+            - 'cs.copart.com:45.60.13.242'
         ports:
             - '${APP_PORT:-80}:80'
             - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'

@@ -18,6 +18,12 @@
 
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-medium text-gray-900">Список ваших объявлений с аукционов</h3>
+                        <div class="flex items-center gap-2 text-sm text-gray-500">
+                            <svg class="h-4 w-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Фото загружаются в фоне, обновите страницу через пару секунд
+                        </div>
                         <a href="{{ route('listings.create-from-auction') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150">
                             Добавить новое
                         </a>
@@ -50,9 +56,40 @@
                                 <tbody class="bg-white divide-y divide-gray-200">
                                 @foreach($listings as $listing)
                                     <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <img src="{{ $listing->getFirstMediaUrl('images', 'thumb') ?: 'https://placehold.co/100x80/e5e7eb/6b7280?text=No+Image' }}" alt="{{ $listing->title }}" class="h-16 w-20 object-cover rounded">
-                                        </td>
+                                @php
+                                    $endsAt = $listing->auction_ends_at;
+                                    $isExpired = $endsAt ? $endsAt->isPast() : false;
+                                    $remainingLabel = $endsAt && !$isExpired
+                                        ? $endsAt->diffForHumans(now(), true, false, 2)
+                                        : null;
+                                    $expiresIso = $endsAt?->toIso8601String();
+                                @endphp
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="relative w-20 h-16">
+                                        <img src="{{ $listing->getPreviewUrl('thumb') }}"
+                                             alt="{{ $listing->title }}"
+                                             class="h-16 w-20 object-cover rounded"
+                                             loading="lazy"
+                                             onerror="this.src='https://placehold.co/200x150/e5e7eb/6b7280?text=Нет+фото'">
+                                        @if($endsAt)
+                                            <div
+                                                class="absolute top-1 left-1 bg-gray-900 bg-opacity-80 text-white text-[10px] px-2 py-1 rounded shadow"
+                                                data-countdown
+                                                data-expires="{{ $expiresIso }}"
+                                                data-prefix="До конца"
+                                                data-expired-text="Лот завершён"
+                                            >
+                                                <span data-countdown-text>
+                                                    @if($isExpired)
+                                                        Лот завершён
+                                                    @else
+                                                        До конца: {{ $remainingLabel }}
+                                                    @endif
+                                                </span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm font-medium text-gray-900">{{ $listing->title }}</div>
                                             <div class="text-sm text-gray-500">{{ $listing->created_at->format('d.m.Y') }}</div>
@@ -87,4 +124,3 @@
         </div>
     </div>
 </x-app-layout>
-

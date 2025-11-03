@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,6 +13,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 class Listing extends Model implements HasMedia
 {
     use HasFactory, SoftDeletes, InteractsWithMedia, Searchable;
+
+    private const PLACEHOLDER_IMAGE = 'https://placehold.co/300x200/e5e7eb/6b7280?text=No+Image';
 
     protected $fillable = [
         'user_id',
@@ -38,6 +41,39 @@ class Listing extends Model implements HasMedia
             'last_bumped_at' => 'datetime',
         ];
     }
+
+    /**
+     * Boot метод для автоматической генерации уникального slug
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($listing) {
+            if (empty($listing->slug)) {
+                $listing->slug = static::generateUniqueSlug($listing->title);
+            }
+        });
+    }
+
+    /**
+     * Генерирует уникальный slug на основе заголовка
+     */
+    public static function generateUniqueSlug(string $title): string
+    {
+        $slug = \Illuminate\Support\Str::slug($title);
+        $originalSlug = $slug;
+        $counter = 1;
+
+        // Проверяем существование slug и добавляем инкрементный суффикс при необходимости
+        while (static::where('slug', $slug)->exists()) {
+            $slug = $originalSlug . '-' . $counter;
+            $counter++;
+        }
+
+        return $slug;
+    }
+
     public function similar()
     {
         return Listing::query()
@@ -144,6 +180,9 @@ class Listing extends Model implements HasMedia
     {
         $this->addMediaCollection('images')
             ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+
+        $this->addMediaCollection('auction_photos')
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/jpg']);
     }
 
     /**
@@ -169,6 +208,32 @@ class Listing extends Model implements HasMedia
             ->height(900)
             ->format('webp')
             ->quality(90);
+    }
+
+    public function getPreviewUrl(string $conversion = 'thumb'): string
+    {
+        $collections = ['auction_photos', 'images'];
+
+        foreach ($collections as $collection) {
+            $url = $this->getFirstMediaUrl($collection, $conversion);
+            if (!empty($url)) {
+                return $url;
+            }
+        }
+
+        return self::PLACEHOLDER_IMAGE;
+    }
+
+    public function getAuctionEndsAtAttribute(): ?Carbon
+    {
+        $detail = $this->vehicleDetail;
+        if (!$detail || !$detail->auction_ends_at) {
+            return null;
+        }
+
+        return $detail->auction_ends_at instanceof Carbon
+            ? $detail->auction_ends_at
+            : Carbon::parse($detail->auction_ends_at);
     }
 
     // ========== RELATIONS ==========

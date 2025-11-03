@@ -45,34 +45,67 @@ class ImportAuctionPhotos implements ShouldQueue
             return;
         }
 
-        // Ограничим до 8 фото, чтобы не забивать очередь
-        $urls = array_slice($this->photoUrls, 0, 8);
+        // Ограничим до 14 фото
+        $urls = array_slice($this->photoUrls, 0, 14);
+        $successCount = 0;
+
         foreach ($urls as $url) {
             try {
-                // Если это наш прокси, превратим относительный путь в абсолютный
-                if (str_starts_with($url, '/image-proxy')) {
-                    $url = rtrim(config('app.url'), '/') . $url;
+                $realUrl = $url;
+
+                // 1️⃣ Если это proxy-URL, извлекаем реальный URL из параметра u
+                if (str_contains($url, '/proxy/image') || str_contains($url, '/image-proxy')) {
+                    $parsed = parse_url($url);
+                    if (!empty($parsed['query'])) {
+                        parse_str($parsed['query'], $params);
+                        if (!empty($params['u'])) {
+                            $realUrl = urldecode($params['u']);
+                        }
+                    }
                 }
-                if (!filter_var($url, FILTER_VALIDATE_URL)) {
+
+                // 2️⃣ Если URL относительный, делаем его абсолютным
+                if (str_starts_with($realUrl, '/')) {
+                    $realUrl = rtrim(config('app.url'), '/') . $realUrl;
+                }
+
+                // 3️⃣ Проверяем валидность URL
+                if (!filter_var($realUrl, FILTER_VALIDATE_URL)) {
+                    Log::warning('ImportAuctionPhotos: invalid URL after extraction', [
+                        'original' => substr($url, 0, 100),
+                        'extracted' => substr($realUrl, 0, 100),
+                        'listing_id' => $this->listingId
+                    ]);
                     continue;
                 }
 
-                $listing->addMediaFromUrl($url)
-                    ->toMediaCollection('images');
+                Log::info('📸 ImportAuctionPhotos: loading from ' . substr($realUrl, 0, 100), [
+                    'listing_id' => $listing->id
+                ]);
 
-                Log::info('ImportAuctionPhotos: added media', [
+                // 4️⃣ Загружаем НАПРЯМУЮ с реального URL в коллекцию 'auction_photos'
+                $listing->addMediaFromUrl($realUrl)
+                    ->toMediaCollection('auction_photos');
+
+                $successCount++;
+                Log::info('✅ ImportAuctionPhotos: added media', [
                     'listing_id' => $listing->id,
-                    'url' => $url,
+                    'url' => substr($realUrl, 0, 100),
                 ]);
             } catch (\Throwable $e) {
-                Log::warning('ImportAuctionPhotos: failed addMediaFromUrl', [
+                Log::warning('⚠️ ImportAuctionPhotos: failed', [
                     'listing_id' => $this->listingId,
-                    'url' => $url,
+                    'url' => substr($url, 0, 100),
                     'error' => $e->getMessage(),
                 ]);
-                // продолжаем следующие фото
             }
         }
+
+        Log::info('✅ ImportAuctionPhotos: job completed', [
+            'listing_id' => $this->listingId,
+            'total' => count($urls),
+            'successful' => $successCount
+        ]);
     }
 }
 
