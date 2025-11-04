@@ -1,6 +1,6 @@
 #!/usr/bin/env php
 <?php
-
+//asdasdasd
 use Illuminate\Foundation\Application;
 use Symfony\Component\Console\Input\ArgvInput;
 
