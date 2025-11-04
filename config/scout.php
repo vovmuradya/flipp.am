@@ -140,9 +140,27 @@ return [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
-            // 'users' => [
-            //     'filterableAttributes'=> ['id', 'name', 'email'],
-            // ],
+            'listings' => [
+                'filterableAttributes' => [
+                    'status',
+                    'category_id',
+                    'region_id',
+                    'listing_type',
+                    'make',
+                    'model',
+                    'year',
+                    'mileage',
+                    'transmission',
+                    'fuel_type',
+                    'is_from_auction',
+                ],
+                'sortableAttributes' => [
+                    'price',
+                    'created_timestamp',
+                    'year',
+                    'mileage',
+                ],
+            ],
         ],
     ],
 

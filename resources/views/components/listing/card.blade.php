@@ -15,24 +15,21 @@
     $expiresIso = $endsAt?->toIso8601String();
 @endphp
 
-<div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden group relative">
-    <div class="relative">
+<div class="brand-listing-card">
+    <div class="brand-listing-card__media">
         <a href="{{ route('listings.show', $listing) }}">
             <img src="{{ $listing->getPreviewUrl('medium') }}"
                  alt="{{ $listing->title }}"
-                 class="w-full h-48 object-cover"
                  onerror="this.src='https://placehold.co/400x300/e5e7eb/6b7280?text=Нет+фото'">
         </a>
 
         @if($badge)
-            <div class="absolute top-2 right-2 bg-white text-blue-600 text-xs font-semibold px-2 py-1 rounded-full shadow">
-                {{ $badge }}
-            </div>
+            <div class="brand-listing-card__badge">{{ $badge }}</div>
         @endif
 
         @if($endsAt)
             <div
-                class="absolute top-2 left-2 bg-blue-900 bg-opacity-80 text-white text-xs px-2 py-1 rounded"
+                class="brand-listing-card__timer"
                 data-countdown
                 data-expires="{{ $expiresIso }}"
                 data-prefix="Осталось"
@@ -50,17 +47,13 @@
 
         @if($showFavorite)
             @auth
-                <form action="{{ route('listings.favorite.toggle', $listing) }}" method="POST" class="absolute top-2 right-2">
+                <form action="{{ route('listings.favorite.toggle', $listing) }}" method="POST" class="brand-listing-card__favorite">
                     @csrf
-                    <button type="submit" class="p-2 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white">
+                    <button type="submit">
                         @if(auth()->user()->favorites->contains($listing))
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-red-500">
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                            </svg>
+                            <i class="fa-solid fa-heart"></i>
                         @else
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-700">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                            </svg>
+                            <i class="fa-regular fa-heart"></i>
                         @endif
                     </button>
                 </form>
@@ -68,11 +61,11 @@
         @endif
     </div>
 
-    <a href="{{ route('listings.show', $listing) }}">
-        <div class="p-4 bg-white">
-            <h4 class="font-bold text-lg truncate text-gray-900">{{ $listing->title }}</h4>
-            <p class="text-sm text-gray-600 mt-1">{{ $listing->region?->name }}</p>
-            <p class="text-xl font-semibold mt-3 text-blue-600">
+    <a href="{{ route('listings.show', $listing) }}" class="text-decoration-none">
+        <div class="brand-listing-card__content">
+            <h4 class="brand-listing-card__title">{{ $listing->title }}</h4>
+            <p class="brand-listing-card__meta">{{ $listing->region?->name ?? 'Регион не указан' }}</p>
+            <p class="brand-listing-card__price">
                 {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}
             </p>
         </div>
@@ -166,8 +159,7 @@
 
                     if (!window.__listingCountdownInterval) {
                         window.__listingCountdownInterval = setInterval(() => {
-                            const targets = document.querySelectorAll('[data-countdown]');
-                            targets.forEach(updateCountdown);
+                            document.querySelectorAll('[data-countdown]').forEach(updateCountdown);
                         }, 1000);
                     }
                 }
@@ -177,22 +169,6 @@
                 } else {
                     boot();
                 }
-
-                const observer = new MutationObserver((mutations) => {
-                    for (const mutation of mutations) {
-                        mutation.addedNodes.forEach((node) => {
-                            if (!(node instanceof HTMLElement)) {
-                                return;
-                            }
-                            if (node.matches && node.matches('[data-countdown]')) {
-                                initCountdown(node);
-                            }
-                            node.querySelectorAll?.('[data-countdown]').forEach(initCountdown);
-                        });
-                    }
-                });
-
-                observer.observe(document.body, { childList: true, subtree: true });
             })();
         </script>
     @endpush

@@ -101,84 +101,116 @@
 
                     {{-- ТЗ v2.1: Характеристики автомобиля --}}
                     @if($listing->listing_type === 'vehicle' && $listing->vehicleDetail)
+                        @php
+                            $vehicle = $listing->vehicleDetail;
+                            $bodyTypeMap = [
+                                'sedan' => 'Седан',
+                                'suv' => 'SUV / Внедорожник',
+                                'coupe' => 'Купе',
+                                'hatchback' => 'Хэтчбек',
+                                'wagon' => 'Универсал',
+                                'pickup' => 'Пикап',
+                                'minivan' => 'Минивэн',
+                                'convertible' => 'Кабриолет',
+                            ];
+                            $transmissionMap = [
+                                'automatic' => 'Автоматическая',
+                                'manual' => 'Механическая',
+                                'cvt' => 'Вариатор (CVT)',
+                                'semi-automatic' => 'Полуавтоматическая',
+                            ];
+                            $fuelTypeMap = [
+                                'gasoline' => 'Бензин',
+                                'diesel' => 'Дизель',
+                                'hybrid' => 'Гибрид',
+                                'electric' => 'Электро',
+                                'lpg' => 'ГБО',
+                            ];
+                            $mileageText = $vehicle->mileage !== null
+                                ? number_format($vehicle->mileage, 0, '.', ' ') . ' км'
+                                : '—';
+                            $auctionEndsAtText = $vehicle->auction_ends_at
+                                ? $vehicle->auction_ends_at->timezone(config('app.timezone'))->format('d.m.Y H:i')
+                                : null;
+                        @endphp
+
                         <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
                             <h2 class="text-2xl font-bold mb-4 text-blue-900">Характеристики автомобиля</h2>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="flex justify-between border-b pb-2">
-                                    <span class="text-gray-600 font-medium">Марка:</span>
-                                    <strong class="text-gray-900">{{ $listing->vehicleDetail->make }}</strong>
-                                </div>
-                                <div class="flex justify-between border-b pb-2">
-                                    <span class="text-gray-600 font-medium">Модель:</span>
-                                    <strong class="text-gray-900">{{ $listing->vehicleDetail->model }}</strong>
-                                </div>
-                                <div class="flex justify-between border-b pb-2">
-                                    <span class="text-gray-600 font-medium">Год выпуска:</span>
-                                    <strong class="text-gray-900">{{ $listing->vehicleDetail->year }}</strong>
-                                </div>
+                                @if($vehicle->make)
+                                    <div class="flex justify-between border-b pb-2">
+                                        <span class="text-gray-600 font-medium">Марка:</span>
+                                        <strong class="text-gray-900">{{ $vehicle->make }}</strong>
+                                    </div>
+                                @endif
+
+                                @if($vehicle->model)
+                                    <div class="flex justify-between border-b pb-2">
+                                        <span class="text-gray-600 font-medium">Модель:</span>
+                                        <strong class="text-gray-900">{{ $vehicle->model }}</strong>
+                                    </div>
+                                @endif
+
+                                @if($vehicle->year)
+                                    <div class="flex justify-between border-b pb-2">
+                                        <span class="text-gray-600 font-medium">Год выпуска:</span>
+                                        <strong class="text-gray-900">{{ $vehicle->year }}</strong>
+                                    </div>
+                                @endif
+
                                 <div class="flex justify-between border-b pb-2">
                                     <span class="text-gray-600 font-medium">Пробег:</span>
-                                    <strong class="text-gray-900">{{ $listing->vehicleDetail->formatted_mileage }}</strong>
+                                    <strong class="text-gray-900">{{ $mileageText }}</strong>
                                 </div>
 
-                                @if($listing->vehicleDetail->transmission)
-                                <div class="flex justify-between border-b pb-2">
-                                    <span class="text-gray-600 font-medium">Коробка передач:</span>
-                                    <strong class="text-gray-900">
-                                        @switch($listing->vehicleDetail->transmission)
-                                            @case('automatic') Автоматическая @break
-                                            @case('manual') Механическая @break
-                                            @case('cvt') CVT @break
-                                            @case('semi-automatic') Полуавтоматическая @break
-                                            @default {{ $listing->vehicleDetail->transmission }}
-                                        @endswitch
-                                    </strong>
-                                </div>
+                                @if($vehicle->transmission)
+                                    <div class="flex justify-between border-b pb-2">
+                                        <span class="text-gray-600 font-medium">Коробка передач:</span>
+                                        <strong class="text-gray-900">{{ $transmissionMap[$vehicle->transmission] ?? $vehicle->transmission }}</strong>
+                                    </div>
                                 @endif
 
-                                @if($listing->vehicleDetail->fuel_type)
-                                <div class="flex justify-between border-b pb-2">
-                                    <span class="text-gray-600 font-medium">Тип топлива:</span>
-                                    <strong class="text-gray-900">
-                                        @switch($listing->vehicleDetail->fuel_type)
-                                            @case('gasoline') Бензин @break
-                                            @case('diesel') Дизель @break
-                                            @case('hybrid') Гибрид @break
-                                            @case('electric') Электро @break
-                                            @case('lpg') ГБО @break
-                                            @default {{ $listing->vehicleDetail->fuel_type }}
-                                        @endswitch
-                                    </strong>
-                                </div>
+                                @if($vehicle->fuel_type)
+                                    <div class="flex justify-between border-b pb-2">
+                                        <span class="text-gray-600 font-medium">Тип топлива:</span>
+                                        <strong class="text-gray-900">{{ $fuelTypeMap[$vehicle->fuel_type] ?? $vehicle->fuel_type }}</strong>
+                                    </div>
                                 @endif
 
-                                @if($listing->vehicleDetail->body_type)
-                                <div class="flex justify-between border-b pb-2">
-                                    <span class="text-gray-600 font-medium">Тип кузова:</span>
-                                    <strong class="text-gray-900">{{ $listing->vehicleDetail->body_type }}</strong>
-                                </div>
+                                @if($vehicle->body_type)
+                                    <div class="flex justify-between border-b pb-2">
+                                        <span class="text-gray-600 font-medium">Тип кузова:</span>
+                                        <strong class="text-gray-900">{{ $bodyTypeMap[$vehicle->body_type] ?? $vehicle->body_type }}</strong>
+                                    </div>
                                 @endif
 
-                                @if($listing->vehicleDetail->engine_displacement_cc)
-                                <div class="flex justify-between border-b pb-2">
-                                    <span class="text-gray-600 font-medium">Объём двигателя:</span>
-                                    <strong class="text-gray-900">{{ number_format($listing->vehicleDetail->engine_displacement_cc) }} см³</strong>
-                                </div>
+                                @if($vehicle->engine_displacement_cc)
+                                    <div class="flex justify-between border-b pb-2">
+                                        <span class="text-gray-600 font-medium">Объём двигателя:</span>
+                                        <strong class="text-gray-900">{{ number_format($vehicle->engine_displacement_cc, 0, '.', ' ') }} см³</strong>
+                                    </div>
                                 @endif
 
-                                @if($listing->vehicleDetail->exterior_color)
-                                <div class="flex justify-between border-b pb-2">
-                                    <span class="text-gray-600 font-medium">Цвет:</span>
-                                    <strong class="text-gray-900">{{ $listing->vehicleDetail->exterior_color }}</strong>
-                                </div>
+                                @if($vehicle->exterior_color)
+                                    <div class="flex justify-between border-b pb-2">
+                                        <span class="text-gray-600 font-medium">Цвет:</span>
+                                        <strong class="text-gray-900">{{ $vehicle->exterior_color }}</strong>
+                                    </div>
+                                @endif
+
+                                @if($auctionEndsAtText)
+                                    <div class="flex justify-between border-b pb-2">
+                                        <span class="text-gray-600 font-medium">Окончание аукциона:</span>
+                                        <strong class="text-gray-900">{{ $auctionEndsAtText }}</strong>
+                                    </div>
                                 @endif
                             </div>
 
                             {{-- ТЗ v2.1: Кнопка "Смотреть на аукционе" --}}
-                            @if($listing->vehicleDetail->is_from_auction && $listing->vehicleDetail->source_auction_url)
+                            @if($vehicle->is_from_auction && $vehicle->source_auction_url)
                                 <div class="mt-6 pt-4 border-t border-blue-300">
-                                    <a href="{{ $listing->vehicleDetail->source_auction_url }}" target="_blank" rel="noopener noreferrer"
+                                    <a href="{{ $vehicle->source_auction_url }}" target="_blank" rel="noopener noreferrer"
                                        class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition">
                                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>

@@ -80,15 +80,20 @@ class ListingController extends Controller
             return Region::all();
         });
 
-        $auctionListings = Listing::query()
-            ->with(['vehicleDetail', 'media'])
-            ->fromAuction()
-            ->active()
-            ->latest()
-            ->take(8)
-            ->get();
+        $onlyRegular = $request->boolean('only_regular');
 
-        return view('listings.index', compact('listings', 'categories', 'regions', 'auctionListings'));
+        $auctionListings = collect();
+        if (!$onlyRegular) {
+            $auctionListings = Listing::query()
+                ->with(['vehicleDetail', 'media'])
+                ->fromAuction()
+                ->active()
+                ->latest()
+                ->take(8)
+                ->get();
+        }
+
+        return view('listings.index', compact('listings', 'categories', 'regions', 'auctionListings', 'onlyRegular'));
     }
 
     /**
@@ -135,6 +140,14 @@ class ListingController extends Controller
         }
 
         return view('listings.create', compact('categories', 'regions', 'auctionData'));
+    }
+
+    /**
+     * Страница выбора типа объявления перед созданием
+     */
+    public function createChoice()
+    {
+        return view('listings.create-choice');
     }
 
     /**

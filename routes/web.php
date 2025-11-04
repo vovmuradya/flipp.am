@@ -29,6 +29,7 @@ Route::get('/proxy/image', [ProxyController::class, 'image'])->name('proxy.image
 
 // Защищённые
 Route::middleware('auth')->group(function () {
+    Route::get('/listings/create/choose', [ListingController::class, 'createChoice'])->name('listings.create-choice');
     Route::get('/listings/create', [ListingController::class, 'create'])->name('listings.create');
     Route::get('/listings/create-from-auction', [ListingController::class, 'createFromAuction'])->name('listings.create-from-auction');
 
