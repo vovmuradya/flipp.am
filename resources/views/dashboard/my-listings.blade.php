@@ -1,95 +1,113 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Мои объявления') }}
-        </h2>
-    </x-slot>
+    <section class="brand-section">
+        <div class="brand-container">
+            <div class="brand-section__header">
+                <h2 class="brand-section__title">Мои объявления</h2>
+                <p class="brand-section__subtitle">
+                    Управляйте активными и черновыми объявлениями, редактируйте информацию или быстро создавайте новые карточки.
+                </p>
+            </div>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    @forelse ($listings as $listing)
-                        <div class="flex justify-between items-center border-b py-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+                <h3 class="h5 fw-semibold mb-0">Всего объявлений: {{ $listings->total() }}</h3>
+                <a href="{{ route('listings.create') }}" class="btn btn-brand-gradient">
+                    + Создать объявление
+                </a>
+            </div>
 
-                            {{-- Блок с картинкой и информацией --}}
-                            <div class="flex items-center space-x-4">
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3 g-lg-4">
+                @forelse($listings as $listing)
+                    <div class="col">
+                        <div class="card shadow-sm border-0 rounded-3 h-100 overflow-hidden">
+                            @php
+                                $fallbackImage = asset('images/no-image.jpg');
+                                $previewImage = $listing->getFirstMediaUrl('images', 'medium')
+                                    ?: $listing->getFirstMediaUrl('images')
+                                    ?: $listing->getFirstMediaUrl('auction_photos', 'medium')
+                                    ?: $listing->getFirstMediaUrl('auction_photos');
 
-                                {{-- Картинка --}}
-                                <a href="{{ route('listings.show', $listing) }}" class="flex-shrink-0">
-                                    @if($listing->hasMedia('images'))
-                                        <img src="{{ $listing->getFirstMediaUrl('images', 'thumb') }}" alt="{{ $listing->title }}" class="w-24 h-24 object-cover rounded-md shadow-sm">
-                                    @else
-                                        {{-- Заглушка, если нет фото --}}
-                                        <div class="w-24 h-24 bg-gray-200 rounded-md flex items-center justify-center text-gray-400">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                            </svg>
-                                        </div>
-                                    @endif
+                                if (!$previewImage && $listing->image) {
+                                    $rawPath = $listing->image;
+                                    if (filter_var($rawPath, FILTER_VALIDATE_URL)) {
+                                        $previewImage = $rawPath;
+                                    } else {
+                                        $normalized = ltrim(str_replace('public/', '', $rawPath), '/');
+                                        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($normalized)) {
+                                            $previewImage = \Illuminate\Support\Facades\Storage::disk('public')->url($normalized);
+                                        } elseif (\Illuminate\Support\Facades\Storage::exists($rawPath)) {
+                                            $previewImage = \Illuminate\Support\Facades\Storage::url($rawPath);
+                                        }
+                                    }
+                                }
+
+                                if (!$previewImage && $listing->vehicleDetail) {
+                                    foreach ([
+                                        $listing->vehicleDetail->preview_image_url,
+                                        $listing->vehicleDetail->main_image_url,
+                                    ] as $external) {
+                                        if (is_string($external) && trim($external) !== '') {
+                                            $previewImage = trim($external);
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                $previewImage = $previewImage ?: $fallbackImage;
+                            @endphp
+                            <div class="ratio ratio-4x3 bg-light overflow-hidden rounded-top">
+                                <a href="{{ route('listings.show', $listing) }}" class="d-flex w-100 h-100">
+                                    <img src="{{ $previewImage }}"
+                                         alt="{{ $listing->title }}"
+                                         class="img-fluid w-100 h-100 object-fit-cover"
+                                         loading="lazy"
+                                         onerror="this.src='{{ $fallbackImage }}'">
                                 </a>
-
-                                {{-- Информация --}}
-                                <div>
-                                    <a href="{{ route('listings.show', $listing) }}" class="text-lg font-semibold text-indigo-600 hover:text-indigo-800">
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <div class="d-flex align-items-start justify-content-between mb-2">
+                                    <h5 class="card-title fs-6 fw-semibold mb-0 text-truncate" title="{{ $listing->title }}">
                                         {{ $listing->title }}
+                                    </h5>
+                                    <span class="badge rounded-pill {{ $listing->status === 'active' ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis' }}">
+                                        {{ $listing->status === 'active' ? 'Активно' : 'Черновик' }}
+                                    </span>
+                                </div>
+                                <p class="card-text text-muted small mb-1">
+                                    {{ $listing->region?->name ?? 'Регион не указан' }}
+                                </p>
+                                <p class="card-text fw-semibold mb-2">
+                                    {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}
+                                </p>
+                                <p class="card-text text-muted small mt-auto mb-3">
+                                    Добавлено: {{ $listing->created_at->format('d.m.Y') }}
+                                </p>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('listings.edit', $listing) }}" class="btn btn-sm btn-brand-gradient flex-grow-1">
+                                        Редактировать
                                     </a>
-                                    <div class="text-sm text-gray-500 mt-1">
-                                        @php
-                                            $cat = $listing->category ?? null;
-                                            if ($cat) {
-                                                if (isset($cat->localized_name)) {
-                                                    $catName = $cat->localized_name;
-                                                } else {
-                                                    $raw = $cat->name ?? '';
-                                                    if (is_string($raw)) {
-                                                        $dec = json_decode($raw, true);
-                                                        if (is_array($dec)) {
-                                                            $catName = $dec[app()->getLocale()] ?? $dec['ru'] ?? $dec['en'] ?? (array_values($dec)[0] ?? '');
-                                                        } else {
-                                                            $catName = $raw;
-                                                        }
-                                                    } elseif (is_array($raw)) {
-                                                        $catName = $raw[app()->getLocale()] ?? $raw['ru'] ?? $raw['en'] ?? (array_values($raw)[0] ?? '');
-                                                    } elseif (is_object($raw)) {
-                                                        $arr = (array) $raw;
-                                                        $catName = $arr[app()->getLocale()] ?? $arr['ru'] ?? $arr['en'] ?? (array_values($arr)[0] ?? '');
-                                                    } else {
-                                                        $catName = (string)$raw;
-                                                    }
-                                                }
-                                            } else {
-                                                $catName = '—';
-                                            }
-                                        @endphp
-                                        <span>Категория: {{ $catName }}</span>
-                                        <span class="mx-2">|</span>
-                                        <span>Статус: <span class="font-bold">{{ $listing->status }}</span></span>
-                                        <span class="mx-2">|</span>
-                                        <span>Опубликовано: {{ $listing->created_at->format('d.m.Y') }}</span>
-                                    </div>
+                                    <form action="{{ route('listings.destroy', $listing) }}" method="POST" class="flex-grow-1" onsubmit="return confirm('Удалить объявление?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
+                                            Удалить
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
-
-                            {{-- Кнопки управления --}}
-                            <div class="flex space-x-2 flex-shrink-0">
-                                <a href="{{ route('listings.edit', $listing) }}" class="text-blue-500 hover:underline">Редактировать</a>
-                                <form action="{{ route('listings.destroy', $listing) }}" method="POST" onsubmit="return confirm('Вы уверены?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-500 hover:underline">Удалить</button>
-                                </form>
-                            </div>
                         </div>
-                    @empty
-                        <p>У вас пока нет объявлений.</p>
-                    @endforelse
-
-                    <div class="mt-8">
-                        {{ $listings->links() }}
                     </div>
-                </div>
+                @empty
+                    <div class="col-12">
+                        <div class="brand-surface text-center py-5 text-muted">
+                            У вас пока нет объявлений. Нажмите «Создать объявление», чтобы добавить первое.
+                        </div>
+                    </div>
+                @endforelse
+            </div>
+
+            <div class="pt-4">
+                {{ $listings->links() }}
             </div>
         </div>
-    </div>
+    </section>
 </x-app-layout>

@@ -19,16 +19,25 @@
                     @if(request()->has('from_auction') && !$auctionData)
                         <div class="brand-surface mb-4" style="background: rgba(244,140,37,0.08); border-radius: 14px;">
                             <h2 class="text-lg font-semibold mb-3">🔗 Введите ссылку на аукцион</h2>
-                            <form id="auctionUrlForm" class="d-flex gap-2 flex-wrap">
+                            <form id="auctionUrlForm" class="d-flex gap-2 flex-wrap" method="POST" action="{{ route('listings.import-auction') }}">
+                                @csrf
                                 <input type="url"
                                        id="auctionUrl"
+                                       name="auction_url"
                                        placeholder="https://www.copart.com/lot/..."
                                        class="flex-grow-1 form-control"
+                                       value="{{ old('auction_url') }}"
                                        required>
-                                <button type="button" id="parseBtn" class="btn-brand-gradient">Загрузить</button>
+                                <button type="submit" id="parseBtn" class="btn-brand-gradient">
+                                    Загрузить
+                                </button>
                             </form>
-                            <p id="loadingMsg" class="text-muted mt-2 small" hidden>⏳ Загрузка данных...</p>
-                            <p id="errorMsg" class="text-danger mt-2 small" hidden></p>
+                            @error('auction_url')
+                                <p class="text-danger mt-2 small">{{ $message }}</p>
+                            @enderror
+                            @if(session('auction_error'))
+                                <p class="text-danger mt-2 small">{{ session('auction_error') }}</p>
+                            @endif
                         </div>
                     @endif
 
@@ -54,6 +63,93 @@
                         if ($ad && empty(data_get($adV, 'auction_ends_at')) && !empty(data_get($ad, 'auction_ends_at'))) {
                             $adV['auction_ends_at'] = $ad['auction_ends_at'];
                         }
+
+                        $bodyTypeOptions = \App\Support\VehicleAttributeOptions::bodyTypes();
+                        $transmissionOptions = \App\Support\VehicleAttributeOptions::transmissions();
+                        $fuelTypeOptions = \App\Support\VehicleAttributeOptions::fuelTypes();
+                        $colorOptions = \App\Support\VehicleAttributeOptions::colors();
+                        $engineDisplacementOptions = [];
+                        for ($i = 1; $i <= 100; $i++) {
+                            $liters = $i / 10;
+                            $cc = (int) round($liters * 1000);
+                            $engineDisplacementOptions[] = [
+                                'cc' => $cc,
+                                'liters' => $liters,
+                                'label' => number_format($liters, 1, '.', '') . ' л',
+                            ];
+                        }
+                        $currentYear = (int) date('Y');
+                        $yearOptions = [];
+                        for ($year = $currentYear + 1; $year >= 1980; $year--) {
+                            $yearOptions[] = $year;
+                        }
+
+                        $rawBodyType = $adV['body_type'] ?? $ad['body_type'] ?? null;
+                        $normalizedBodyType = null;
+                        if (is_string($rawBodyType) && trim($rawBodyType) !== '') {
+                            $bodyTypeCandidate = mb_strtolower(trim($rawBodyType));
+                            $bodyTypeCandidate = str_replace(['-', '_'], ' ', $bodyTypeCandidate);
+                            $bodyTypeCandidate = preg_replace('/\s+/', ' ', $bodyTypeCandidate);
+                            $bodyTypePatterns = [
+                                'sedan' => ['sedan', 'saloon', '4 door', 'седан'],
+                                'suv' => ['suv', 'sport utility', 'utility', 'crossover', 'кроссовер', 'внедорож'],
+                                'coupe' => ['coupe', 'купе', '2 door', '2dr'],
+                                'hatchback' => ['hatch', 'хэтч', 'liftback', 'sportback'],
+                                'wagon' => ['wagon', 'универсал', 'estate', 'touring'],
+                                'pickup' => ['pickup', 'pick up', 'truck', 'пикап', 'crew cab', 'cab'],
+                                'minivan' => ['minivan', 'минивэн', 'mini van', 'passenger van', 'van'],
+                                'convertible' => ['convertible', 'cabrio', 'cabriolet', 'roadster', 'кабриолет', 'spider'],
+                            ];
+                            foreach ($bodyTypePatterns as $key => $patterns) {
+                                foreach ($patterns as $pattern) {
+                                    if ($pattern === '') {
+                                        continue;
+                                    }
+                                    if (mb_stripos($bodyTypeCandidate, $pattern) !== false) {
+                                        $normalizedBodyType = $key;
+                                        break 2;
+                                    }
+                                }
+                            }
+                            if (!$normalizedBodyType && isset($bodyTypeOptions[$bodyTypeCandidate])) {
+                                $normalizedBodyType = $bodyTypeCandidate;
+                            }
+                        }
+                        $auctionBodyTypeLabel = '—';
+                        if ($normalizedBodyType) {
+                            $auctionBodyTypeLabel = $bodyTypeOptions[$normalizedBodyType] ?? ucfirst($normalizedBodyType);
+                            $adV['body_type'] = $normalizedBodyType;
+                        } elseif (is_string($rawBodyType) && trim($rawBodyType) !== '') {
+                            $auctionBodyTypeLabel = $rawBodyType;
+                            $adV['body_type'] = $rawBodyType;
+                        }
+
+                        $rawColor = $adV['exterior_color'] ?? $ad['exterior_color'] ?? null;
+                        $rawColorDisplay = is_string($rawColor) ? trim($rawColor) : '';
+                        $normalizedColor = null;
+                        if (is_string($rawColor) && trim($rawColor) !== '') {
+                            $rawColorNormalized = mb_strtolower(trim($rawColor));
+                            foreach ($colorOptions as $key => $label) {
+                                if ($rawColorNormalized === mb_strtolower($key) || $rawColorNormalized === mb_strtolower($label)) {
+                                    $normalizedColor = $key;
+                                    break;
+                                }
+                            }
+                            if (!$normalizedColor) {
+                                $normalizedColor = 'other';
+                            }
+                        }
+                        $displayColor = '';
+                        if ($normalizedColor) {
+                            $displayColor = $colorOptions[$normalizedColor] ?? ucfirst($normalizedColor);
+                            if ($normalizedColor === 'other' && $rawColorDisplay !== '') {
+                                $displayColor = $rawColorDisplay;
+                            }
+                        } elseif ($rawColorDisplay !== '') {
+                            $displayColor = $rawColorDisplay;
+                        }
+                        $adV['exterior_color'] = $normalizedColor ?? '';
+                        $adV['exterior_color_display'] = $displayColor;
 
                         $displayPhotos = [];
                         if ($ad) {
@@ -84,6 +180,7 @@
                                     if (stripos($photoUrl, 'No+Image') !== false) {
                                         continue;
                                     }
+                                    // Извлекаем «реальный» URL для нормализации, если это уже прокси
                                     $realUrl = $photoUrl;
                                     if (str_contains($photoUrl, '/proxy/image') || str_contains($photoUrl, 'image-proxy')) {
                                         $parsed = parse_url($photoUrl);
@@ -95,17 +192,38 @@
                                         }
                                     }
                                     $path = parse_url($realUrl, PHP_URL_PATH) ?? $realUrl;
+                                    $query = parse_url($realUrl, PHP_URL_QUERY);
                                     $normalizedPath = strtolower(preg_replace('/_(thn|hrs|thb|tmb|ful)\.(jpg|jpeg|png|webp)$/i', '.$2', $path));
-                                    if (isset($seenPaths[$normalizedPath])) {
+                                    $dedupeKey = $normalizedPath . ($query ? '?' . $query : '');
+                                    if (isset($seenPaths[$dedupeKey])) {
                                         continue;
                                     }
-                                    $seenPaths[$normalizedPath] = true;
-                                    $displayPhotos[] = $photoUrl;
+                                    $seenPaths[$dedupeKey] = true;
+                                    // Кладём исходный (пока сырой) URL — далее унифицируем через наш прокси
+                                    $displayPhotos[] = $realUrl;
                                 }
                                 $displayPhotos = array_slice($displayPhotos, 0, 14);
                             }
                         }
-                        $mainImageDefault = $displayPhotos[0] ?? 'https://placehold.co/200x150/e5e7eb/6b7280?text=Нет+фото';
+
+                        // ✅ Всегда используем наш прокси + реферер лота
+                        $finalPhotos = [];
+                        if (!empty($displayPhotos)) {
+                            $auctionRef = $ad['auction_url'] ?? ($ad['source_auction_url'] ?? 'https://www.copart.com/');
+                            foreach ($displayPhotos as $upstream) {
+                                // Если вдруг здесь остался прокси-URL, извлечём исходный u
+                                if (str_contains($upstream, '/proxy/image') || str_contains($upstream, 'image-proxy')) {
+                                    $p = parse_url($upstream);
+                                    if (!empty($p['query'])) {
+                                        parse_str($p['query'], $q); $upstream = $q['u'] ?? $upstream;
+                                        if (is_string($upstream)) { $upstream = urldecode($upstream); }
+                                    }
+                                }
+                                $proxyBase = route('proxy.image', [], false);
+                                $finalPhotos[] = $proxyBase . '?u=' . rawurlencode($upstream) . ($auctionRef ? ('&r=' . rawurlencode($auctionRef)) : '');
+                            }
+                        }
+                        $mainImageDefault = ($finalPhotos[0] ?? 'https://placehold.co/200x150/e5e7eb/6b7280?text=Нет+фото');
 
                         $allCategories = collect($categories ?? []);
                         $vehicleCategoryIds = $allCategories->whereIn('slug', ['cars', 'motorcycles', 'trucks'])->pluck('id')->values()->all();
@@ -124,9 +242,9 @@
                             'tires' => ['title' => 'Шины', 'icon' => '🛞'],
                         ];
 
-                        $initialType = $ad ? 'vehicle' : (old('section') ?? old('listing_type'));
+                        $initialType = $ad ? 'vehicle' : (old('section') ?? old('listing_type') ?? 'vehicle');
                         if ($initialType && !array_key_exists($initialType, $sectionCards)) {
-                            $initialType = $ad ? 'vehicle' : null;
+                            $initialType = 'vehicle';
                         }
 
                         $initialCategory = old('category_id');
@@ -137,16 +255,42 @@
                             $initialCategory = $typeCategoryMap[$initialType][0];
                         }
 
+                        if (!$initialCategory && isset($defaultVehicleCategoryId)) {
+                            $initialCategory = $defaultVehicleCategoryId;
+                        }
+
                         $vehicleOld = old('vehicle', []);
+
+                        $oldColorKey = old('vehicle.exterior_color');
+                        if ($oldColorKey && !array_key_exists($oldColorKey, $colorOptions)) {
+                            $matchedColor = null;
+                            foreach ($colorOptions as $key => $label) {
+                                if (mb_strtolower($label) === mb_strtolower($oldColorKey)) {
+                                    $matchedColor = $key;
+                                    break;
+                                }
+                            }
+                            $oldColorKey = $matchedColor ?? '';
+                        }
 
                         $vehiclePrefill = [
                             'make' => old('vehicle.make', $adV['make'] ?? $ad['make'] ?? ''),
                             'model' => old('vehicle.model', $adV['model'] ?? $ad['model'] ?? ''),
                             'year' => old('vehicle.year', $adV['year'] ?? $ad['year'] ?? ''),
-                            'brand_id' => old('vehicle.brand_id'),
-                            'model_id' => old('vehicle.model_id'),
-                            'generation_id' => old('vehicle.generation_id'),
+                            'mileage' => old('vehicle.mileage', $adV['mileage'] ?? $ad['mileage'] ?? ''),
+                            'body_type' => old('vehicle.body_type', $adV['body_type'] ?? $ad['body_type'] ?? ''),
+                            'transmission' => old('vehicle.transmission', $adV['transmission'] ?? $ad['transmission'] ?? ''),
+                            'fuel_type' => old('vehicle.fuel_type', $adV['fuel_type'] ?? $ad['fuel_type'] ?? ''),
+                            'engine_displacement_cc' => (string) old('vehicle.engine_displacement_cc', $adV['engine_displacement_cc'] ?? $ad['engine_displacement_cc'] ?? ''),
+                            'exterior_color' => $oldColorKey !== null && $oldColorKey !== '' ? $oldColorKey : ($adV['exterior_color'] ?? ''),
+                            'exterior_color_display' => $adV['exterior_color_display'] ?? $ad['exterior_color'] ?? '',
+                            'brand_id' => old('vehicle.brand_id', $adV['brand_id'] ?? null),
+                            'model_id' => old('vehicle.model_id', $adV['model_id'] ?? null),
+                            'generation_id' => old('vehicle.generation_id', $adV['generation_id'] ?? null),
                         ];
+
+                        $titleValue = old('title', $ad['title'] ?? '');
+                        $descriptionValue = old('description', $ad['description'] ?? '');
 
                         $listingFormConfig = [
                             'initialType' => $initialType,
@@ -160,23 +304,27 @@
                                 'models' => url('/api/brands/{brand}/models'),
                                 'generations' => url('/api/models/{model}/generations'),
                             ],
+                            'colors' => $colorOptions,
+                            'years' => $yearOptions,
+                            'engineOptions' => $engineDisplacementOptions,
+                            'initialTitle' => $titleValue,
                         ];
                     @endphp
 
-                    @if($ad && !empty($displayPhotos))
+                    @if($ad && !empty($finalPhotos))
                         <div class="mb-4">
-                            <h3 class="text-lg fw-semibold mb-3">📸 Фотографии с аукциона ({{ count($displayPhotos) }})</h3>
-                            <div x-data="{ mainImage: '{{ addslashes($mainImageDefault) }}' }">
+                            <h3 class="text-lg fw-semibold mb-3">📸 Фотографии с Copart ({{ count($finalPhotos) }})</h3>
+                            <div x-data="{ mainImage: @js($mainImageDefault) }">
                                 <div class="mx-auto mb-3" style="width: 220px; height: 165px; border-radius: 14px; overflow: hidden; background: #f1f3f5;">
-                                    <img :src="mainImage" alt="Главное фото"
+                                    <img :src="mainImage" src="{{ $mainImageDefault }}" alt="Главное фото"
                                          style="width: 100%; height: 100%; object-fit: contain;"
                                          onerror="this.src='https://placehold.co/200x150/e5e7eb/6b7280?text=Нет+фото'">
                                 </div>
                                 <div class="d-flex flex-wrap gap-2">
-                                    @foreach($displayPhotos as $index => $photoUrl)
+                                    @foreach($finalPhotos as $index => $photoUrl)
                                         <img src="{{ $photoUrl }}" alt="Фото {{ $index + 1 }}" width="70" height="70"
                                              style="border-radius: 10px; object-fit: cover; cursor: pointer; border: 2px solid #e5e7eb;"
-                                             @click="mainImage = '{{ addslashes($photoUrl) }}'"
+                                             @click="mainImage = @js($photoUrl)"
                                              onerror="this.style.display='none'">
                                     @endforeach
                                 </div>
@@ -195,7 +343,13 @@
                         </div>
                     @endif
 
-                    <form method="POST" action="{{ route('listings.store') }}" enctype="multipart/form-data" x-data="listingCreateForm(@js($listingFormConfig))" x-init="init()" class="space-y-6">
+                    <form method="POST"
+                          action="{{ route('listings.store') }}"
+                          enctype="multipart/form-data"
+                          x-data="listingCreateForm(@js($listingFormConfig))"
+                          x-init="init()"
+                          x-on:submit.prevent="handleSubmit($event)"
+                          class="space-y-6">
                         @csrf
 
                         @unless($ad)
@@ -218,6 +372,11 @@
                             </div>
                         @endunless
 
+                        <input type="hidden"
+                               name="category_id"
+                               x-bind:value="categoryId"
+                               value="{{ old('category_id', $ad['category_id'] ?? ($defaultVehicleCategoryId ?? '')) }}">
+
                         @if($ad)
                             <input type="hidden" name="from_auction" value="1">
                             <input type="hidden" name="listing_type" value="vehicle">
@@ -226,280 +385,331 @@
                             @if(!empty($adV['auction_ends_at']))
                                 <input type="hidden" name="vehicle[auction_ends_at]" value="{{ $adV['auction_ends_at'] }}">
                             @endif
-                            <input type="hidden" name="category_id" value="1">
-                            @foreach($displayPhotos as $photo)
+                            @foreach(($finalPhotos ?? []) as $photo)
                                 <input type="hidden" name="auction_photos[]" value="{{ $photo }}">
                             @endforeach
                         @endif
 
-                        @php
-                            $titleValue = old('title', $ad['title'] ?? '');
-                            $descriptionValue = old('description', $ad['description'] ?? '');
-                        @endphp
+                        <div class="brand-surface mb-4" id="vehicle-fields" x-show="listingType === 'vehicle'" x-cloak>
+                                <h3 class="h5 mb-3">Характеристики автомобиля</h3>
+                                @if($ad)
+                                    @php
+                                        $auctionVehicleValues = [
+                                            'make' => $vehiclePrefill['make'] ?? '',
+                                            'model' => $vehiclePrefill['model'] ?? '',
+                                            'year' => $vehiclePrefill['year'] ?? '',
+                                            'mileage' => $vehiclePrefill['mileage'] ?? '',
+                                            'body_type' => $vehiclePrefill['body_type'] ?? '',
+                                            'transmission' => $vehiclePrefill['transmission'] ?? '',
+                                            'fuel_type' => $vehiclePrefill['fuel_type'] ?? '',
+                                            'engine_displacement_cc' => $vehiclePrefill['engine_displacement_cc'] ?? '',
+                                            'exterior_color' => $vehiclePrefill['exterior_color'] ?? '',
+                                            'exterior_color_display' => $vehiclePrefill['exterior_color_display'] ?? '',
+                                            'brand_id' => $vehiclePrefill['brand_id'] ?? '',
+                                            'model_id' => $vehiclePrefill['model_id'] ?? '',
+                                            'generation_id' => $vehiclePrefill['generation_id'] ?? '',
+                                        ];
+                                        $displayExteriorColor = $auctionVehicleValues['exterior_color_display'] ?? '';
+                                        if ($displayExteriorColor === '' && $auctionVehicleValues['exterior_color'] !== '') {
+                                            $displayExteriorColor = $colorOptions[$auctionVehicleValues['exterior_color']] ?? $auctionVehicleValues['exterior_color'];
+                                        }
 
-                        @if($ad)
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Заголовок</label>
-                                <div class="form-control-plaintext text-body">{{ $titleValue }}</div>
-                                <input type="hidden" name="title" value="{{ $titleValue }}">
-                            </div>
+                                        $auctionVehicleDisplay = [
+                                            'make' => $auctionVehicleValues['make'] !== '' ? $auctionVehicleValues['make'] : '—',
+                                            'model' => $auctionVehicleValues['model'] !== '' ? $auctionVehicleValues['model'] : '—',
+                                            'year' => $auctionVehicleValues['year'] !== '' ? $auctionVehicleValues['year'] : '—',
+                                            'mileage' => is_numeric($auctionVehicleValues['mileage'])
+                                                ? number_format((int) $auctionVehicleValues['mileage'], 0, '.', ' ') . ' км'
+                                                : ($auctionVehicleValues['mileage'] !== '' ? $auctionVehicleValues['mileage'] : '—'),
+                                            'body_type' => $auctionBodyTypeLabel ?? '—',
+                                            'transmission' => $auctionVehicleValues['transmission'] !== ''
+                                                ? ($transmissionOptions[$auctionVehicleValues['transmission']] ?? $auctionVehicleValues['transmission'])
+                                                : '—',
+                                            'fuel_type' => $auctionVehicleValues['fuel_type'] !== ''
+                                                ? ($fuelTypeOptions[$auctionVehicleValues['fuel_type']] ?? $auctionVehicleValues['fuel_type'])
+                                                : '—',
+                                            'engine_displacement_cc' => is_numeric($auctionVehicleValues['engine_displacement_cc'])
+                                                ? number_format((int) $auctionVehicleValues['engine_displacement_cc'], 0, '.', ' ') . ' см³'
+                                                : ($auctionVehicleValues['engine_displacement_cc'] !== '' ? $auctionVehicleValues['engine_displacement_cc'] : '—'),
+                                            'exterior_color' => $displayExteriorColor !== '' ? $displayExteriorColor : '—',
+                                        ];
+                                    @endphp
+                                    <div class="alert alert-warning mb-3 py-2 px-3">
+                                        Эти данные загружены с Copart и предназначены только для просмотра.
+                                    </div>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Марка</label>
+                                            <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['make'] }}</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Модель</label>
+                                            <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['model'] }}</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Год выпуска</label>
+                                            <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['year'] }}</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Пробег</label>
+                                            <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['mileage'] }}</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Тип кузова</label>
+                                            <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['body_type'] }}</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Трансмиссия</label>
+                                            <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['transmission'] }}</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Топливо</label>
+                                            <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['fuel_type'] }}</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Двигатель</label>
+                                            <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['engine_displacement_cc'] }}</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Цвет кузова</label>
+                                            <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['exterior_color'] }}</p>
+                                        </div>
+                                    </div>
+                                    @foreach(['make','model','year','mileage','body_type','transmission','fuel_type','engine_displacement_cc','exterior_color','brand_id','model_id','generation_id'] as $fieldName)
+                                        @if(array_key_exists($fieldName, $auctionVehicleValues))
+                                            <input type="hidden" name="vehicle[{{ $fieldName }}]" value="{{ $auctionVehicleValues[$fieldName] }}">
+                                        @endif
+                                    @endforeach
+                                @else
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Марка</label>
+                                            <input type="hidden" name="vehicle[brand_id]" :value="vehicle.brandId">
+                                            <div class="position-relative">
+                                                <input type="text"
+                                                       name="vehicle[make]"
+                                                       class="form-control"
+                                                       value="{{ old('vehicle.make', $adV['make'] ?? $ad['make'] ?? '') }}"
+                                                       list="brand-options"
+                                                       autocomplete="off"
+                                                       x-model="vehicle.make"
+                                                       @focus="ensureBrandsLoaded()"
+                                                       @input="onBrandInput($event)"
+                                                       @change="onBrandSelected()"
+                                                       placeholder="Начните вводить марку (например, Nissan)"
+                                                       x-bind:required="listingType === 'vehicle'">
+                                            </div>
+                                            <datalist id="brand-options">
+                                                <template x-for="brand in vehicle.brands" :key="brand.id">
+                                                    <option :value="brandLabel(brand)"></option>
+                                                </template>
+                                            </datalist>
+                                            <template x-if="vehicle.loadingBrands">
+                                                <small class="text-muted d-block mt-1">Загружаем список марок…</small>
+                                            </template>
+                                            <small class="text-muted d-block mt-1">Выберите марку из выпадающего списка или продолжайте вводить вручную.</small>
+                                            <template x-if="formErrors.brand">
+                                                <small class="text-danger d-block" x-text="formErrors.brand"></small>
+                                            </template>
+                                            @error('vehicle.brand_id')
+                                                <small class="text-danger d-block">{{ $message }}</small>
+                                            @enderror
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Модель</label>
+                                            <input type="hidden" name="vehicle[model_id]" :value="vehicle.modelId">
+                                            <div class="position-relative">
+                                                <input type="text"
+                                                       name="vehicle[model]"
+                                                       class="form-control"
+                                                       value="{{ old('vehicle.model', $adV['model'] ?? $ad['model'] ?? '') }}"
+                                                       list="model-options"
+                                                       autocomplete="off"
+                                                       x-model="vehicle.model"
+                                                       @input="onModelInput($event)"
+                                                       @change="onModelSelected()"
+                                                       placeholder="Начните вводить модель (например, Rogue)"
+                                                       x-bind:required="listingType === 'vehicle'">
+                                            </div>
+                                            <datalist id="model-options">
+                                                <template x-for="model in vehicle.models" :key="model.id">
+                                                    <option :value="modelLabel(model)"></option>
+                                                </template>
+                                            </datalist>
+                                            <template x-if="vehicle.loadingModels">
+                                                <small class="text-muted d-block mt-1">Загружаем модели…</small>
+                                            </template>
+                                            <small class="text-muted d-block mt-1">
+                                                Выберите модель после выбора марки — список подстраивается автоматически.
+                                            </small>
+                                            <template x-if="formErrors.model">
+                                                <small class="text-danger d-block" x-text="formErrors.model"></small>
+                                            </template>
+                                            @error('vehicle.model_id')
+                                                <small class="text-danger d-block">{{ $message }}</small>
+                                            @enderror
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Год выпуска</label>
+                                            <select name="vehicle[year]"
+                                                    class="form-select"
+                                                    x-model="vehicle.year"
+                                                    x-bind:required="listingType === 'vehicle'">
+                                                <option value="">Выберите год</option>
+                                                @foreach($yearOptions as $yearOption)
+                                                    <option value="{{ $yearOption }}"
+                                                        {{ (string)old('vehicle.year', $adV['year'] ?? $ad['year'] ?? '') === (string)$yearOption ? 'selected' : '' }}>
+                                                        {{ $yearOption }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <template x-if="formErrors.year">
+                                                <small class="text-danger d-block" x-text="formErrors.year"></small>
+                                            </template>
+                                            @error('vehicle.year')
+                                                <small class="text-danger d-block">{{ $message }}</small>
+                                            @enderror
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Поколение</label>
+                                            <select class="form-select"
+                                                    x-model="vehicle.generationId"
+                                                    @change="handleGenerationChange"
+                                                    :disabled="!vehicle.modelId || vehicle.loadingGenerations || vehicle.generations.length === 0">
+                                                <option value="">Выберите поколение</option>
+                                                <template x-for="generation in vehicle.generations" :key="generation.id">
+                                                    <option :value="String(generation.id)" x-text="generationLabel(generation)"></option>
+                                                </template>
+                                            </select>
+                                            <template x-if="vehicle.loadingGenerations">
+                                                <small class="text-muted d-block mt-1">Загружаем поколения…</small>
+                                            </template>
+                                            <input type="hidden" name="vehicle[generation_id]" :value="vehicle.generationId">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Пробег (км)</label>
+                                            <input type="number" name="vehicle[mileage]" min="0" value="{{ old('vehicle.mileage', $adV['mileage'] ?? $ad['mileage'] ?? '') }}" class="form-control" x-bind:required="listingType === 'vehicle'">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Тип кузова</label>
+                                            <select name="vehicle[body_type]" class="form-select" x-bind:required="listingType === 'vehicle'">
+                                                <option value="">Выберите</option>
+                                                @php
+                                                    $selectedBody = old('vehicle.body_type', $adV['body_type'] ?? $ad['body_type'] ?? '');
+                                                @endphp
+                                                @foreach($bodyTypeOptions as $value => $label)
+                                                    <option value="{{ $value }}" {{ $selectedBody === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Трансмиссия</label>
+                                            <select name="vehicle[transmission]" class="form-select" x-bind:required="listingType === 'vehicle'">
+                                                <option value="">Выберите</option>
+                                                @php
+                                                    $selectedTransmission = old('vehicle.transmission', $adV['transmission'] ?? $ad['transmission'] ?? '');
+                                                @endphp
+                                                @foreach($transmissionOptions as $value => $label)
+                                                    <option value="{{ $value }}" {{ $selectedTransmission === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Топливо</label>
+                                            <select name="vehicle[fuel_type]" class="form-select" x-bind:required="listingType === 'vehicle'">
+                                                <option value="">Выберите</option>
+                                                @php
+                                                    $selectedFuelType = old('vehicle.fuel_type', $adV['fuel_type'] ?? $ad['fuel_type'] ?? '');
+                                                @endphp
+                                                @foreach($fuelTypeOptions as $value => $label)
+                                                    <option value="{{ $value }}" {{ $selectedFuelType === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Объём двигателя</label>
+                                            <select name="vehicle[engine_displacement_cc]"
+                                                    class="form-select"
+                                                    x-model="vehicle.engine_displacement_cc"
+                                                    x-bind:required="listingType === 'vehicle'">
+                                                <option value="">Не указан</option>
+                                                @foreach($engineDisplacementOptions as $option)
+                                                    <option value="{{ $option['cc'] }}"
+                                                        {{ (string) old('vehicle.engine_displacement_cc', $vehiclePrefill['engine_displacement_cc']) === (string) $option['cc'] ? 'selected' : '' }}>
+                                                        {{ $option['label'] }} ({{ $option['cc'] }} см³)
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Цвет кузова</label>
+                                            <select name="vehicle[exterior_color]"
+                                                    class="form-select"
+                                                    x-model="vehicle.exteriorColor"
+                                                    x-bind:required="listingType === 'vehicle'">
+                                                <option value="">Выберите цвет</option>
+                                                @foreach($colorOptions as $colorKey => $colorLabel)
+                                                    <option value="{{ $colorKey }}"
+                                                        {{ old('vehicle.exterior_color', $vehiclePrefill['exterior_color']) === $colorKey ? 'selected' : '' }}>
+                                                        {{ $colorLabel }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <template x-if="formErrors.color">
+                                                <small class="text-danger d-block" x-text="formErrors.color"></small>
+                                            </template>
+                                            @error('vehicle.exterior_color')
+                                                <small class="text-danger d-block">{{ $message }}</small>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                @endif
+                        </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Описание</label>
-                                <div class="border rounded-3 bg-light p-3 text-body" style="white-space: pre-line;">
-                                    {{ $descriptionValue }}
-                                </div>
-                                <textarea name="description" hidden>{{ $descriptionValue }}</textarea>
-                            </div>
-                        @else
-                            <div>
-                                <label class="form-label">Заголовок <span class="text-danger">*</span></label>
-                                <input type="text" name="title" value="{{ $titleValue }}" class="form-control" required>
-                            </div>
+                        <div class="mb-4">
+                            <label class="form-label">Заголовок <span class="text-danger">*</span></label>
+                            <input type="text"
+                                   name="title"
+                                   class="form-control"
+                                   value="{{ $titleValue }}"
+                                   x-model="titleValue"
+                                   :readonly="listingType === 'vehicle'"
+                                   required>
+                            @error('title')
+                                <small class="text-danger mt-1 d-block">{{ $message }}</small>
+                            @enderror
+                        </div>
 
-                            <div>
-                                <label class="form-label">Описание <span class="text-danger">*</span></label>
-                                <textarea name="description" rows="5" class="form-control" required>{{ $descriptionValue }}</textarea>
-                            </div>
-                        @endif
+                        <div class="mb-4">
+                            <label class="form-label">Описание <span class="text-danger">*</span></label>
+                            <textarea name="description" rows="5" class="form-control" required>{{ $descriptionValue }}</textarea>
+                        </div>
 
-                        <div>
+                        <div class="mb-4">
                             <label class="form-label">Цена (AMD) <span class="text-danger">*</span></label>
                             <input type="number" name="price" min="0" value="{{ old('price', $ad['price'] ?? '') }}" class="form-control" required>
                         </div>
 
-                        @if(! $ad)
-                            <div>
-                                <label class="form-label">Категория <span class="text-danger">*</span></label>
-                                <select name="category_id" id="category_id" class="form-select" x-model="categoryId" required>
-                                    <option value="">Выберите категорию</option>
-                                    @foreach($categories as $category)
-                                        @php
-                                            $sectionsForCategory = [];
-                                            foreach ($typeCategoryMap as $sectionKey => $ids) {
-                                                if (in_array($category->id, $ids, true)) {
-                                                    $sectionsForCategory[] = $sectionKey;
-                                                }
-                                            }
-                                            if (empty($sectionsForCategory)) {
-                                                $sectionsForCategory[] = 'all';
-                                            }
-                                        @endphp
-                                        <option value="{{ $category->id }}"
-                                                data-sections="{{ implode(',', $sectionsForCategory) }}"
-                                                {{ old('category_id', $ad['category_id'] ?? '') == $category->id ? 'selected' : '' }}>
-                                            {{ $category->localized_name ?? $category->name ?? 'Категория' }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        @endif
+                    @if(! $ad)
+                        <div>
+                            <label class="form-label">Регион <span class="text-danger">*</span></label>
+                            <select name="region_id" id="region_id" class="form-select" required>
+                                <option value="">Выберите регион</option>
+                                @foreach($regions as $region)
+                                    <option value="{{ $region->id }}" {{ old('region_id') == $region->id ? 'selected' : '' }}>{{ $region->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('region_id')
+                            <p class="text-danger small mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
 
-                        @if($ad)
-                            @php
-                                $vehicleHiddenValues = [
-                                    'make' => data_get($vehicleOld, 'make', $adV['make'] ?? $ad['make'] ?? ''),
-                                    'model' => data_get($vehicleOld, 'model', $adV['model'] ?? $ad['model'] ?? ''),
-                                    'year' => data_get($vehicleOld, 'year', $adV['year'] ?? $ad['year'] ?? ''),
-                                    'mileage' => data_get($vehicleOld, 'mileage', $adV['mileage'] ?? $ad['mileage'] ?? ''),
-                                    'body_type' => data_get($vehicleOld, 'body_type', $adV['body_type'] ?? $ad['body_type'] ?? ''),
-                                    'transmission' => data_get($vehicleOld, 'transmission', $adV['transmission'] ?? $ad['transmission'] ?? ''),
-                                    'fuel_type' => data_get($vehicleOld, 'fuel_type', $adV['fuel_type'] ?? $ad['fuel_type'] ?? ''),
-                                    'engine_displacement_cc' => data_get($vehicleOld, 'engine_displacement_cc', $adV['engine_displacement_cc'] ?? $ad['engine_displacement_cc'] ?? ''),
-                                    'exterior_color' => data_get($vehicleOld, 'exterior_color', $adV['exterior_color'] ?? $ad['exterior_color'] ?? ''),
-                                ];
-
-                                $vehicleDisplayPairs = [
-                                    'Марка' => $vehicleHiddenValues['make'],
-                                    'Модель' => $vehicleHiddenValues['model'],
-                                    'Год выпуска' => $vehicleHiddenValues['year'],
-                                    'Пробег' => $vehicleHiddenValues['mileage'] ? number_format((int) $vehicleHiddenValues['mileage'], 0, '.', ' ') . ' км' : null,
-                                    'Тип кузова' => $vehicleHiddenValues['body_type'],
-                                    'Трансмиссия' => $vehicleHiddenValues['transmission'],
-                                    'Топливо' => $vehicleHiddenValues['fuel_type'],
-                                    'Объём двигателя' => $vehicleHiddenValues['engine_displacement_cc'] ? number_format((int) $vehicleHiddenValues['engine_displacement_cc'], 0, '.', ' ') . ' см³' : null,
-                                    'Цвет' => $vehicleHiddenValues['exterior_color'],
-                                ];
-                            @endphp
-
-                            <div class="brand-surface">
-                                <h3 class="h5 mb-3">Характеристики автомобиля</h3>
-                                <div class="row g-3">
-                                    @foreach($vehicleDisplayPairs as $label => $value)
-                                        @if(!empty($value))
-                                            <div class="col-md-6">
-                                                <span class="text-muted d-block small">{{ $label }}</span>
-                                                <strong class="text-body">{{ $value }}</strong>
-                                            </div>
-                                        @endif
-                                    @endforeach
-                                </div>
-                            </div>
-
-                            @foreach($vehicleHiddenValues as $key => $value)
-                                <input type="hidden" name="vehicle[{{ $key }}]" value="{{ $value }}">
-                            @endforeach
-                        @else
-                            <div class="brand-surface mb-4" id="vehicle-fields" x-show="currentStep === 1" x-cloak>
-                                <h3 class="h5 mb-3">Характеристики автомобиля</h3>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Марка</label>
-                                        <select class="form-select mb-2"
-                                                x-model="vehicle.brandId"
-                                                @change="handleBrandChange"
-                                                :disabled="vehicle.loadingBrands && vehicle.brands.length === 0">
-                                            <option value="">Выберите марку</option>
-                                            <template x-for="brand in vehicle.brands" :key="brand.id">
-                                                <option :value="String(brand.id)" x-text="brandLabel(brand)"></option>
-                                            </template>
-                                        </select>
-                                        <template x-if="vehicle.loadingBrands">
-                                            <small class="text-muted d-block mb-1">Загружаем список марок…</small>
-                                        </template>
-                                        <input type="hidden" name="vehicle[brand_id]" :value="vehicle.brandId">
-                                        <small class="text-muted d-block mb-1">Выберите марку из списка или введите вручную.</small>
-                                        <input type="text"
-                                               name="vehicle[make]"
-                                               class="form-control"
-                                               value="{{ old('vehicle.make', $adV['make'] ?? $ad['make'] ?? '') }}"
-                                               x-model="vehicle.make"
-                                               placeholder="Например, Toyota">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Модель</label>
-                                        <select class="form-select mb-2"
-                                                x-model="vehicle.modelId"
-                                                @change="handleModelChange"
-                                                :disabled="!vehicle.brandId || vehicle.loadingModels || vehicle.models.length === 0">
-                                            <option value="">Выберите модель</option>
-                                            <template x-for="model in vehicle.models" :key="model.id">
-                                                <option :value="String(model.id)" x-text="modelLabel(model)"></option>
-                                            </template>
-                                        </select>
-                                        <template x-if="vehicle.loadingModels">
-                                            <small class="text-muted d-block mb-1">Загружаем модели…</small>
-                                        </template>
-                                        <input type="hidden" name="vehicle[model_id]" :value="vehicle.modelId">
-                                        <input type="text"
-                                               name="vehicle[model]"
-                                               class="form-control"
-                                               value="{{ old('vehicle.model', $adV['model'] ?? $ad['model'] ?? '') }}"
-                                               x-model="vehicle.model"
-                                               placeholder="Например, Camry">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Год выпуска</label>
-                                        <input type="number"
-                                               name="vehicle[year]"
-                                               min="1900"
-                                               max="{{ date('Y') + 1 }}"
-                                               class="form-control"
-                                               value="{{ old('vehicle.year', $adV['year'] ?? $ad['year'] ?? '') }}"
-                                               x-model="vehicle.year">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Поколение</label>
-                                        <select class="form-select"
-                                                x-model="vehicle.generationId"
-                                                @change="handleGenerationChange"
-                                                :disabled="!vehicle.modelId || vehicle.loadingGenerations || vehicle.generations.length === 0">
-                                            <option value="">Выберите поколение</option>
-                                            <template x-for="generation in vehicle.generations" :key="generation.id">
-                                                <option :value="String(generation.id)" x-text="generationLabel(generation)"></option>
-                                            </template>
-                                        </select>
-                                        <template x-if="vehicle.loadingGenerations">
-                                            <small class="text-muted d-block mt-1">Загружаем поколения…</small>
-                                        </template>
-                                        <input type="hidden" name="vehicle[generation_id]" :value="vehicle.generationId">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Пробег (км)</label>
-                                        <input type="number" name="vehicle[mileage]" min="0" value="{{ old('vehicle.mileage', $adV['mileage'] ?? $ad['mileage'] ?? '') }}" class="form-control">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Тип кузова</label>
-                                        <select name="vehicle[body_type]" class="form-select">
-                                            <option value="">Выберите</option>
-                                            @php
-                                                $bodyTypes = [
-                                                    'sedan' => 'Седан',
-                                                    'suv' => 'SUV / Внедорожник',
-                                                    'coupe' => 'Купе',
-                                                    'hatchback' => 'Хэтчбек',
-                                                    'wagon' => 'Универсал',
-                                                    'pickup' => 'Пикап',
-                                                    'minivan' => 'Минивэн',
-                                                    'convertible' => 'Кабриолет',
-                                                ];
-                                                $selectedBody = old('vehicle.body_type', $adV['body_type'] ?? $ad['body_type'] ?? '');
-                                            @endphp
-                                            @foreach($bodyTypes as $value => $label)
-                                                <option value="{{ $value }}" {{ $selectedBody === $value ? 'selected' : '' }}>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Трансмиссия</label>
-                                        <select name="vehicle[transmission]" class="form-select">
-                                            <option value="">Выберите</option>
-                                            @php
-                                                $transmissions = ['automatic' => 'Автомат', 'manual' => 'Механика', 'cvt' => 'CVT', 'semi-automatic' => 'Робот'];
-                                                $selectedTransmission = old('vehicle.transmission', $adV['transmission'] ?? $ad['transmission'] ?? '');
-                                            @endphp
-                                            @foreach($transmissions as $value => $label)
-                                                <option value="{{ $value }}" {{ $selectedTransmission === $value ? 'selected' : '' }}>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Топливо</label>
-                                        <select name="vehicle[fuel_type]" class="form-select">
-                                            <option value="">Выберите</option>
-                                            @php
-                                                $fuelTypes = ['gasoline' => 'Бензин','diesel' => 'Дизель','hybrid' => 'Гибрид','electric' => 'Электро','lpg' => 'Газ'];
-                                                $selectedFuelType = old('vehicle.fuel_type', $adV['fuel_type'] ?? $ad['fuel_type'] ?? '');
-                                            @endphp
-                                            @foreach($fuelTypes as $value => $label)
-                                                <option value="{{ $value }}" {{ $selectedFuelType === $value ? 'selected' : '' }}>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Объём двигателя (см³)</label>
-                                        <input type="number" name="vehicle[engine_displacement_cc]" min="0" value="{{ old('vehicle.engine_displacement_cc', $adV['engine_displacement_cc'] ?? $ad['engine_displacement_cc'] ?? '') }}" class="form-control">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Цвет кузова</label>
-                                        <input type="text" name="vehicle[exterior_color]" value="{{ old('vehicle.exterior_color', $adV['exterior_color'] ?? $ad['exterior_color'] ?? '') }}" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
-
-                        @if(! $ad)
-                            <div>
-                                <label class="form-label">Регион <span class="text-danger">*</span></label>
-                                <select name="region_id" id="region_id" class="form-select" required>
-                                    <option value="">Выберите регион</option>
-                                    @foreach($regions as $region)
-                                        <option value="{{ $region->id }}" {{ old('region_id') == $region->id ? 'selected' : '' }}>{{ $region->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('region_id')
-                                <p class="text-danger small mt-1">{{ $message }}</p>
-                                @enderror
-                            </div>
-                        @endif
-
-                        @if(! $ad)
-                            <div>
-                                <label class="form-label">Изображения</label>
-                                <input type="file" id="images" name="images[]" multiple accept="image/*" class="form-control">
-                                <small class="text-muted">PNG, JPG, WEBP до 5MB</small>
-                            </div>
-                        @endif
+                        <div>
+                            <label class="form-label">Изображения</label>
+                            <input type="file" id="images" name="images[]" multiple accept="image/*" class="form-control">
+                            <small class="text-muted">PNG, JPG, WEBP до 5MB</small>
+                        </div>
+                    @endif
 
                         <div class="d-flex justify-content-end gap-3 pt-3">
                             <a href="{{ route('home') }}" class="btn-brand-outline">Отмена</a>
@@ -513,297 +723,5 @@
         </div>
     </section>
 
-@push('scripts')
-    <script>
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('listingCreateForm', (config) => ({
-                selectedType: config.initialType ?? null,
-                categoryId: config.initialCategory || '',
-                categoryMap: config.categoryMap || {},
-                isAuction: Boolean(config.isAuction),
-                locale: config.locale || 'ru',
-                apiEndpoints: config.api || {},
-                vehicle: {
-                    make: config.vehicle?.make || '',
-                    model: config.vehicle?.model || '',
-                    year: config.vehicle?.year || '',
-                    brandId: config.vehicle?.brand_id ? String(config.vehicle.brand_id) : '',
-                    modelId: config.vehicle?.model_id ? String(config.vehicle.model_id) : '',
-                    generationId: config.vehicle?.generation_id ? String(config.vehicle.generation_id) : '',
-                    brands: [],
-                    models: [],
-                    generations: [],
-                    loadingBrands: false,
-                    loadingModels: false,
-                    loadingGenerations: false,
-                },
-                get listingType() {
-                    if (this.selectedType === 'vehicle') return 'vehicle';
-                    if (this.selectedType === 'parts' || this.selectedType === 'tires') return 'parts';
-                    return '';
-                },
-                get formVisible() {
-                    return this.isAuction || Boolean(this.selectedType);
-                },
-                async init() {
-                    if (this.isAuction && !this.selectedType) {
-                        this.selectedType = 'vehicle';
-                    }
-                    if (this.formVisible) {
-                        this.ensureCategoryInScope();
-                        this.syncCategoryOptions();
-                    }
-                    await this.initializeVehicleFormIfNeeded();
-
-                    this.$watch('selectedType', async (value) => {
-                        if (!value) {
-                            this.categoryId = '';
-                            this.syncCategoryOptions();
-                            return;
-                        }
-                        this.ensureCategoryInScope();
-                        this.syncCategoryOptions();
-                        if (value === 'vehicle') {
-                            await this.initializeVehicleFormIfNeeded(true);
-                        }
-                    });
-
-                    this.$watch('categoryId', () => this.syncCategoryOptions());
-                },
-                setType(type) {
-                    if (this.selectedType === type) {
-                        this.ensureCategoryInScope();
-                        this.syncCategoryOptions();
-                        return;
-                    }
-                    this.selectedType = type;
-                },
-                ensureCategoryInScope() {
-                    if (!this.formVisible) return;
-                    const allowed = this.categoryMap[this.selectedType] || [];
-                    if (!Array.isArray(allowed) || allowed.length === 0) {
-                        if (!this.categoryId) {
-                            const first = this.findFirstOptionValue();
-                            if (first) this.categoryId = first;
-                        }
-                        return;
-                    }
-                    const numericCurrent = Number(this.categoryId);
-                    if (!allowed.includes(numericCurrent)) {
-                        this.categoryId = String(allowed[0]);
-                    }
-                },
-                syncCategoryOptions() {
-                    if (this.isAuction) return;
-                    const select = document.getElementById('category_id');
-                    if (!select) return;
-                    const allowed = this.categoryMap[this.selectedType] || [];
-                    const allowedSet = new Set(allowed);
-                    const limitByType = Boolean(this.selectedType) && Array.isArray(allowed) && allowed.length > 0;
-                    Array.from(select.options).forEach((option) => {
-                        if (!option.value) { option.hidden = false; return; }
-                        const sections = option.dataset.sections ? option.dataset.sections.split(',') : [];
-                        if (sections.includes('all')) { option.hidden = false; return; }
-                        if (!limitByType) { option.hidden = false; return; }
-                        const optionId = Number(option.value);
-                        const shouldShow = allowedSet.has(optionId);
-                        option.hidden = !shouldShow;
-                        if (!shouldShow && option.selected) option.selected = false;
-                    });
-                },
-                findFirstOptionValue() {
-                    const select = document.getElementById('category_id');
-                    if (!select) return null;
-                    const option = Array.from(select.options).find(opt => opt.value);
-                    return option ? String(option.value) : null;
-                },
-                async initializeVehicleFormIfNeeded(force = false) {
-                    if (this.isAuction) {
-                        return;
-                    }
-                    if (!force && this.selectedType !== 'vehicle') {
-                        return;
-                    }
-                    await this.ensureBrandsLoaded();
-                    if (this.vehicle.brands.length === 0) {
-                        return;
-                    }
-                    if (!this.vehicle.brandId) {
-                        this.syncBrandFromName();
-                    }
-                    if (this.vehicle.brandId) {
-                        await this.fetchModels(this.vehicle.brandId, { preserveSelection: true });
-                    }
-                    if (this.vehicle.modelId) {
-                        await this.fetchGenerations(this.vehicle.modelId, { preserveSelection: true });
-                    }
-                },
-                async ensureBrandsLoaded() {
-                    if (this.isAuction || this.vehicle.loadingBrands || this.vehicle.brands.length > 0) {
-                        return;
-                    }
-                    if (!this.apiEndpoints.brands) {
-                        return;
-                    }
-                    this.vehicle.loadingBrands = true;
-                    try {
-                        const response = await fetch(this.apiEndpoints.brands);
-                        if (!response.ok) {
-                            throw new Error('Failed to load brands');
-                        }
-                        this.vehicle.brands = await response.json();
-                    } catch (error) {
-                        console.error('Error loading brands:', error);
-                        this.vehicle.brands = [];
-                    } finally {
-                        this.vehicle.loadingBrands = false;
-                    }
-                },
-                async fetchModels(brandId, { preserveSelection = false } = {}) {
-                    if (!brandId || !this.apiEndpoints.models) {
-                        this.vehicle.models = [];
-                        this.vehicle.modelId = '';
-                        return;
-                    }
-                    this.vehicle.loadingModels = true;
-                    try {
-                        const url = this.apiUrl('models', { brand: brandId });
-                        const response = await fetch(url);
-                        if (!response.ok) {
-                            throw new Error('Failed to load models');
-                        }
-                        this.vehicle.models = await response.json();
-                        if (preserveSelection) {
-                            const exists = this.vehicle.models.some(model => String(model.id) === String(this.vehicle.modelId));
-                            if (!exists) {
-                                this.vehicle.modelId = '';
-                            }
-                        } else {
-                            this.vehicle.modelId = '';
-                        }
-                        if (this.vehicle.modelId) {
-                            const model = this.vehicle.models.find(m => String(m.id) === String(this.vehicle.modelId));
-                            if (model) {
-                                this.vehicle.model = this.modelLabel(model);
-                            }
-                        } else {
-                            this.syncModelFromName();
-                        }
-                    } catch (error) {
-                        console.error('Error loading models:', error);
-                        this.vehicle.models = [];
-                        this.vehicle.modelId = '';
-                    } finally {
-                        this.vehicle.loadingModels = false;
-                    }
-                },
-                async fetchGenerations(modelId, { preserveSelection = false } = {}) {
-                    if (!modelId || !this.apiEndpoints.generations) {
-                        this.vehicle.generations = [];
-                        this.vehicle.generationId = '';
-                        return;
-                    }
-                    this.vehicle.loadingGenerations = true;
-                    try {
-                        const url = this.apiUrl('generations', { model: modelId });
-                        const response = await fetch(url);
-                        if (!response.ok) {
-                            throw new Error('Failed to load generations');
-                        }
-                        this.vehicle.generations = await response.json();
-                        if (preserveSelection) {
-                            const exists = this.vehicle.generations.some(gen => String(gen.id) === String(this.vehicle.generationId));
-                            if (!exists) {
-                                this.vehicle.generationId = '';
-                            }
-                        } else {
-                            this.vehicle.generationId = '';
-                        }
-                    } catch (error) {
-                        console.error('Error loading generations:', error);
-                        this.vehicle.generations = [];
-                        this.vehicle.generationId = '';
-                    } finally {
-                        this.vehicle.loadingGenerations = false;
-                    }
-                },
-                apiUrl(key, replacements = {}) {
-                    let template = this.apiEndpoints?.[key] || '';
-                    Object.entries(replacements).forEach(([token, value]) => {
-                        template = template.replace(`{${token}}`, encodeURIComponent(String(value)));
-                    });
-                    return template;
-                },
-                brandLabel(brand) {
-                    if (!brand) return '';
-                    return brand.name_ru || brand.name || brand.name_en || '';
-                },
-                modelLabel(model) {
-                    if (!model) return '';
-                    return model.name_ru || model.name || model.name_en || '';
-                },
-                generationLabel(generation) {
-                    if (!generation) return '';
-                    const start = generation.year_start || generation.year_begin || '';
-                    const end = generation.year_end || generation.year_finish || '';
-                    const years = start && end ? `${start}–${end}` : (start || end || '');
-                    const title = generation.name || 'Поколение';
-                    return years ? `${title} (${years})` : title;
-                },
-                normalizeValue(value) {
-                    return (value || '').toString().trim().toLowerCase();
-                },
-                syncBrandFromName() {
-                    if (!this.vehicle.make) {
-                        return;
-                    }
-                    const target = this.normalizeValue(this.vehicle.make);
-                    const match = this.vehicle.brands.find(brand => this.normalizeValue(this.brandLabel(brand)) === target);
-                    if (match) {
-                        this.vehicle.brandId = String(match.id);
-                        this.vehicle.make = this.brandLabel(match);
-                    }
-                },
-                syncModelFromName() {
-                    if (!this.vehicle.model || this.vehicle.models.length === 0) {
-                        return;
-                    }
-                    const target = this.normalizeValue(this.vehicle.model);
-                    const match = this.vehicle.models.find(model => this.normalizeValue(this.modelLabel(model)) === target);
-                    if (match) {
-                        this.vehicle.modelId = String(match.id);
-                        this.vehicle.model = this.modelLabel(match);
-                    }
-                },
-                async handleBrandChange() {
-                    const brand = this.vehicle.brands.find(item => String(item.id) === String(this.vehicle.brandId));
-                    if (brand) {
-                        this.vehicle.make = this.brandLabel(brand);
-                    }
-                    await this.fetchModels(this.vehicle.brandId);
-                    this.vehicle.model = '';
-                    this.vehicle.generations = [];
-                    this.vehicle.generationId = '';
-                },
-                async handleModelChange() {
-                    const model = this.vehicle.models.find(item => String(item.id) === String(this.vehicle.modelId));
-                    if (model) {
-                        this.vehicle.model = this.modelLabel(model);
-                    }
-                    await this.fetchGenerations(this.vehicle.modelId);
-                    this.vehicle.generationId = '';
-                },
-                handleGenerationChange() {
-                    const generation = this.vehicle.generations.find(item => String(item.id) === String(this.vehicle.generationId));
-                    if (generation) {
-                        const start = generation.year_start || generation.year_begin;
-                        if (!this.vehicle.year && start) {
-                            this.vehicle.year = String(start);
-                        }
-                    }
-                },
-            }));
-        });
-    </script>
-@endpush
+@include('listings.partials.vehicle-form-script')
 @endsection

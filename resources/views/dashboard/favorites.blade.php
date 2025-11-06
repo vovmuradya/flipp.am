@@ -14,16 +14,12 @@
                             <div class="flex items-center space-x-4">
                                 <a href="{{ route('listings.show', $listing) }}" class="flex-shrink-0">
                                     @php
-                                        $thumb = $listing->getFirstMediaUrl('images', 'thumb');
+                                        $fallbackImage = asset('images/no-image.svg');
                                     @endphp
-
-                                    @if ($thumb)
-                                        <img src="{{ $thumb }}" alt="{{ $listing->title }}" class="w-24 h-24 object-cover rounded-md shadow-sm">
+                                    @if($listing->hasMedia('images'))
+                                        <img src="{{ $listing->getFirstMediaUrl('images', 'thumb') }}" alt="{{ $listing->title }}" class="w-24 h-24 object-cover rounded-md shadow-sm">
                                     @else
-                                        {{-- Заглушка, если нет фото --}}
-                                        <div class="w-24 h-24 bg-gray-200 flex items-center justify-center rounded-md shadow-sm text-gray-400 text-sm">
-                                            Нет фото
-                                        </div>
+                                        <img src="{{ $fallbackImage }}" alt="Нет изображения" class="w-24 h-24 object-cover rounded-md shadow-sm">
                                     @endif
                                 </a>
                                 <div>

@@ -37,6 +37,10 @@ class ProxyController extends Controller
             'cs.copart.com',
             'pics.copart.com',
             'images.copart.com',
+            'content.iaai.com',
+            'content.iaai.net',
+            'images.iaai.com',
+            'photos.iaai.com',
             'placehold.co',
             'via.placeholder.com',
             'placeholder.com',
@@ -47,7 +51,7 @@ class ProxyController extends Controller
 
         // Гибкая проверка: если host содержит copart.com или iaai, тоже разрешаем
         $allowed = false;
-        if ($host && (str_contains($host, 'copart.com') || str_contains($host, 'iaai.com') || in_array($host, $allowedHosts, true))) {
+        if ($host && (str_contains($host, 'copart.com') || str_contains($host, 'iaai.com') || str_contains($host, 'iaai.net') || in_array($host, $allowedHosts, true))) {
             $allowed = true;
         }
 
@@ -65,18 +69,23 @@ class ProxyController extends Controller
         }
 
         // Принимаем опциональный реферер (страница лота)
-        $referer = $request->query('r') ? urldecode($request->query('r')) : 'https://www.copart.com/';
+        $referer = $request->query('r')
+            ? urldecode($request->query('r'))
+            : (str_contains($host, 'iaai') ? 'https://www.iaai.com/' : 'https://www.copart.com/');
+
+        $origin = str_contains($host, 'iaai') ? 'https://www.iaai.com' : 'https://www.copart.com';
         $copartCookieHeader = str_contains($host, 'copart.com') ? $this->getCopartCookieHeader() : null;
+        $iaaiCookies = str_contains($host, 'iaai') ? $this->getIaaiCookies() : [];
 
         try {
             // Функция для выполнения запроса с общими заголовками
-            $doRequest = function(string $targetUrl) use ($referer, $copartCookieHeader) {
+            $doRequest = function(string $targetUrl) use ($referer, $copartCookieHeader, $iaaiCookies, $origin) {
                 $headers = [
                     'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
                     'Accept' => 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
                     'Accept-Language' => 'en-US,en;q=0.9',
                     'Referer' => $referer,
-                    'Origin' => 'https://www.copart.com',
+                    'Origin' => $origin,
                         'DNT' => '1',
                         'Connection' => 'keep-alive',
                         'Sec-Fetch-Dest' => 'image',
@@ -92,6 +101,13 @@ class ProxyController extends Controller
                 if ($copartCookieHeader) {
                     $headers['Cookie'] = $copartCookieHeader;
                 }
+                if (!empty($iaaiCookies)) {
+                    $headers['Cookie'] = implode('; ', array_map(
+                        fn ($name, $value) => $name . '=' . $value,
+                        array_keys($iaaiCookies),
+                        $iaaiCookies
+                    ));
+                }
 
                 $options = [
                     'allow_redirects' => ['max' => 5],
@@ -100,10 +116,15 @@ class ProxyController extends Controller
                 ];
                 $options = $this->appendCopartCurlResolve($options);
 
-                return Http::timeout(25)
+                $http = Http::timeout(25)
                     ->withHeaders($headers)
-                    ->withOptions($options)
-                    ->get($targetUrl);
+                    ->withOptions($options);
+
+                if (!empty($iaaiCookies)) {
+                    $http = $http->withCookies($iaaiCookies, '.iaai.com');
+                }
+
+                return $http->get($targetUrl);
             };
 
             // Генерируем массив альтернативных URL для попыток (для Copart)
@@ -160,7 +181,7 @@ class ProxyController extends Controller
                 ]);
 
                 foreach ($urlsToTry as $tryUrl) {
-                    $curlResult = $this->fetchImageViaCurl($tryUrl, $copartCookieHeader, $referer);
+                    $curlResult = $this->fetchImageViaCurl($tryUrl, $copartCookieHeader, $referer, $iaaiCookies);
                     if ($curlResult) {
                         Log::info('✅ ProxyController: curl fallback succeeded', ['url' => substr($tryUrl, 0, 200)]);
 
@@ -249,12 +270,15 @@ class ProxyController extends Controller
         return $options;
     }
 
-    private function fetchImageViaCurl(string $targetUrl, ?string $cookieHeader, string $referer): ?array
+    private function fetchImageViaCurl(string $targetUrl, ?string $cookieHeader, string $referer, array $iaaiCookies = []): ?array
     {
         $headerFile = tempnam(sys_get_temp_dir(), 'copart-hdr-');
         if ($headerFile === false) {
             return null;
         }
+
+        $host = strtolower(parse_url($targetUrl, PHP_URL_HOST) ?? '');
+        $isIaai = str_contains($host, 'iaai');
 
         $command = [
             'curl',
@@ -277,12 +301,14 @@ class ProxyController extends Controller
             }
         }
 
+        $origin = $isIaai ? 'https://www.iaai.com' : 'https://www.copart.com';
+
         $headerList = [
             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             'Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
             'Accept-Language: en-US,en;q=0.9',
             'Referer: ' . $referer,
-            'Origin: https://www.copart.com',
+            'Origin: ' . $origin,
             'DNT: 1',
             'Connection: keep-alive',
             'Sec-Fetch-Dest: image',
@@ -294,6 +320,14 @@ class ProxyController extends Controller
             'Cache-Control: no-cache',
             'Pragma: no-cache',
         ];
+
+        if (!empty($iaaiCookies)) {
+            $cookieHeader = implode('; ', array_map(
+                fn ($name, $value) => $name . '=' . $value,
+                array_keys($iaaiCookies),
+                $iaaiCookies
+            ));
+        }
 
         if ($cookieHeader) {
             $headerList[] = 'Cookie: ' . $cookieHeader;
@@ -376,6 +410,31 @@ class ProxyController extends Controller
             'body' => $body,
             'content_type' => $contentType,
         ];
+    }
+
+    private function getIaaiCookies(): array
+    {
+        $cookieString = config('services.iaai.cookies');
+        if (!is_string($cookieString) || trim($cookieString) === '') {
+            return [];
+        }
+
+        $cookies = [];
+        foreach (array_filter(array_map('trim', explode(';', $cookieString))) as $pair) {
+            $separator = strpos($pair, '=');
+            if ($separator === false) {
+                continue;
+            }
+
+            $name = trim(substr($pair, 0, $separator));
+            $value = trim(substr($pair, $separator + 1));
+            if ($name === '') {
+                continue;
+            }
+            $cookies[$name] = $value;
+        }
+
+        return $cookies;
     }
 
     private function getCopartCookieHeader(): ?string

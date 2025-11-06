@@ -38,19 +38,27 @@ class SearchController extends Controller
             $search->where('price', '<=', (int)$request->input('price_to'));
         }
 
+        if ($request->filled('listing_type')) {
+            $search->where('listing_type', $request->input('listing_type'));
+        }
+
         // Обработка кастомных фильтров
-        if ($request->has('filters')) {
-            foreach ($request->filters as $key => $value) {
-                if (is_array($value)) { // Обработка диапазонов (от/до)
-                    if (!empty($value['from'])) {
-                        $search->where($key, '>=', (int)$value['from']);
-                    }
-                    if (!empty($value['to'])) {
-                        $search->where($key, '<=', (int)$value['to']);
-                    }
-                } else if (!empty($value)) { // Обработка точных значений (select)
-                    $search->where($key, $value);
+        $filters = (array) $request->input('filters', []);
+        foreach ($filters as $key => $value) {
+            if (is_array($value)) { // диапазоны (от/до)
+                $from = $value['from'] ?? null;
+                $to = $value['to'] ?? null;
+                if ($from !== null && $from !== '') {
+                    $search->where($key, '>=', (int) $from);
                 }
+                if ($to !== null && $to !== '') {
+                    $search->where($key, '<=', (int) $to);
+                }
+            } else { // точные значения
+                if ($value === null || $value === '') {
+                    continue;
+                }
+                $search->where($key, $value);
             }
         }
 

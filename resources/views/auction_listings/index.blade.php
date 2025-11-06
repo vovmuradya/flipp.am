@@ -1,54 +1,54 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Мои аукционные объявления') }}
-        </h2>
-    </x-slot>
+    <section class="brand-section">
+        <div class="brand-container">
+            <div class="brand-section__header">
+                <h2 class="brand-section__title">Мои аукционные объявления</h2>
+                <p class="brand-section__subtitle">
+                    Управляйте объявлениями, импортированными с Copart: обновляйте информацию, отслеживайте статус и создавайте новые лоты.
+                </p>
+            </div>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 bg-white border-b border-gray-200">
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
 
-                    @if(session('success'))
-                        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-                            <p>{{ session('success') }}</p>
-                        </div>
-                    @endif
+            <div class="brand-surface">
+                <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-4">
+                    <div>
+                        <h3 class="h5 fw-semibold mb-1">Список ваших лотов</h3>
+                        <p class="mb-0 text-muted">Все объявления, которые вы импортировали с Copart.</p>
+                    </div>
+                    <a href="{{ route('listings.create-from-auction') }}" class="btn btn-brand-gradient">
+                        Добавить новое
+                    </a>
+                </div>
 
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-medium text-gray-900">Список ваших объявлений с аукционов</h3>
-                        <a href="{{ route('listings.create-from-auction') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150">
-                            Добавить новое
+                @if($listings->isEmpty())
+                    <div class="text-center py-5" style="border: 1px dashed rgba(18,18,18,0.08); border-radius: 18px;">
+                        <div class="mb-3" style="font-size: 32px;">🗂️</div>
+                        <h4 class="fw-semibold">Пока нет импортированных объявлений</h4>
+                        <p class="text-muted mb-4">Импортируйте лот с Copart — фотографии и характеристики подтянутся автоматически.</p>
+                        <a href="{{ route('listings.create-from-auction') }}" class="btn btn-brand-gradient">
+                            Импортировать с Copart
                         </a>
                     </div>
-
-                    @if($listings->isEmpty())
-                        <p>У вас пока нет объявлений с аукционов.</p>
-                    @else
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Фото
-                                    </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Заголовок
-                                    </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Цена
-                                    </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Статус
-                                    </th>
-                                    <th scope="col" class="relative px-6 py-3">
-                                        <span class="sr-only">Действия</span>
-                                    </th>
-                                </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($listings as $listing)
+                @else
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th scope="col">Фото</th>
+                                <th scope="col">Заголовок</th>
+                                <th scope="col">Цена</th>
+                                <th scope="col">Статус</th>
+                                <th scope="col" class="text-end">Действия</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach($listings as $listing)
                                 @php
                                     $endsAt = $listing->auction_ends_at;
                                     $isExpired = $endsAt ? $endsAt->isPast() : false;
@@ -58,12 +58,26 @@
                                     $expiresIso = $endsAt?->toIso8601String();
                                 @endphp
                                 <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="relative w-20 h-16">
-                                            <img src="{{ $listing->getPreviewUrl('thumb') }}" alt="{{ $listing->title }}" class="h-16 w-20 object-cover rounded">
+                                    <td style="width: 110px;">
+                                        <div class="position-relative" style="width: 96px; height: 72px; border-radius: 12px; overflow: hidden; background: #f1f3f5;">
+                                            @php
+                                                $fallbackImage = asset('images/no-image.svg');
+                                                $imageUrl = null;
+                                                if ($listing->hasMedia('images')) {
+                                                    $imageUrl = method_exists($listing, 'getPreviewUrl')
+                                                        ? ($listing->getPreviewUrl('thumb') ?: $listing->getPreviewUrl())
+                                                        : $listing->getFirstMedia('images')?->getUrl('thumb');
+                                                }
+                                                if (!$imageUrl) {
+                                                    $imageUrl = optional($listing->vehicleDetail)->preview_image_url;
+                                                }
+                                                $imageUrl = $imageUrl ?: $fallbackImage;
+                                            @endphp
+                                            <img src="{{ $imageUrl }}" alt="{{ $listing->title }}" class="w-100 h-100" style="object-fit: cover;">
                                             @if($endsAt)
                                                 <div
-                                                    class="absolute top-1 left-1 bg-gray-900 bg-opacity-80 text-white text-[10px] px-2 py-1 rounded shadow"
+                                                    class="position-absolute top-0 start-0 m-1 px-2 py-1 rounded"
+                                                    style="background: rgba(17,17,17,0.75); color: #fff; font-size: 10px;"
                                                     data-countdown
                                                     data-expires="{{ $expiresIso }}"
                                                     data-prefix="До конца"
@@ -80,37 +94,45 @@
                                             @endif
                                         </div>
                                     </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm font-medium text-gray-900">{{ $listing->title }}</div>
-                                            <div class="text-sm text-gray-500">{{ $listing->created_at->format('d.m.Y') }}</div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $listing->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                                                {{ __($listing->status) }}
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <a href="{{ route('auction-listings.edit', $listing) }}" class="text-indigo-600 hover:text-indigo-900">Редактировать</a>
-                                            <form action="{{ route('auction-listings.destroy', $listing) }}" method="POST" class="inline-block ml-4" onsubmit="return confirm('Вы уверены, что хотите удалить это объявление?');">
+                                    <td>
+                                        <div class="fw-semibold">{{ $listing->title }}</div>
+                                        <div class="text-muted small">{{ $listing->created_at->format('d.m.Y') }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="fw-semibold">{{ number_format($listing->price, 0, '.', ' ') }}</span>
+                                        <span class="text-muted">{{ $listing->currency }}</span>
+                                    </td>
+                                    <td>
+                                        @if($listing->status === 'active')
+                                            <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">Активно</span>
+                                        @else
+                                            <span class="badge bg-warning-subtle text-warning px-3 py-2 rounded-pill">Черновик</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="d-flex justify-content-end gap-3">
+                                            <a href="{{ route('auction-listings.edit', $listing) }}" class="text-decoration-none fw-semibold" style="color: var(--brand-orange);">
+                                                Редактировать
+                                            </a>
+                                            <form action="{{ route('auction-listings.destroy', $listing) }}" method="POST" onsubmit="return confirm('Удалить объявление?');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-red-600 hover:text-red-900">Удалить</button>
+                                                <button type="submit" class="btn btn-link p-0 text-decoration-none fw-semibold" style="color: var(--brand-red);">
+                                                    Удалить
+                                                </button>
                                             </form>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="mt-4">
-                            {{ $listings->links() }}
-                        </div>
-                    @endif
-                </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pt-3">
+                        {{ $listings->links() }}
+                    </div>
+                @endif
             </div>
         </div>
-    </div>
+    </section>
 </x-app-layout>

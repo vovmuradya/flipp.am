@@ -11,6 +11,7 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Api\AuctionListingController; // ТЗ v2.1
 use App\Http\Controllers\ImageProxyController; // Прокси изображений
 use App\Http\Controllers\ProxyController; // Новый прокси-контроллер
+use App\Http\Controllers\Auth\SocialAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,7 +22,18 @@ use App\Http\Controllers\ProxyController; // Новый прокси-контр�
 // Публичные
 Route::get('/', [ListingController::class, 'index'])->name('home');
 Route::get('/search', [SearchController::class, 'index'])->name('search.index');
-Route::resource('listings', ListingController::class)->only(['index']);
+Route::get('/listings', [ListingController::class, 'index'])->name('listings.index');
+
+Route::prefix('auth')->name('auth.')->group(function () {
+    Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect'])
+        ->middleware('guest')
+        ->whereIn('provider', ['google', 'facebook'])
+        ->name('provider.redirect');
+
+    Route::get('{provider}/callback', [SocialAuthController::class, 'callback'])
+        ->whereIn('provider', ['google', 'facebook'])
+        ->name('provider.callback');
+});
 
 // Прокси изображений (публично, т.к. фото в публичных объявлениях)
 Route::get('/image-proxy', [ImageProxyController::class, 'show'])->name('image.proxy');
@@ -30,11 +42,10 @@ Route::get('/proxy/image', [ProxyController::class, 'image'])->name('proxy.image
 // Защищённые
 Route::middleware('auth')->group(function () {
     Route::get('/listings/create/choose', [ListingController::class, 'createChoice'])->name('listings.create-choice');
-    Route::get('/listings/create', [ListingController::class, 'create'])->name('listings.create');
     Route::get('/listings/create-from-auction', [ListingController::class, 'createFromAuction'])->name('listings.create-from-auction');
+    Route::post('/listings/import-auction', [ListingController::class, 'importAuctionListing'])->name('listings.import-auction');
 
-    Route::post('/listings', [ListingController::class, 'store'])->name('listings.store');
-    Route::resource('listings', ListingController::class)->except(['index','show','create','store']);
+    Route::resource('listings', ListingController::class)->only(['create', 'store', 'edit', 'update', 'destroy']);
 
     // ✅ ТЗ v2.1: РАЗДЕЛЕНИЕ ОБЪЯВЛЕНИЙ: Маршруты для аукционных объявлений
     Route::resource('auction-listings', \App\Http\Controllers\AuctionListingController::class)
@@ -71,7 +82,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/v1/dealer/listings/fetch-from-url', [\App\Http\Controllers\Api\AuctionListingController::class, 'fetchFromUrl'])->name('api.auction.fetch');
 });
 
-// Публичные resource-маршруты
 Route::get('/listings/{listing}', [ListingController::class, 'show'])->name('listings.show');
 
 require __DIR__.'/auth.php';

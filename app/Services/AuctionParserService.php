@@ -35,7 +35,8 @@ class AuctionParserService
         }
 
         if (str_contains($domain, 'iaai-auctions.com') || str_contains($domain, 'iaai.com')) {
-            return $this->parseIAAI($url);
+            Log::info('ℹ️ IAAI parsing disabled', ['url' => $url]);
+            return null;
         }
 
         return null;
@@ -168,6 +169,7 @@ class AuctionParserService
                 if (is_array($payload)) {
                     return $payload;
                 }
+
                 Log::warning('⚠️ Copart JSON parse failed (HTTP)', [
                     'url' => $url,
                     'body_snippet' => substr($response->body(), 0, 200),
@@ -268,7 +270,9 @@ class AuctionParserService
             return null;
         }
 
-        return $process->getOutput();
+        $body = $process->getOutput();
+
+        return $body !== '' ? $body : null;
     }
 
     /**
@@ -485,13 +489,15 @@ class AuctionParserService
                 // Remove duplicates by normalized path
                 $seenPaths = [];
                 foreach ($imageUrls as $imgUrl) {
-                    $path = parse_url($imgUrl, PHP_URL_PATH) ?? '';
-                    $normalized = preg_replace('/_(thn|hrs|thb|tmb|ful)\.(jpg|jpeg|png|webp)$/i', '.$2', $path);
+                    $path = parse_url($imgUrl, PHP_URL_PATH) ?? $imgUrl;
+                    $query = parse_url($imgUrl, PHP_URL_QUERY);
+                    $normalizedPath = preg_replace('/_(thn|hrs|thb|tmb|ful)\.(jpg|jpeg|png|webp)$/i', '.$2', $path);
+                    $dedupeKey = strtolower($normalizedPath . ($query ? '?' . $query : ''));
 
-                    if (isset($seenPaths[$normalized])) {
+                    if (isset($seenPaths[$dedupeKey])) {
                         continue;
                     }
-                    $seenPaths[$normalized] = true;
+                    $seenPaths[$dedupeKey] = true;
 
                     $proxyUrl = url('/proxy/image') . '?u=' . rawurlencode($imgUrl);
                     if (!empty($url)) {
@@ -559,7 +565,204 @@ class AuctionParserService
 
     private function parseIAAI(string $url): ?array
     {
-        return null;
+        try {
+            $response = Http::withHeaders($this->iaaiRequestHeaders($url))
+                ->withCookies($this->iaaiCookies(), '.iaai.com')
+                ->withOptions([
+                    'verify' => false,
+                    'allow_redirects' => true,
+                    'http_errors' => false,
+                ])
+                ->timeout(15)
+                ->get($url);
+
+            if (!$response->successful()) {
+                Log::warning('⚠️ IAAI HTTP status: ' . $response->status(), ['url' => $url]);
+                return null;
+            }
+
+            $html = $response->body();
+            if (!is_string($html) || trim($html) === '') {
+                Log::warning('⚠️ IAAI empty response body', ['url' => $url]);
+                return null;
+            }
+
+            $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5);
+
+            if ($this->iaaiPageIndicatesMissingLot($html)) {
+                Log::info('ℹ️ IAAI reports lot not found', ['url' => $url]);
+                return null;
+            }
+
+            $state = $this->extractIaaiState($html);
+
+            [$titleYear, $titleMake, $titleModel] = $this->parseIaaiTitle($this->extractMetaContent($html, 'og:title'));
+
+            $make = $titleMake ?: $this->matchFirst($html, [
+                '/data-uname="lotdetailmake"[^>]*>\s*([^<]+)/i',
+                '/"vehicleMake"\s*:\s*"([^"]+)"/i',
+                '/"make"\s*:\s*"([^"]+)"/i',
+            ]);
+
+            $model = $titleModel ?: $this->matchFirst($html, [
+                '/data-uname="lotdetailmodel"[^>]*>\s*([^<]+)/i',
+                '/"vehicleModel"\s*:\s*"([^"]+)"/i',
+                '/"model"\s*:\s*"([^"]+)"/i',
+            ]);
+
+            $year = $titleYear ?: $this->extractYear($html);
+
+            if ($state) {
+                $stateMake = $this->normalizeText((string) data_get($state, 'vehicleDetails.vehicleSummary.make'));
+                if ($stateMake && !$make) {
+                    $make = $this->titleCase($stateMake);
+                }
+
+                $stateModel = $this->normalizeText((string) data_get($state, 'vehicleDetails.vehicleSummary.model'));
+                if ($stateModel && !$model) {
+                    $model = $this->titleCase($stateModel);
+                }
+
+                $stateYear = data_get($state, 'vehicleDetails.vehicleSummary.year')
+                    ?? data_get($state, 'vehicleDetails.vehicleSummary.modelYear');
+                if ($stateYear && !$year && is_numeric($stateYear)) {
+                    $year = (int) $stateYear;
+                }
+            }
+
+            $mileageRaw = $this->matchFirst($html, [
+                '/data-uname="lotdetailodometerreading"[^>]*>\s*([^<]+)/i',
+                '/Odometer(?: Reading)?:\s*<\/span>\s*<span[^>]*>\s*([^<]+)/i',
+                '/"odometerReading"\s*:\s*"([^"]+)"/i',
+            ]);
+            $mileage = $this->extractNumericValue($mileageRaw);
+
+            if (!$mileage && $state) {
+                $stateMileage = data_get($state, 'vehicleDetails.vehicleSummary.odometerReading');
+                if ($stateMileage) {
+                    $mileage = $this->extractNumericValue((string) $stateMileage);
+                }
+            }
+
+            $color = $this->matchFirst($html, [
+                '/data-uname="lotdetailexteriorcolor"[^>]*>\s*([^<]+)/i',
+                '/Exterior Color:\s*<\/span>\s*<span[^>]*>\s*([^<]+)/i',
+                '/"exteriorColor"\s*:\s*"([^"]+)"/i',
+            ]);
+
+            if (!$color && $state) {
+                $stateColor = $this->normalizeText((string) data_get($state, 'vehicleDetails.vehicleSummary.exteriorColor'));
+                if ($stateColor) {
+                    $color = $stateColor;
+                }
+            }
+
+            $transmission = $this->matchFirst($html, [
+                '/data-uname="lotdetailtransmission"[^>]*>\s*([^<]+)/i',
+                '/Transmission:\s*<\/span>\s*<span[^>]*>\s*([^<]+)/i',
+                '/"transmission"\s*:\s*"([^"]+)"/i',
+            ]) ?: 'automatic';
+
+            if ($state) {
+                $stateTransmission = $this->normalizeText((string) data_get($state, 'vehicleDetails.vehicleSummary.transmission'));
+                if ($stateTransmission) {
+                    $transmission = strtolower($stateTransmission);
+                }
+            }
+
+            $fuelType = $this->matchFirst($html, [
+                '/data-uname="lotdetailfuletype"[^>]*>\s*([^<]+)/i',
+                '/data-uname="lotdetailfueltype"[^>]*>\s*([^<]+)/i',
+                '/Fuel Type:\s*<\/span>\s*<span[^>]*>\s*([^<]+)/i',
+                '/"fuelType"\s*:\s*"([^"]+)"/i',
+            ]) ?: 'gasoline';
+
+            if ($state) {
+                $stateFuel = $this->normalizeText((string) data_get($state, 'vehicleDetails.vehicleSummary.fuelType'));
+                if ($stateFuel) {
+                    $fuelType = strtolower($stateFuel);
+                }
+            }
+
+            $bodyType = $this->matchFirst($html, [
+                '/data-uname="lotdetailvehicletype"[^>]*>\s*([^<]+)/i',
+                '/data-uname="lotdetailbodytype"[^>]*>\s*([^<]+)/i',
+                '/Body Style:\s*<\/span>\s*<span[^>]*>\s*([^<]+)/i',
+                '/"bodyStyle"\s*:\s*"([^"]+)"/i',
+            ]);
+
+            if (!$bodyType && $state) {
+                $stateBody = $this->normalizeText((string) data_get($state, 'vehicleDetails.vehicleSummary.bodyStyle'));
+                if ($stateBody) {
+                    $bodyType = $stateBody;
+                }
+            }
+
+            $engineStr = $this->matchFirst($html, [
+                '/data-uname="lotdetailengine"[^>]*>\s*([^<]+)/i',
+                '/Engine Type:\s*<\/span>\s*<span[^>]*>\s*([^<]+)/i',
+                '/"engineType"\s*:\s*"([^"]+)"/i',
+            ]);
+
+            if (!$engineStr && $state) {
+                $stateEngine = $this->normalizeText((string) data_get($state, 'vehicleDetails.vehicleSummary.engineType'));
+                if ($stateEngine) {
+                    $engineStr = $stateEngine;
+                }
+            }
+
+            $auctionEndsAtRaw = $this->matchFirst($html, [
+                '/data-uname="lotdetailsaledate"[^>]*>\s*([^<]+)/i',
+                '/Sale Date:\s*<\/span>\s*<span[^>]*>\s*([^<]+)/i',
+                '/"saleDate"\s*:\s*"([^"]+)"/i',
+            ]);
+            $auctionEndsAt = $this->parseIaaiAuctionDate($auctionEndsAtRaw);
+
+            if (!$auctionEndsAt && $state) {
+                $stateSaleDate = data_get($state, 'vehicleDetails.vehicleSummary.saleDate');
+                if ($stateSaleDate) {
+                    $auctionEndsAt = $this->parseIaaiAuctionDate((string) $stateSaleDate);
+                }
+            }
+
+            $photos = $this->extractIaaiPhotos($html, $url, $state);
+            if (empty($photos)) {
+                $placeholderUrl = 'https://via.placeholder.com/800x600/e5e7eb/6b7280?text=No+Image+Available';
+                $photos = [url('/proxy/image?u=' . rawurlencode($placeholderUrl))];
+            }
+
+            $data = [
+                'make' => $make ? $this->titleCase($make) : 'Неизвестно',
+                'model' => $model ? $this->titleCase($model) : 'Неизвестно',
+                'year' => $year ?: date('Y'),
+                'mileage' => $mileage,
+                'exterior_color' => $color ? $this->titleCase($color) : null,
+                'transmission' => strtolower($transmission) === 'manual' ? 'manual' : 'automatic',
+                'fuel_type' => $fuelType ? strtolower($fuelType) : 'gasoline',
+                'engine_displacement_cc' => $this->parseEngineString($engineStr),
+                'body_type' => $bodyType ? $this->titleCase($bodyType) : null,
+                'photos' => array_values($photos),
+                'source_auction_url' => $url,
+                'auction_ends_at' => $auctionEndsAt ? $auctionEndsAt->toIso8601String() : null,
+            ];
+
+            if (empty($data['make']) || empty($data['model'])) {
+                Log::warning('⚠️ IAAI parsed without essential fields', ['url' => $url]);
+                return null;
+            }
+
+            Log::info('✅ IAAI parsed vehicle', [
+                'make' => $data['make'],
+                'model' => $data['model'],
+                'year' => $data['year'],
+                'photos' => count($data['photos']),
+            ]);
+
+            return $data;
+        } catch (\Throwable $e) {
+            Log::error('❌ IAAI parsing error: ' . $e->getMessage(), ['url' => $url]);
+            return null;
+        }
     }
 
     private function parseEngineString(?string $engineStr): ?int
@@ -578,6 +781,524 @@ class AuctionParserService
         }
 
         return null;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private function iaaiRequestHeaders(string $referer): array
+    {
+        return [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language' => 'en-US,en;q=0.9,ru;q=0.8',
+            'Cache-Control' => 'no-cache',
+            'Pragma' => 'no-cache',
+            'Referer' => $referer ?: 'https://www.iaai.com/',
+            'Connection' => 'keep-alive',
+            'Upgrade-Insecure-Requests' => '1',
+        ];
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private function iaaiCookies(): array
+    {
+        $raw = config('services.iaai.cookies') ?? env('IAAI_COOKIES');
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $cookies = [];
+        $pairs = array_filter(array_map('trim', explode(';', $raw)));
+        foreach ($pairs as $pair) {
+            $pos = strpos($pair, '=');
+            if ($pos === false) {
+                continue;
+            }
+
+            $name = trim(substr($pair, 0, $pos));
+            $value = trim(substr($pair, $pos + 1));
+
+            if ($name !== '') {
+                $cookies[$name] = $value;
+            }
+        }
+
+        return $cookies;
+    }
+
+    private function iaaiPageIndicatesMissingLot(string $html): bool
+    {
+        $phrases = [
+            'vehicle not found',
+            'lot not found',
+            'no vehicle found',
+            'we are unable to locate this vehicle',
+            'vehicle you are looking for is no longer available',
+        ];
+
+        foreach ($phrases as $needle) {
+            if (stripos($html, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{0:?int,1:?string,2:?string}
+     */
+    private function parseIaaiTitle(?string $title): array
+    {
+        $normalized = $this->normalizeText($title);
+        if ($normalized === null) {
+            return [null, null, null];
+        }
+
+        $normalized = preg_replace('/\\s+for sale.*$/i', '', $normalized);
+        $normalized = preg_replace('/\\s*[-|]\\s*iaai.*$/i', '', $normalized);
+
+        if (preg_match('/^(?P<year>(19|20)\\d{2})\\s+(?P<rest>.+)$/', $normalized, $matches)) {
+            $year = (int) $matches['year'];
+            $rest = trim($matches['rest']);
+            if ($rest === '') {
+                return [$year, null, null];
+            }
+
+            $parts = preg_split('/\\s+/', $rest, 2);
+            $make = $parts[0] ?? null;
+            $model = $parts[1] ?? null;
+
+            return [
+                $year,
+                $make ? $this->titleCase($make) : null,
+                $model ? $this->titleCase($model) : null,
+            ];
+        }
+
+        return [null, null, null];
+    }
+
+    private function extractMetaContent(string $html, string $property): ?string
+    {
+        $patterns = [
+            sprintf('/<meta[^>]+property=["\']%s["\'][^>]+content=["\']([^"\']+)["\']/i', preg_quote($property, '/')),
+            sprintf('/<meta[^>]+name=["\']%s["\'][^>]+content=["\']([^"\']+)["\']/i', preg_quote($property, '/')),
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $html, $matches)) {
+                return $this->normalizeText($matches[1]);
+            }
+        }
+
+        return null;
+    }
+
+    private function matchFirst(string $html, array $patterns): ?string
+    {
+        foreach ($patterns as $pattern) {
+            if (@preg_match($pattern, $html, $matches) && isset($matches[1])) {
+                $value = strip_tags($matches[1]);
+                $normalized = $this->normalizeText($value);
+                if ($normalized !== null) {
+                    return $normalized;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function extractYear(string $html): ?int
+    {
+        $yearText = $this->matchFirst($html, [
+            '/data-uname="lotdetailyear"[^>]*>\\s*([^<]+)/i',
+            '/"vehicleYear"\\s*:\\s*"([^"]+)"/i',
+            '/"year"\\s*:\\s*"([^"]+)"/i',
+        ]);
+
+        if ($yearText && preg_match('/(19|20)\\d{2}/', $yearText, $matches)) {
+            return (int) $matches[0];
+        }
+
+        return null;
+    }
+
+    private function extractNumericValue(?string $value): ?int
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $digits = preg_replace('/[^\\d]/', '', $value);
+        if ($digits === '' || !ctype_digit($digits)) {
+            return null;
+        }
+
+        $number = (int) $digits;
+
+        return $number > 0 ? $number : null;
+    }
+
+    private function parseIaaiAuctionDate(?string $value): ?Carbon
+    {
+        $normalized = $this->normalizeText($value);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (stripos($normalized, 'tbd') !== false) {
+            return null;
+        }
+
+        $formats = [
+            'm/d/Y h:i A',
+            'm/d/Y H:i',
+            'd.m.Y H:i',
+            'Y-m-d H:i',
+            'M d, Y h:i A',
+            'M d Y h:i A',
+        ];
+
+        foreach ($formats as $format) {
+            try {
+                $parsed = Carbon::createFromFormat($format, $normalized, 'America/New_York');
+                return $parsed->setTimezone(config('app.timezone'));
+            } catch (\Throwable $e) {
+                continue;
+            }
+        }
+
+        try {
+            $parsed = Carbon::parse($normalized, 'America/New_York');
+            return $parsed->setTimezone(config('app.timezone'));
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function extractIaaiPhotos(string $html, string $sourceUrl, ?array $state = null): array
+    {
+        $photos = [];
+
+        if ($state) {
+            $stateCollections = [
+                data_get($state, 'vehicleDetails.vehicleSummary.photos'),
+                data_get($state, 'vehicleDetails.vehicleSummary.images'),
+                data_get($state, 'vehicleDetails.media.photos'),
+                data_get($state, 'vehicleDetails.gallery.photos'),
+                data_get($state, 'media.photos'),
+            ];
+
+            foreach ($stateCollections as $collection) {
+                if (empty($collection) || !is_iterable($collection)) {
+                    continue;
+                }
+
+                foreach ($collection as $item) {
+                    $resolved = $this->resolveIaaiPhotoUrl($item);
+                    if ($resolved) {
+                        $photos[$resolved] = $this->buildProxyImageUrl($resolved, $sourceUrl);
+                    }
+                }
+            }
+        }
+
+        if (preg_match_all('/https?:\/\/(?:content|images|photos)\.iaai\.(?:com|net)\/[^"\'>\s]+/i', $html, $matches)) {
+            foreach ($matches[0] as $rawUrl) {
+                $normalized = $this->normalizeIaaiImageUrl($rawUrl);
+                if ($normalized) {
+                    $photos[$normalized] = $this->buildProxyImageUrl($normalized, $sourceUrl);
+                }
+            }
+        }
+
+        if (preg_match_all('/data-src=["\']([^"\']+\.?(?:jpe?g|png|webp)[^"\']*)["\']/i', $html, $lazyMatches)) {
+            foreach ($lazyMatches[1] as $rawUrl) {
+                $normalized = $this->normalizeIaaiImageUrl($rawUrl);
+                if ($normalized) {
+                    $photos[$normalized] = $this->buildProxyImageUrl($normalized, $sourceUrl);
+                }
+            }
+        }
+
+        if (preg_match_all('/src=["\']([^"\']+\.?(?:jpe?g|png|webp)[^"\']*)["\']/i', $html, $srcMatches)) {
+            foreach ($srcMatches[1] as $rawUrl) {
+                $normalized = $this->normalizeIaaiImageUrl($rawUrl);
+                if ($normalized) {
+                    $photos[$normalized] = $this->buildProxyImageUrl($normalized, $sourceUrl);
+                }
+            }
+        }
+
+        if (preg_match_all('/srcset=["\']([^"\']+)["\']/i', $html, $srcsetMatches)) {
+            foreach ($srcsetMatches[1] as $srcset) {
+                $candidates = preg_split('/\s*,\s*/', $srcset);
+                foreach ($candidates as $candidate) {
+                    $parts = preg_split('/\s+/', trim($candidate));
+                    $urlPart = $parts[0] ?? null;
+                    if (!$urlPart) {
+                        continue;
+                    }
+                    $normalized = $this->normalizeIaaiImageUrl($urlPart);
+                    if ($normalized) {
+                        $photos[$normalized] = $this->buildProxyImageUrl($normalized, $sourceUrl);
+                    }
+                }
+            }
+        }
+
+        if (preg_match_all('/background-image:\s*url\(([^)]+)\)/i', $html, $bgMatches)) {
+            foreach ($bgMatches[1] as $rawUrl) {
+                $clean = trim($rawUrl, '"\' ');
+                $normalized = $this->normalizeIaaiImageUrl($clean);
+                if ($normalized) {
+                    $photos[$normalized] = $this->buildProxyImageUrl($normalized, $sourceUrl);
+                }
+            }
+        }
+
+        if (preg_match('/<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $metaMatch)) {
+            $normalized = $this->normalizeIaaiImageUrl($metaMatch[1]);
+            if ($normalized) {
+                $photos[$normalized] = $this->buildProxyImageUrl($normalized, $sourceUrl);
+            }
+        }
+
+        return array_values($photos);
+    }
+
+    private function normalizeIaaiImageUrl(string $url): ?string
+    {
+        $decoded = html_entity_decode($url, ENT_QUOTES | ENT_HTML5);
+        $normalized = $this->normalizeText($decoded);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (str_starts_with($normalized, '//')) {
+            $normalized = 'https:' . $normalized;
+        }
+
+        if (!str_starts_with($normalized, 'http')) {
+            if (preg_match('/^(?:content|images|photos)\.iaai\.(?:com|net)/i', $normalized)) {
+                $normalized = 'https://' . $normalized;
+            } elseif (str_starts_with($normalized, '/')) {
+                $normalized = 'https://content.iaai.com' . $normalized;
+            } else {
+                $normalized = 'https://content.iaai.com/' . ltrim($normalized, '/');
+            }
+        }
+
+        $parts = parse_url($normalized);
+        if (!is_array($parts) || empty($parts['host']) || empty($parts['path'])) {
+            return null;
+        }
+
+        if (!preg_match('/\\.(?:jpe?g|png|gif|webp)(?:$|[?&#])/i', $parts['path'])) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    private function buildProxyImageUrl(string $source, ?string $referer = null): string
+    {
+        $query = ['u' => $source];
+
+        if ($referer) {
+            $query['r'] = $referer;
+        }
+
+        return url('/proxy/image?' . http_build_query($query));
+    }
+
+    private function resolveIaaiPhotoUrl(mixed $photo): ?string
+    {
+        if (is_string($photo)) {
+            return $this->normalizeIaaiImageUrl($photo);
+        }
+
+        if (!is_array($photo)) {
+            return null;
+        }
+
+        $candidates = [
+            'url', 'imageUrl', 'imageURL', 'image', 'path', 'full', 'fullUrl',
+            'fullURL', 'large', 'largeUrl', 'largeURL', 'photoUrl', 'cdnUrl',
+            'originalUrl', 'originalURL', 'src',
+        ];
+
+        foreach ($candidates as $key) {
+            if (!empty($photo[$key]) && is_string($photo[$key])) {
+                $normalized = $this->normalizeIaaiImageUrl($photo[$key]);
+                if ($normalized) {
+                    return $normalized;
+                }
+            }
+        }
+
+        if (isset($photo['links']) && is_array($photo['links'])) {
+            foreach (['full', 'large', 'original', 'xl', 'xlLarge'] as $linkKey) {
+                $linkValue = $photo['links'][$linkKey] ?? null;
+                if (is_string($linkValue)) {
+                    $normalized = $this->normalizeIaaiImageUrl($linkValue);
+                    if ($normalized) {
+                        return $normalized;
+                    }
+                }
+            }
+        }
+
+        if (isset($photo['sizes']) && is_array($photo['sizes'])) {
+            foreach (['full', 'large', 'xl'] as $sizeKey) {
+                $sizeValue = $photo['sizes'][$sizeKey] ?? null;
+                if (is_string($sizeValue)) {
+                    $normalized = $this->normalizeIaaiImageUrl($sizeValue);
+                    if ($normalized) {
+                        return $normalized;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function extractIaaiState(string $html): ?array
+    {
+        $marker = 'window.__INITIAL_STATE__';
+        $pos = strpos($html, $marker);
+        if ($pos === false) {
+            return null;
+        }
+
+        $equalsPos = strpos($html, '=', $pos);
+        if ($equalsPos === false) {
+            return null;
+        }
+
+        $jsonStart = strpos($html, '{', $equalsPos);
+        if ($jsonStart === false) {
+            return null;
+        }
+
+        $jsonFragment = $this->extractJsonObject(substr($html, $jsonStart));
+        if ($jsonFragment === null) {
+            return null;
+        }
+
+        $decoded = json_decode($jsonFragment, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            Log::warning('⚠️ Failed to decode IAAI state JSON', ['error' => json_last_error_msg()]);
+            return null;
+        }
+
+        return $decoded;
+    }
+
+    private function extractJsonObject(string $text): ?string
+    {
+        $text = ltrim($text);
+        if ($text === '' || $text[0] !== '{') {
+            return null;
+        }
+
+        $length = strlen($text);
+        $depth = 0;
+        $inString = false;
+        $escape = false;
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $text[$i];
+
+            if ($inString) {
+                if ($escape) {
+                    $escape = false;
+                    continue;
+                }
+                if ($char === '\\') {
+                    $escape = true;
+                    continue;
+                }
+                if ($char === '"') {
+                    $inString = false;
+                }
+                continue;
+            }
+
+            if ($char === '"') {
+                $inString = true;
+                continue;
+            }
+
+            if ($char === '{') {
+                $depth++;
+                continue;
+            }
+
+            if ($char === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return substr($text, 0, $i + 1);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function titleCase(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return $value;
+        }
+
+        $upper = strtoupper($value);
+        if ($upper === $value && strlen($value) <= 4) {
+            return $upper;
+        }
+
+        return ucwords(strtolower($value));
+    }
+
+private function normalizeText(?string $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $normalized = preg_replace('/\\s+/u', ' ', $trimmed);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (str_contains($normalized, '\\/')) {
+            $normalized = str_replace('\\/', '/', $normalized);
+        }
+
+        if (str_contains($normalized, '\\u002F') || str_contains($normalized, '\\u002f')) {
+            $normalized = str_ireplace('\\u002f', '/', $normalized);
+        }
+
+        if (str_contains($normalized, '\\')) {
+            $normalized = stripcslashes($normalized);
+        }
+
+        return $normalized;
     }
 
     /**

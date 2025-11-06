@@ -22,7 +22,7 @@ class DashboardController extends Controller
         // 2. Загружаем все его ОБЫЧНЫЕ объявления
         $listings = $user->listings()
             ->regular() // Используем scope
-            ->with('category', 'region')
+            ->with(['category', 'region', 'media', 'vehicleDetail'])
             ->latest()
             ->paginate(10);
 
@@ -33,20 +33,60 @@ class DashboardController extends Controller
     /**
      * Показать аукционные объявления текущего пользователя.
      */
-    public function myAuctions()
+    public function myAuctions(Request $request)
     {
-        // Берём объявления текущего пользователя, у которых есть vehicleDetail с source_auction_url или флаг is_from_auction
-        $listings = Listing::query()
-            ->where('user_id', Auth::id())
-            ->whereHas('vehicleDetail', function ($q) {
-                $q->whereNotNull('source_auction_url')
-                  ->orWhere('is_from_auction', 1);
-            })
-            ->with(['vehicleDetail', 'media', 'category'])
-            ->latest()
-            ->paginate(10);
+        $filters = [
+            'brand' => trim($request->input('brand', '')),
+            'model' => trim($request->input('model', '')),
+            'price_from' => $request->input('price_from'),
+            'price_to' => $request->input('price_to'),
+            'year_from' => $request->input('year_from'),
+            'year_to' => $request->input('year_to'),
+        ];
 
-        return view('dashboard.my-auctions', compact('listings'));
+        $query = Listing::query()
+            ->where('listing_type', 'vehicle')
+            ->fromAuction()
+            ->with(['vehicleDetail', 'media', 'category', 'user'])
+            ->latest();
+
+        if ($filters['brand'] !== '') {
+            $brandTerm = mb_strtolower($filters['brand']);
+            $query->whereHas('vehicleDetail', function ($q) use ($brandTerm) {
+                $q->whereRaw('LOWER(make) LIKE ?', ["%{$brandTerm}%"]);
+            });
+        }
+
+        if ($filters['model'] !== '') {
+            $modelTerm = mb_strtolower($filters['model']);
+            $query->whereHas('vehicleDetail', function ($q) use ($modelTerm) {
+                $q->whereRaw('LOWER(model) LIKE ?', ["%{$modelTerm}%"]);
+            });
+        }
+
+        if (is_numeric($filters['price_from'])) {
+            $query->where('price', '>=', (int) $filters['price_from']);
+        }
+
+        if (is_numeric($filters['price_to'])) {
+            $query->where('price', '<=', (int) $filters['price_to']);
+        }
+
+        if (is_numeric($filters['year_from'])) {
+            $query->whereHas('vehicleDetail', function ($q) use ($filters) {
+                $q->where('year', '>=', (int) $filters['year_from']);
+            });
+        }
+
+        if (is_numeric($filters['year_to'])) {
+            $query->whereHas('vehicleDetail', function ($q) use ($filters) {
+                $q->where('year', '<=', (int) $filters['year_to']);
+            });
+        }
+
+        $listings = $query->paginate(12)->withQueryString();
+
+        return view('dashboard.my-auctions', compact('listings', 'filters'));
     }
 
     /**

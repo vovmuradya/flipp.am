@@ -19,6 +19,7 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
+        "@egjs/flicking": "^4.14.1",
         "puppeteer": "^24.27.0"
     }
 }

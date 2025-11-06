@@ -1,52 +1,124 @@
 <x-guest-layout>
-    <form method="POST" action="{{ route('register') }}">
-        @csrf
+    <section class="auth-card__section">
+        <header class="auth-card__header">
+            <h2 class="auth-card__title">Создать аккаунт</h2>
+            <p class="auth-card__subtitle">
+                Регистрируйтесь и публикуйте автомобили, запчасти и шины, следите за сообщениями и избранными объявлениями.
+            </p>
+        </header>
 
-        <!-- Name -->
-        <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
-            <x-input-error :messages="$errors->get('name')" class="mt-2" />
-        </div>
+        @if ($errors->any())
+            <div class="auth-alert auth-alert--error">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Не удалось сохранить форму. Исправьте ошибки и попробуйте снова.</span>
+            </div>
+        @endif
 
-        <!-- Email Address -->
-        <div class="mt-4">
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
-
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="new-password" />
-
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
-
-        <!-- Confirm Password -->
-        <div class="mt-4">
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
-
-            <x-text-input id="password_confirmation" class="block mt-1 w-full"
-                            type="password"
-                            name="password_confirmation" required autocomplete="new-password" />
-
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-        </div>
-
-        <div class="flex items-center justify-end mt-4">
-            <a class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800" href="{{ route('login') }}">
-                {{ __('Already registered?') }}
+        <div class="auth-social">
+            <a href="{{ route('auth.provider.redirect', 'google') }}" class="btn-social btn-social--google">
+                <i class="fa-brands fa-google"></i>
+                Зарегистрироваться через Google
             </a>
-
-            <x-primary-button class="ms-4">
-                {{ __('Register') }}
-            </x-primary-button>
+            <a href="{{ route('auth.provider.redirect', 'facebook') }}" class="btn-social btn-social--facebook">
+                <i class="fa-brands fa-facebook-f"></i>
+                Зарегистрироваться через Facebook
+            </a>
         </div>
-    </form>
+
+        <div class="auth-divider">
+            <span>или заполните форму</span>
+        </div>
+
+        <form method="POST" action="{{ route('register') }}" class="auth-form">
+            @csrf
+
+            <div class="auth-form__field">
+                <label for="name" class="auth-form__label">Имя</label>
+                <div class="auth-input">
+                    <span class="auth-input__icon"><i class="fa-solid fa-user"></i></span>
+                    <input
+                        id="name"
+                        type="text"
+                        name="name"
+                        value="{{ old('name') }}"
+                        required
+                        autofocus
+                        autocomplete="name"
+                        placeholder="Как к вам обращаться"
+                        class="auth-input__control"
+                    >
+                </div>
+                @error('name')
+                    <span class="auth-form__error">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="auth-form__field">
+                <label for="email" class="auth-form__label">Email</label>
+                <div class="auth-input">
+                    <span class="auth-input__icon"><i class="fa-solid fa-envelope"></i></span>
+                    <input
+                        id="email"
+                        type="email"
+                        name="email"
+                        value="{{ old('email') }}"
+                        required
+                        autocomplete="username"
+                        placeholder="you@example.com"
+                        class="auth-input__control"
+                    >
+                </div>
+                @error('email')
+                    <span class="auth-form__error">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="auth-form__field">
+                <label for="password" class="auth-form__label">Пароль</label>
+                <div class="auth-input">
+                    <span class="auth-input__icon"><i class="fa-solid fa-lock"></i></span>
+                    <input
+                        id="password"
+                        type="password"
+                        name="password"
+                        required
+                        autocomplete="new-password"
+                        placeholder="Минимум 8 символов"
+                        class="auth-input__control"
+                    >
+                </div>
+                @error('password')
+                    <span class="auth-form__error">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="auth-form__field">
+                <label for="password_confirmation" class="auth-form__label">Повторите пароль</label>
+                <div class="auth-input">
+                    <span class="auth-input__icon"><i class="fa-solid fa-lock"></i></span>
+                    <input
+                        id="password_confirmation"
+                        type="password"
+                        name="password_confirmation"
+                        required
+                        autocomplete="new-password"
+                        placeholder="Ещё раз пароль"
+                        class="auth-input__control"
+                    >
+                </div>
+                @error('password_confirmation')
+                    <span class="auth-form__error">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <button type="submit" class="btn-brand-gradient btn-brand-full auth-form__submit">
+                Зарегистрироваться
+            </button>
+        </form>
+
+        <p class="auth-card__switch">
+            Уже есть аккаунт?
+            <a href="{{ route('login') }}">Войти</a>
+        </p>
+    </section>
 </x-guest-layout>

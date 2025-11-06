@@ -15,9 +15,10 @@ class AuctionListingController extends Controller
      */
     public function index()
     {
-        $listings = Listing::where('user_id', Auth::id())
+        $listings = Listing::query()
+            ->where('user_id', Auth::id())
             ->where('listing_type', 'vehicle')
-            ->where('is_from_auction', true)
+            ->fromAuction()
             ->latest()
             ->paginate(15);
 
@@ -69,6 +70,7 @@ class AuctionListingController extends Controller
                 'fuel_type' => $vehicleData['fuel_type'] ?? null,
                 'engine_displacement_cc' => $vehicleData['engine_displacement_cc'] ?? null,
                 'exterior_color' => $vehicleData['exterior_color'] ?? null,
+                'is_from_auction' => true,
                 'source_auction_url' => $auctionData['auction_url'] ?? null,
             ]);
 
@@ -151,7 +153,7 @@ class AuctionListingController extends Controller
 
         $auctionListing->update($validated);
 
-        return redirect()->route('auction-listings.index')->with('success', 'Аукционное объявление успешно обновлено.');
+        return redirect()->route('dashboard.my-auctions')->with('success', 'Аукционное объявление успешно обновлено.');
     }
 
     /**
@@ -161,6 +163,6 @@ class AuctionListingController extends Controller
     {
         $this->authorize('delete', $auctionListing);
         $auctionListing->delete();
-        return redirect()->route('auction-listings.index')->with('success', 'Аукционное объявление успешно удалено.');
+        return redirect()->route('dashboard.my-auctions')->with('success', 'Аукционное объявление успешно удалено.');
     }
 }

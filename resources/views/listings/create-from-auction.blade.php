@@ -1,102 +1,151 @@
 <x-app-layout>
-<div class="max-w-2xl mx-auto px-4 py-8">
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <h1 class="text-2xl font-bold mb-6">Добавить автомобиль с аукциона</h1>
+    <section class="brand-section">
+        <div class="brand-container">
+            <div class="brand-section__header">
+                <h2 class="brand-section__title">Импорт автомобиля с аукциона</h2>
+                <p class="brand-section__subtitle">
+                    Вставьте ссылку на лот Copart — мы автоматически подготовим черновик объявления и поможем ускорить публикацию.
+                </p>
+            </div>
 
-        <div id="result-area" class="mb-6">
-            <p class="text-gray-600 mb-4">Вставьте ссылку на автомобиль с поддерживаемого аукциона (Copart, IAAI). Система автоматически извлечет основные данные об автомобиле.</p>
+            <div class="brand-surface">
+                <div class="row g-5 align-items-start">
+                    <div class="col-lg-6">
+                        <div class="d-flex flex-column gap-3">
+                            <div>
+                                <span class="badge rounded-pill text-bg-light text-uppercase fw-semibold">Шаг 1 из 2</span>
+                                <h3 class="h4 fw-semibold mt-2 mb-0">Укажите ссылку на аукционный лот</h3>
+                                <p class="text-muted mb-0">
+                                    После отправки мы подтянем характеристики, фото и стоимость — останется только проверить данные и опубликовать.
+                                </p>
+                            </div>
+
+                            <form id="auction-import-form" method="POST" action="{{ route('listings.import-auction') }}" class="d-flex flex-column gap-3" novalidate>
+                                @csrf
+                                <div class="d-flex flex-column gap-2">
+                                    <label for="auction-url" class="form-label fw-semibold mb-0">Ссылка на лот с аукциона</label>
+                                    <input
+                                        type="url"
+                                        id="auction-url"
+                                        name="auction_url"
+                                        class="form-control form-control-lg"
+                                        placeholder="https://www.copart.com/lot/..."
+                                        value="{{ old('auction_url') }}"
+                                        required
+                                    >
+                                    <div class="form-text">Поддерживаемая площадка: <span class="fw-semibold">Copart.com</span></div>
+                                </div>
+
+                                <div id="auction-url-client-error" class="alert alert-danger mb-0 d-none" role="alert"></div>
+
+                                @if ($errors->has('auction_url'))
+                                    <div class="alert alert-danger mb-0">
+                                        {{ $errors->first('auction_url') }}
+                                    </div>
+                                @endif
+
+                                @if (session('auction_error'))
+                                    <div class="alert alert-warning mb-0">
+                                        {{ session('auction_error') }}
+                                    </div>
+                                @endif
+
+                                <div class="d-flex flex-wrap gap-3 pt-1">
+                                    <button type="submit" class="btn btn-brand-gradient btn-lg px-4">Импортировать</button>
+                                    <a href="{{ route('home') }}" class="btn btn-brand-outline btn-lg px-4">Отмена</a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="p-4 rounded-4 h-100 d-flex flex-column gap-4" style="background: rgba(17,24,39,0.04); border: 1px solid rgba(17,24,39,0.08);">
+                            <div>
+                                <h4 class="h5 fw-semibold mb-3">Что произойдет дальше?</h4>
+                                <ul class="list-unstyled d-flex flex-column gap-3 mb-0">
+                                    <li class="d-flex gap-3">
+                                        <span class="badge rounded-circle text-bg-danger d-inline-flex justify-content-center align-items-center" style="width: 32px; height: 32px;">1</span>
+                                        <div>
+                                            <span class="fw-semibold d-block">Мы парсим лот за несколько секунд</span>
+                                            <span class="text-muted">Загружаем характеристики, историю пробега и фотографии, если они доступны на площадке.</span>
+                                        </div>
+                                    </li>
+                                    <li class="d-flex gap-3">
+                                        <span class="badge rounded-circle text-bg-danger d-inline-flex justify-content-center align-items-center" style="width: 32px; height: 32px;">2</span>
+                                        <div>
+                                            <span class="fw-semibold d-block">Проверьте и дополните данные</span>
+                                            <span class="text-muted">Система перенаправит на форму объявления, где можно скорректировать описание, цену и контакты.</span>
+                                        </div>
+                                    </li>
+                                    <li class="d-flex gap-3">
+                                        <span class="badge rounded-circle text-bg-danger d-inline-flex justify-content-center align-items-center" style="width: 32px; height: 32px;">3</span>
+                                        <div>
+                                            <span class="fw-semibold d-block">Публикуйте в один клик</span>
+                                            <span class="text-muted">После проверки сохраните объявление в черновики или сразу опубликуйте на сайте.</span>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="p-3 rounded-4" style="background: rgba(244,140,37,0.12); border: 1px solid rgba(244,140,37,0.2);">
+                                <div class="d-flex align-items-start gap-3">
+                                    <span class="fs-4">💡</span>
+                                    <div>
+                                        <p class="mb-1 fw-semibold text-dark">Лот ещё не опубликован?</p>
+                                        <p class="mb-0 text-muted">Можно импортировать черновик и вернуться к заполнению позже — он сохранится в разделе «Мои объявления».</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </section>
 
-        <div id="url-form" class="space-y-4">
-            <div>
-                <label for="auction-url" class="block text-sm font-medium text-gray-700 mb-2">Ссылка на лот с аукциона</label>
-                <input type="url" id="auction-url" name="url" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="https://www.copart.com/lot/..." required>
-                <p class="mt-2 text-sm text-gray-500">Поддерживаемые сайты: Copart.com, IAAI.com</p>
-            </div>
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const form = document.getElementById('auction-import-form');
+                const urlInput = document.getElementById('auction-url');
+                const clientError = document.getElementById('auction-url-client-error');
+                if (!form || !urlInput || !clientError) {
+                    return;
+                }
 
-            <div id="error-message" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                <p id="error-text"></p>
-            </div>
+                const allowedHosts = [
+                    'copart.com'
+                ];
 
-            <div class="flex gap-4">
-                <button id="fetch-button" type="button" class="px-6 py-2 bg-blue-600 text-white rounded-lg">Далее</button>
-                <a href="{{ route('listings.create') }}" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg">Отмена</a>
-            </div>
-        </div>
-    </div>
-</div>
+                form.addEventListener('submit', (event) => {
+                    clientError.classList.add('d-none');
+                    clientError.textContent = '';
 
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const urlInput = document.getElementById('auction-url');
-    const fetchButton = document.getElementById('fetch-button');
-    const errorMessage = document.getElementById('error-message');
-    const errorText = document.getElementById('error-text');
+                    const rawUrl = urlInput.value.trim();
+                    if (!rawUrl) {
+                        return;
+                    }
 
-    // Безопасный JSON-стринг URL для формы
-    const saveAuctionDataUrl = @json(route('listings.save-auction-data'));
+                    let parsedHost;
+                    try {
+                        parsedHost = new URL(rawUrl).hostname.toLowerCase();
+                    } catch (error) {
+                        event.preventDefault();
+                        clientError.textContent = 'Некорректный адрес ссылки. Проверьте формат URL и попробуйте снова.';
+                        clientError.classList.remove('d-none');
+                        return;
+                    }
 
-    fetchButton.addEventListener('click', async function() {
-        const url = urlInput.value.trim();
-        if (!url) { showError('Пожалуйста, введите ссылку на аукцион'); return; }
+                    const isAllowed = allowedHosts.some((domain) => {
+                        return parsedHost === domain || parsedHost.endsWith(`.${domain}`);
+                    });
 
-        hideError();
-        fetchButton.disabled = true;
-        try {
-            const resp = await fetch(@json(route('api.auction.fetch')), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({ url })
+                    if (!isAllowed) {
+                        event.preventDefault();
+                        clientError.textContent = 'Поддерживаются только ссылки с аукциона Copart.';
+                        clientError.classList.remove('d-none');
+                    }
+                });
             });
-
-            if (!resp.ok) {
-                const txt = await resp.text();
-                showError('Сервер вернул ошибку: ' + resp.status + ' ' + txt);
-                return;
-            }
-
-            const data = await resp.json();
-            if (data.success || data.fallback) {
-                // POST to saveAuctionData route to store in session
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = saveAuctionDataUrl;
-
-                const csrfInput = document.createElement('input');
-                csrfInput.type = 'hidden';
-                csrfInput.name = '_token';
-                csrfInput.value = document.querySelector('meta[name="csrf-token"]').content;
-                form.appendChild(csrfInput);
-
-                const dataInput = document.createElement('input');
-                dataInput.type = 'hidden';
-                dataInput.name = 'auction_data';
-                dataInput.value = JSON.stringify(data.data);
-                form.appendChild(dataInput);
-
-                document.body.appendChild(form);
-                form.submit();
-            } else {
-                showError(data.message || 'Не удалось получить данные с аукциона');
-            }
-
-        } catch (e) {
-            console.error(e);
-            showError('Ошибка при запросе к серверу');
-        } finally {
-            fetchButton.disabled = false;
-        }
-    });
-
-    function showError(msg) { errorText.textContent = msg; errorMessage.classList.remove('hidden'); }
-    function hideError() { errorMessage.classList.add('hidden'); }
-});
-</script>
-@endpush
+        </script>
+    @endpush
 </x-app-layout>

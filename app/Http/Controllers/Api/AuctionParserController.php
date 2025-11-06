@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Log;
 
 class AuctionParserController extends Controller
 {
+    private const ALLOWED_AUCTION_DOMAINS = [
+        'copart.com',
+    ];
+
     /**
      * ТЗ v2.1: Парсинг данных с аукциона по URL
      */
@@ -20,6 +24,17 @@ class AuctionParserController extends Controller
         ]);
 
         $url = $request->input('url');
+
+        if (!$this->isAllowedAuctionUrl($url)) {
+            return response()->json([
+                'success' => false,
+                'fallback' => true,
+                'message' => 'Поддерживаются только ссылки с аукциона Copart.',
+                'data' => [
+                    'source_auction_url' => $url
+                ]
+            ], 422);
+        }
 
         // Определяем тип аукциона по URL
         $auctionType = $this->detectAuctionType($url);
@@ -80,11 +95,26 @@ class AuctionParserController extends Controller
             return 'copart';
         }
 
-        if (str_contains($url, 'iaai.com')) {
-            return 'iaai';
+        return null;
+    }
+
+    private function isAllowedAuctionUrl(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!is_string($host) || $host === '') {
+            return false;
         }
 
-        return null;
+        $host = strtolower($host);
+
+        foreach (self::ALLOWED_AUCTION_DOMAINS as $domain) {
+            $domain = strtolower($domain);
+            if ($host === $domain || str_ends_with($host, '.' . $domain)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -94,10 +124,6 @@ class AuctionParserController extends Controller
     {
         if ($type === 'copart') {
             return $this->parseCopart($url);
-        }
-
-        if ($type === 'iaai') {
-            return $this->parseIAAI($url);
         }
 
         return null;

@@ -17,11 +17,17 @@ class User extends Authenticatable
         'phone',
         'role',
         'avatar',
+        'provider',
+        'provider_id',
+        'provider_token',
+        'provider_refresh_token',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'provider_token',
+        'provider_refresh_token',
         'two_factor_secret',
         'two_factor_recovery_codes'
     ];

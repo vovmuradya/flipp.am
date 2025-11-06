@@ -24,6 +24,9 @@
                     {{-- ФОРМА ФИЛЬТРОВ --}}
                     <div class="bg-gray-100 p-6 rounded-lg mb-6">
                         <form action="{{ route('search.index') }}" method="GET">
+                            @php
+                                $filters = request()->input('filters', []);
+                            @endphp
                             {{-- ОСНОВНЫЕ ФИЛЬТРЫ --}}
                             <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                                 {{-- Поисковый запрос --}}
@@ -93,6 +96,73 @@
                                     <a href="{{ route('search.index') }}" class="w-full text-center bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400">
                                         Сбросить
                                     </a>
+                                </div>
+                            </div>
+
+                            {{-- ФИЛЬТРЫ ДЛЯ АВТО --}}
+                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Тип объявления</label>
+                                    <select name="listing_type" class="w-full rounded-md border-gray-300">
+                                        <option value="">Любой</option>
+                                        <option value="vehicle" @selected(request('listing_type') === 'vehicle')>Автомобили</option>
+                                        <option value="parts" @selected(request('listing_type') === 'parts')>Запчасти</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Марка</label>
+                                    <input type="text" name="filters[make]" class="w-full rounded-md border-gray-300" placeholder="Например, Toyota" value="{{ data_get($filters, 'make') }}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Модель</label>
+                                    <input type="text" name="filters[model]" class="w-full rounded-md border-gray-300" placeholder="Camry" value="{{ data_get($filters, 'model') }}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Трансмиссия</label>
+                                    @php($transmissions = ['automatic' => 'Автомат', 'manual' => 'Механика', 'cvt' => 'CVT', 'semi-automatic' => 'Робот'])
+                                    <select name="filters[transmission]" class="w-full rounded-md border-gray-300">
+                                        <option value="">Любая</option>
+                                        @foreach($transmissions as $value => $label)
+                                            <option value="{{ $value }}" @selected(data_get($filters, 'transmission') === $value)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Топливо</label>
+                                    @php($fuels = ['gasoline' => 'Бензин', 'diesel' => 'Дизель', 'hybrid' => 'Гибрид', 'electric' => 'Электро', 'lpg' => 'ГАЗ'])
+                                    <select name="filters[fuel_type]" class="w-full rounded-md border-gray-300">
+                                        <option value="">Любое</option>
+                                        @foreach($fuels as $value => $label)
+                                            <option value="{{ $value }}" @selected(data_get($filters, 'fuel_type') === $value)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Аукцион</label>
+                                    <select name="filters[is_from_auction]" class="w-full rounded-md border-gray-300">
+                                        <option value="">Все</option>
+                                        <option value="1" @selected(data_get($filters, 'is_from_auction') === '1')>Только с аукциона</option>
+                                        <option value="0" @selected(data_get($filters, 'is_from_auction') === '0')>Только частные</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Год от</label>
+                                    <input type="number" name="filters[year][from]" class="w-full rounded-md border-gray-300" placeholder="2005" value="{{ data_get($filters, 'year.from') }}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Год до</label>
+                                    <input type="number" name="filters[year][to]" class="w-full rounded-md border-gray-300" placeholder="2025" value="{{ data_get($filters, 'year.to') }}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Пробег от</label>
+                                    <input type="number" name="filters[mileage][from]" class="w-full rounded-md border-gray-300" placeholder="0" value="{{ data_get($filters, 'mileage.from') }}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Пробег до</label>
+                                    <input type="number" name="filters[mileage][to]" class="w-full rounded-md border-gray-300" placeholder="200000" value="{{ data_get($filters, 'mileage.to') }}">
                                 </div>
                             </div>
                         </form>

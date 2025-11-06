@@ -8,8 +8,8 @@
             ],
             [
                 'label' => 'Автомобили из аукционов',
-                'href' => route('dashboard.my-auctions'),
-                'active' => request()->routeIs('dashboard.my-auctions'),
+                'href' => route('home', ['only_auctions' => 1]),
+                'active' => request()->routeIs('home') && request('only_auctions'),
             ],
             [
                 'label' => 'Запчасти',

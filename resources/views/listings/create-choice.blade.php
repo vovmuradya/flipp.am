@@ -7,11 +7,6 @@
                     Выберите подходящий формат и заполните форму, чтобы ваше объявление появилось на idrom.am.
                 </p>
             </div>
-
-            @php
-                $canCreateAuction = auth()->user()?->isDealer() || auth()->user()?->isAdmin();
-            @endphp
-
             <div class="create-choice__grid">
                 <a href="{{ route('listings.create') }}" class="create-choice__card">
                     <div class="create-choice__icon">
@@ -27,32 +22,17 @@
                     </span>
                 </a>
 
-                <a
-                    @class([
-                        'create-choice__card',
-                        'create-choice__card--auction',
-                        'create-choice__card--disabled' => !$canCreateAuction,
-                    ])
-                    href="{{ $canCreateAuction ? route('listings.create-from-auction') : '#' }}"
-                    @unless($canCreateAuction)
-                        aria-disabled="true"
-                        role="button"
-                    @endunless
-                >
+                <a href="{{ route('listings.create-from-auction') }}" class="create-choice__card create-choice__card--auction">
                     <div class="create-choice__icon">
                         <i class="fa-solid fa-gavel"></i>
                     </div>
                     <h3 class="create-choice__card-title">Объявление из аукциона</h3>
                     <p class="create-choice__card-text">
-                        Импортируйте данные по лоту Copart/IAAI и быстро создайте объявление с уже заполненными характеристиками.
+                        Импортируйте данные по лоту Copart и быстро создайте объявление с уже заполненными характеристиками.
                     </p>
                     <span class="create-choice__cta">
-                        {{ $canCreateAuction ? 'Перейти к импорту' : 'Доступно для дилеров' }}
-                        @if($canCreateAuction)
-                            <i class="fa-solid fa-arrow-right"></i>
-                        @else
-                            <i class="fa-solid fa-lock"></i>
-                        @endif
+                        Перейти к импорту
+                        <i class="fa-solid fa-arrow-right"></i>
                     </span>
                 </a>
             </div>

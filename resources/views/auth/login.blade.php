@@ -1,47 +1,115 @@
 <x-guest-layout>
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+    <section class="auth-card__section">
+        <header class="auth-card__header">
+            <h2 class="auth-card__title">Войти в аккаунт</h2>
+            <p class="auth-card__subtitle">
+                Управляйте объявлениями, переписывайтесь с покупателями и отслеживайте отклики в личном кабинете idrom.am.
+            </p>
+        </header>
 
-    <form method="POST" action="{{ route('login') }}">
-        @csrf
+        @if (session('status'))
+            <div class="auth-alert auth-alert--success">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>{{ session('status') }}</span>
+            </div>
+        @endif
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+        @if ($errors->any())
+            <div class="auth-alert auth-alert--error">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Проверьте введённые данные и попробуйте снова.</span>
+            </div>
+        @endif
+
+        @error('provider')
+            <div class="auth-alert auth-alert--error">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>{{ $message }}</span>
+            </div>
+        @enderror
+
+        <div class="auth-social">
+            <a href="{{ route('auth.provider.redirect', 'google') }}" class="btn-social btn-social--google">
+                <i class="fa-brands fa-google"></i>
+                Войти через Google
+            </a>
+            <a href="{{ route('auth.provider.redirect', 'facebook') }}" class="btn-social btn-social--facebook">
+                <i class="fa-brands fa-facebook-f"></i>
+                Войти через Facebook
+            </a>
         </div>
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password" />
-
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
+        <div class="auth-divider">
+            <span>или</span>
         </div>
 
-        <!-- Remember Me -->
-        <div class="block mt-4">
-            <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" name="remember">
-                <span class="ms-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Remember me') }}</span>
-            </label>
-        </div>
+        <form method="POST" action="{{ route('login') }}" class="auth-form">
+            @csrf
 
-        <div class="flex items-center justify-end mt-4">
-            @if (Route::has('password.request'))
-                <a class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800" href="{{ route('password.request') }}">
-                    {{ __('Forgot your password?') }}
-                </a>
-            @endif
+            <div class="auth-form__field">
+                <label for="email" class="auth-form__label">Email</label>
+                <div class="auth-input">
+                    <span class="auth-input__icon"><i class="fa-solid fa-envelope"></i></span>
+                    <input
+                        id="email"
+                        type="email"
+                        name="email"
+                        value="{{ old('email') }}"
+                        required
+                        autofocus
+                        autocomplete="username"
+                        placeholder="you@example.com"
+                        class="auth-input__control"
+                    >
+                </div>
+                @error('email')
+                    <span class="auth-form__error">{{ $message }}</span>
+                @enderror
+            </div>
 
-            <x-primary-button class="ms-3">
-                {{ __('Log in') }}
-            </x-primary-button>
-        </div>
-    </form>
+            <div class="auth-form__field">
+                <label for="password" class="auth-form__label">Пароль</label>
+                <div class="auth-input">
+                    <span class="auth-input__icon"><i class="fa-solid fa-lock"></i></span>
+                    <input
+                        id="password"
+                        type="password"
+                        name="password"
+                        required
+                        autocomplete="current-password"
+                        placeholder="Введите пароль"
+                        class="auth-input__control"
+                    >
+                </div>
+                @error('password')
+                    <span class="auth-form__error">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="auth-form__options">
+                <label class="auth-checkbox">
+                    <input
+                        id="remember_me"
+                        type="checkbox"
+                        name="remember"
+                        {{ old('remember') ? 'checked' : '' }}
+                    >
+                    <span>Запомнить меня</span>
+                </label>
+
+                @if (Route::has('password.request'))
+                    <a href="{{ route('password.request') }}" class="auth-link">Забыли пароль?</a>
+                @endif
+            </div>
+
+            <button type="submit" class="btn-brand-red btn-brand-full auth-form__submit">
+                Войти
+            </button>
+        </form>
+
+        <p class="auth-card__switch">
+            Нет аккаунта?
+            <a href="{{ route('register') }}">Зарегистрироваться</a>
+        </p>
+    </section>
 </x-guest-layout>

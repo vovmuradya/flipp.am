@@ -51,46 +51,28 @@ class ImportAuctionPhotos implements ShouldQueue
 
         foreach ($urls as $url) {
             try {
-                $realUrl = $url;
+                $downloadUrl = $this->extractUpstreamUrl($url);
 
-                // 1️⃣ Если это proxy-URL, извлекаем реальный URL из параметра u
-                if (str_contains($url, '/proxy/image') || str_contains($url, '/image-proxy')) {
-                    $parsed = parse_url($url);
-                    if (!empty($parsed['query'])) {
-                        parse_str($parsed['query'], $params);
-                        if (!empty($params['u'])) {
-                            $realUrl = urldecode($params['u']);
-                        }
-                    }
-                }
-
-                // 2️⃣ Если URL относительный, делаем его абсолютным
-                if (str_starts_with($realUrl, '/')) {
-                    $realUrl = rtrim(config('app.url'), '/') . $realUrl;
-                }
-
-                // 3️⃣ Проверяем валидность URL
-                if (!filter_var($realUrl, FILTER_VALIDATE_URL)) {
+                if (!$downloadUrl || !filter_var($downloadUrl, FILTER_VALIDATE_URL)) {
                     Log::warning('ImportAuctionPhotos: invalid URL after extraction', [
                         'original' => substr($url, 0, 100),
-                        'extracted' => substr($realUrl, 0, 100),
+                        'resolved' => $downloadUrl ? substr($downloadUrl, 0, 100) : null,
                         'listing_id' => $this->listingId
                     ]);
                     continue;
                 }
 
-                Log::info('📸 ImportAuctionPhotos: loading from ' . substr($realUrl, 0, 100), [
+                Log::info('📸 ImportAuctionPhotos: loading from ' . substr($downloadUrl, 0, 100), [
                     'listing_id' => $listing->id
                 ]);
 
-                // 4️⃣ Загружаем НАПРЯМУЮ с реального URL в коллекцию 'auction_photos'
-                $listing->addMediaFromUrl($realUrl)
+                $listing->addMediaFromUrl($downloadUrl, $this->buildHeaders($url))
                     ->toMediaCollection('auction_photos');
 
                 $successCount++;
                 Log::info('✅ ImportAuctionPhotos: added media', [
                     'listing_id' => $listing->id,
-                    'url' => substr($realUrl, 0, 100),
+                    'url' => substr($downloadUrl, 0, 100),
                 ]);
             } catch (\Throwable $e) {
                 Log::warning('⚠️ ImportAuctionPhotos: failed', [
@@ -107,5 +89,49 @@ class ImportAuctionPhotos implements ShouldQueue
             'successful' => $successCount
         ]);
     }
-}
 
+    private function extractUpstreamUrl(string $url): ?string
+    {
+        $trimmed = trim($url);
+
+        if (str_starts_with($trimmed, '/')) {
+            $trimmed = rtrim(config('app.url'), '/') . $trimmed;
+        }
+
+        if (!str_contains($trimmed, '/proxy/image')) {
+            return $trimmed;
+        }
+
+        $parts = parse_url($trimmed);
+        if (empty($parts['query'])) {
+            return $trimmed;
+        }
+
+        parse_str($parts['query'], $params);
+
+        $upstream = $params['u'] ?? null;
+
+        return is_string($upstream) ? $upstream : null;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private function buildHeaders(string $originalUrl): array
+    {
+        $headers = [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36',
+            'Accept' => 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        ];
+
+        $parts = parse_url($originalUrl);
+        if (!empty($parts['query'])) {
+            parse_str($parts['query'], $params);
+            if (!empty($params['r']) && is_string($params['r'])) {
+                $headers['Referer'] = $params['r'];
+            }
+        }
+
+        return $headers;
+    }
+}

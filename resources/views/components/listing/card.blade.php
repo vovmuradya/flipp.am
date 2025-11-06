@@ -13,14 +13,59 @@
         ? $endsAt->diffForHumans(now(), true, false, 2)
         : null;
     $expiresIso = $endsAt?->toIso8601String();
-@endphp
+    @endphp
 
 <div class="brand-listing-card">
-    <div class="brand-listing-card__media">
+    @php
+        $fallbackImage = asset('images/no-image.svg');
+        $photoSources = [];
+
+        $addMediaCollection = function ($mediaItems) use (&$photoSources) {
+            foreach ($mediaItems as $media) {
+                $photoSources[] = $media->hasGeneratedConversion('medium')
+                    ? $media->getFullUrl('medium')
+                    : $media->getFullUrl();
+            }
+        };
+
+        if ($listing->relationLoaded('media')) {
+            $addMediaCollection($listing->getMedia('images'));
+            $addMediaCollection($listing->getMedia('auction_photos'));
+        } else {
+            $addMediaCollection($listing->loadMissing('media')->getMedia('images'));
+            $addMediaCollection($listing->getMedia('auction_photos'));
+        }
+
+        $photoSources = array_slice(array_values(array_filter(array_unique($photoSources))), 0, 12);
+
+        if (empty($photoSources) && $listing->vehicleDetail) {
+            $previewUrl = $listing->vehicleDetail->preview_image_url
+                ?? $listing->vehicleDetail->main_image_url
+                ?? null;
+
+            if ($previewUrl) {
+                if (\Illuminate\Support\Str::startsWith($previewUrl, '/')) {
+                    $previewUrl = rtrim(config('app.url'), '/') . $previewUrl;
+                }
+                $photoSources[] = $previewUrl;
+            }
+        }
+
+        if (empty($photoSources)) {
+            $photoSources[] = $fallbackImage;
+        }
+
+        $preview = $photoSources[0];
+    @endphp
+
+    <div class="brand-listing-card__media" data-photo-sources='@json($photoSources)'>
         <a href="{{ route('listings.show', $listing) }}">
-            <img src="{{ $listing->getPreviewUrl('medium') }}"
-                 alt="{{ $listing->title }}"
-                 onerror="this.src='https://placehold.co/400x300/e5e7eb/6b7280?text=Нет+фото'">
+            <img
+                src="{{ $preview }}"
+                alt="{{ $listing->title }}"
+                loading="lazy"
+                onerror="this.src='{{ $fallbackImage }}'"
+            >
         </a>
 
         @if($badge)
@@ -162,6 +207,72 @@
                             document.querySelectorAll('[data-countdown]').forEach(updateCountdown);
                         }, 1000);
                     }
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', boot);
+                } else {
+                    boot();
+                }
+            })();
+
+            (function () {
+                const initialized = new WeakSet();
+
+                function parsePhotos(data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+                    } catch (error) {
+                        return [];
+                    }
+                }
+
+                function initCarousel(container) {
+                    if (initialized.has(container)) {
+                        return;
+                    }
+
+                    const sources = parsePhotos(container.dataset.photoSources || '[]');
+                    if (sources.length <= 1) {
+                        return;
+                    }
+
+                    const image = container.querySelector('img');
+                    if (!image) {
+                        return;
+                    }
+
+                    let currentIndex = 0;
+
+                    const showIndex = (index) => {
+                        if (!sources[index] || currentIndex === index) {
+                            return;
+                        }
+                        currentIndex = index;
+                        image.src = sources[index];
+                    };
+
+                    container.addEventListener('mousemove', (event) => {
+                        const rect = container.getBoundingClientRect();
+                        if (!rect.width) {
+                            return;
+                        }
+                        const relativeX = Math.min(Math.max(event.clientX - rect.left, 0), rect.width);
+                        const ratio = relativeX / rect.width;
+                        const targetIndex = Math.min(sources.length - 1, Math.floor(ratio * sources.length));
+                        showIndex(targetIndex);
+                    });
+
+                    container.addEventListener('mouseleave', () => {
+                        showIndex(0);
+                    });
+
+                    initialized.add(container);
+                }
+
+                function boot() {
+                    document.querySelectorAll('[data-photo-sources]').forEach(initCarousel);
                 }
 
                 if (document.readyState === 'loading') {

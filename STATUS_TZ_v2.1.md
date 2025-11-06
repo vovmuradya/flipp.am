@@ -82,17 +82,19 @@ curl -X POST http://localhost/api/v1/dealer/listings/fetch-from-url \
    - Отображение данных из vehicle_details
    - Кнопка "Смотреть на аукционе" (если is_from_auction=true)
 
-### 4. Meilisearch настройка
-   - Добавить фильтруемые поля: make, model, year, transmission, fuel_type, mileage, listing_type, is_from_auction
-   - Перестроить индекс: `php artisan scout:import "App\Models\Listing"`
+### 4. Технические задачи
+   - Meilisearch: после деплоя выполнить `php artisan scout:import "App\Models\Listing"`
+   - Автотесты: набор Breeze требует актуализации (Route [dashboard] отсутствует)
 
 ---
 
 ## ✅ СТАТУС: ГОТОВО К ТЕСТИРОВАНИЮ
 
-Основной функционал "Быстрое объявление с аукциона" реализован согласно ТЗ v2.1!
+Основной функционал "Быстрое объявление с аукциона" реализован согласно ТЗ v2.1.
 
-**Следующий шаг:** Протестируй страницу `/listings/create-from-auction` и API эндпоинт.
+**Следующий шаг:**
+1. Прогнать `php artisan scout:import "App\Models\Listing"`.
+2. Обновить или скорректировать Breeze-тесты, чтобы закрыть Route [dashboard].
 
 ---
 

@@ -4,6 +4,70 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
 
+                    @php
+                        $fallbackImage = asset('images/no-image.jpg');
+                        $galleryImages = [];
+
+                        $collectMediaUrls = function ($mediaItems) use (&$galleryImages) {
+                            foreach ($mediaItems as $media) {
+                                $candidate = null;
+
+                                if ($media->hasGeneratedConversion('large')) {
+                                    $candidate = $media->getUrl('large');
+                                } elseif ($media->hasGeneratedConversion('medium')) {
+                                    $candidate = $media->getUrl('medium');
+                                } else {
+                                    $candidate = $media->getUrl();
+                                }
+
+                                if (is_string($candidate) && trim($candidate) !== '') {
+                                    $normalized = trim($candidate);
+                                    $galleryImages[] = filter_var($normalized, FILTER_VALIDATE_URL)
+                                        ? $normalized
+                                        : asset(ltrim($normalized, '/'));
+                                }
+                            }
+                        };
+
+                        if ($listing->relationLoaded('media')) {
+                            $collectMediaUrls($listing->getMedia('images'));
+                            $collectMediaUrls($listing->getMedia('auction_photos'));
+                        } else {
+                            $collectMediaUrls($listing->loadMissing('media')->getMedia('images'));
+                            $collectMediaUrls($listing->getMedia('auction_photos'));
+                        }
+
+                        $galleryImages = array_values(array_filter(array_unique($galleryImages)));
+
+                        if ($listing->vehicleDetail && empty($galleryImages)) {
+                            $externalCandidates = [
+                                $listing->vehicleDetail->preview_image_url,
+                                $listing->vehicleDetail->main_image_url,
+                            ];
+
+                            foreach ($externalCandidates as $candidate) {
+                                if (!is_string($candidate) || trim($candidate) === '') {
+                                    continue;
+                                }
+
+                                $normalized = trim($candidate);
+                                if (\Illuminate\Support\Str::startsWith($normalized, '/')) {
+                                    $normalized = rtrim(config('app.url'), '/') . $normalized;
+                                }
+
+                                if (filter_var($normalized, FILTER_VALIDATE_URL)) {
+                                    $galleryImages[] = $normalized;
+                                } else {
+                                    $galleryImages[] = asset(ltrim($normalized, '/'));
+                                }
+                            }
+                        }
+
+                        if (empty($galleryImages)) {
+                            $galleryImages[] = $fallbackImage;
+                        }
+                    @endphp
+
                     {{-- ЗАГОЛОВОК --}}
                     <h1 class="text-3xl font-bold">{{ $listing->title }}</h1>
 
@@ -35,58 +99,42 @@
 
                     {{-- ГАЛЕРЕЯ, ИНФОРМАЦИЯ, ЦЕНА, ОПИСАНИЕ --}}
                     <div class="mt-6" x-data="{
-                        @php
-                            // Получаем все изображения (локальные + аукционные)
-                            $allImages = [];
-
-                            // 1. Локальные медиа (загруженные вручную)
-                            if ($listing->hasMedia('images')) {
-                                foreach ($listing->getMedia('images') as $media) {
-                                    $allImages[] = $media->getUrl(); // Полный размер
-                                }
-                            }
-
-                            // 2. Фотографии с аукциона (медиа-коллекция 'auction_photos')
-                            if ($listing->hasMedia('auction_photos')) {
-                                foreach ($listing->getMedia('auction_photos') as $media) {
-                                    $allImages[] = $media->getUrl(); // Полный размер
-                                }
-                            }
-
-                            // 3. Если это аукцион и нет фото - добавляем главное фото
-                            if (empty($allImages) && $listing->vehicleDetail && $listing->vehicleDetail->main_image_url) {
-                                $externalUrl = $listing->vehicleDetail->main_image_url;
-                                try {
-                                    $ref = $listing->vehicleDetail->source_auction_url ?? 'https://www.copart.com/';
-                                    $allImages[] = route('proxy.image') . '?u=' . rawurlencode($externalUrl) . '&r=' . rawurlencode($ref);
-                                } catch (\Exception $e) {
-                                    $allImages[] = $externalUrl;
-                                }
-                            }
-
-                            // Первое изображение или заглушка
-                            $initialImage = $allImages[0] ?? 'https://placehold.co/800x600/e5e7eb/6b7280?text=No+Image+Available';
-                        @endphp
-                        mainImage: '{{ $initialImage }}',
-                        images: @json($allImages)
-                    }">
-                        {{-- Главное изображение --}}
-                        <div class="mb-4">
-                            <img :src="mainImage" alt="{{ $listing->title }}" class="rounded-lg shadow-xl w-full max-h-[600px] object-contain bg-gray-100 border-2 border-gray-200">
-                        </div>
-
-                        {{-- Миниатюры (если есть больше 1 изображения) --}}
-                        <template x-if="images.length > 1">
-                            <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                                <template x-for="(img, idx) in images" :key="idx">
-                                    <div @click="mainImage = img"
-                                         class="cursor-pointer border-2 rounded-lg hover:border-blue-500 hover:shadow-lg transition-all transform hover:scale-105 overflow-hidden"
-                                         :class="{ 'border-blue-500 shadow-lg ring-2 ring-blue-300': mainImage === img }">
-                                        <img :src="img" alt="thumbnail" class="w-full h-20 object-cover">
-                                    </div>
-                                </template>
+                        images: @json($galleryImages),
+                        fallback: @json($fallbackImage),
+                        mainImage: @json($galleryImages[0] ?? $fallbackImage)
+                    }" x-init="mainImage = images.length ? images[0] : fallback">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <img
+                                    src="{{ $galleryImages[0] ?? $fallbackImage }}"
+                                    x-bind:src="mainImage"
+                                    alt="{{ $listing->title }}"
+                                    class="img-fluid rounded shadow-sm w-100"
+                                    x-on:error="mainImage = fallback">
                             </div>
-                        </template>
+                            <template x-if="images.length > 1">
+                                <div class="col-12">
+                                    <div class="row g-2 related-thumbnails">
+                                        <template x-for="(img, idx) in images" :key="idx">
+                                            <div class="col-6 col-sm-4 col-lg-3">
+                                                <button
+                                                    type="button"
+                                                    class="related-thumbnails__item w-100 border-0 bg-transparent p-0"
+                                                    :class="{ 'is-active': mainImage === img }"
+                                                    @click="mainImage = img">
+                                                    <img
+                                                        src="{{ $galleryImages[0] ?? $fallbackImage }}"
+                                                        x-bind:src="img"
+                                                        alt="Дополнительное фото"
+                                                        class="img-fluid rounded shadow-sm w-100"
+                                                        x-on:error="$event.target.src = fallback">
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                     <div class="mt-4 text-gray-600">
                         <span>Опубликовано: {{ $listing->created_at->format('d.m.Y') }}</span> |
@@ -241,6 +289,37 @@
                             </div>
                         </div>
                     @endif
+
+                    @if($relatedListings->isNotEmpty())
+                        <div class="related-listings">
+                            <h3 class="h4 fw-bold mb-3">Похожие объявления</h3>
+                            <div class="related-listings__grid">
+                                @foreach($relatedListings as $item)
+                                    @php
+                                        $relatedImage = $item->getFirstMediaUrl('images', 'medium')
+                                            ?: $item->getFirstMediaUrl('auction_photos', 'medium')
+                                            ?: asset('images/no-image.jpg');
+                                    @endphp
+                                    <a href="{{ route('listings.show', $item) }}"
+                                       class="card related-listings__card border-0 shadow-sm rounded-3 text-decoration-none text-dark p-3">
+                                        <img src="{{ $relatedImage }}"
+                                             alt="{{ $item->title }}"
+                                             class="related-listings__image mb-3">
+                                        <div class="card-body p-0">
+                                            <h4 class="fs-6 fw-semibold text-truncate mb-1" title="{{ $item->title }}">
+                                                {{ $item->title }}
+                                            </h4>
+                                            <p class="text-muted small mb-2">{{ $item->region?->name ?? 'Регион не указан' }}</p>
+                                            <p class="fw-semibold text-primary mb-0">
+                                                {{ number_format($item->price, 0, '.', ' ') }} {{ $item->currency }}
+                                            </p>
+                                        </div>
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- БЛОК СООБЩЕНИЙ --}}
                     @auth
                         <div class="mt-8 border-t pt-6">

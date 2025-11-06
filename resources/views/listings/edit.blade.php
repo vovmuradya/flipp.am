@@ -1,60 +1,279 @@
-<!-- ...existing code... -->
 <x-app-layout>
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <h2 class="text-2xl font-bold mb-6">Редактирование объявления</h2>
+    @php
+        use App\Support\VehicleAttributeOptions;
 
-                    <form method="POST" action="{{ route('listings.update', $listing) }}" enctype="multipart/form-data">
+        $bodyTypeOptions = VehicleAttributeOptions::bodyTypes();
+        $transmissionOptions = VehicleAttributeOptions::transmissions();
+        $fuelTypeOptions = VehicleAttributeOptions::fuelTypes();
+        $colorOptions = VehicleAttributeOptions::colors();
+        $engineDisplacementOptions = [];
+        for ($i = 1; $i <= 100; $i++) {
+            $liters = $i / 10;
+            $cc = (int) round($liters * 1000);
+            $engineDisplacementOptions[] = [
+                'cc' => $cc,
+                'liters' => $liters,
+                'label' => number_format($liters, 1, '.', '') . ' л',
+            ];
+        }
+        $currentYear = (int) date('Y');
+        $yearOptions = [];
+        for ($year = $currentYear + 1; $year >= 1980; $year--) {
+            $yearOptions[] = $year;
+        }
+
+        $detail = $listing->vehicleDetail;
+        $oldColorKey = old('vehicle.exterior_color');
+        $initialColorKey = $oldColorKey !== null ? $oldColorKey : ($detail?->exterior_color ? array_search($detail->exterior_color, $colorOptions) ?: $detail->exterior_color : '');
+        if ($initialColorKey && !array_key_exists($initialColorKey, $colorOptions)) {
+            $matchKey = null;
+            foreach ($colorOptions as $key => $label) {
+                if (mb_strtolower($label) === mb_strtolower($initialColorKey)) {
+                    $matchKey = $key;
+                    break;
+                }
+            }
+            $initialColorKey = $matchKey ?? '';
+        }
+
+        $vehiclePrefill = [
+            'make' => old('vehicle.make', $detail->make ?? ''),
+            'model' => old('vehicle.model', $detail->model ?? ''),
+            'year' => old('vehicle.year', $detail->year ?? ''),
+            'mileage' => old('vehicle.mileage', $detail->mileage ?? ''),
+            'body_type' => old('vehicle.body_type', $detail->body_type ?? ''),
+            'transmission' => old('vehicle.transmission', $detail->transmission ?? ''),
+            'fuel_type' => old('vehicle.fuel_type', $detail->fuel_type ?? ''),
+            'engine_displacement_cc' => (string) old('vehicle.engine_displacement_cc', $detail->engine_displacement_cc ?? ''),
+            'exterior_color' => $initialColorKey ?? '',
+            'brand_id' => old('vehicle.brand_id', ''),
+            'model_id' => old('vehicle.model_id', ''),
+            'generation_id' => old('vehicle.generation_id', ''),
+        ];
+
+        $titleValue = old('title', $listing->title);
+        $descriptionValue = old('description', $listing->description);
+
+        $allCategories = collect($categories ?? []);
+        $vehicleCategoryIds = $allCategories->whereIn('slug', ['cars', 'motorcycles', 'trucks'])->pluck('id')->values()->all();
+        $partsCategoryIds = $allCategories->where('slug', 'auto-parts')->pluck('id')->values()->all();
+        $tiresCategoryIds = $allCategories->where('slug', 'tires')->pluck('id')->values()->all();
+        $typeCategoryMap = [
+            'vehicle' => $vehicleCategoryIds,
+            'parts' => $partsCategoryIds,
+            'tires' => $tiresCategoryIds,
+        ];
+
+        $initialType = $listing->listing_type ?? 'vehicle';
+        $initialCategory = $listing->category_id;
+
+        $listingFormConfig = [
+            'initialType' => $initialType,
+            'initialCategory' => $initialCategory ? (string) $initialCategory : null,
+            'categoryMap' => $typeCategoryMap,
+            'isAuction' => false,
+            'vehicle' => $vehiclePrefill,
+            'locale' => app()->getLocale(),
+            'api' => [
+                'brands' => url('/api/brands'),
+                'models' => url('/api/brands/{brand}/models'),
+                'generations' => url('/api/models/{model}/generations'),
+            ],
+            'colors' => $colorOptions,
+            'years' => $yearOptions,
+            'initialTitle' => $titleValue,
+        ];
+
+        $existingMedia = $listing->getMedia('images');
+    @endphp
+
+    <section class="brand-section">
+        <div class="brand-container">
+            <div class="brand-section__header">
+                <h1 class="brand-section__title">Редактирование объявления</h1>
+                <p class="brand-section__subtitle">
+                    Обновите данные, замените фотографии и сохраните изменения — карточка обновится моментально.
+                </p>
+            </div>
+
+            <div class="brand-surface p-0 overflow-hidden">
+                <div class="p-6">
+                    <form method="POST"
+                          action="{{ route('listings.update', $listing) }}"
+                          enctype="multipart/form-data"
+                          x-data="listingCreateForm(@js($listingFormConfig))"
+                          x-init="init()"
+                          x-on:submit.prevent="handleSubmit($event)"
+                          class="space-y-6">
                         @csrf
                         @method('PATCH')
 
-                        <div class="mt-4">
-                            <x-input-label for="title" value="Заголовок" />
-                            <x-text-input id="title" class="block mt-1 w-full" type="text" name="title" :value="old('title', $listing->title)" required />
+                        <input type="hidden" name="listing_type" :value="listingType || ''">
+                        <input type="hidden" name="category_id" id="category_id" :value="categoryId">
+
+                        <div class="brand-surface mb-4" x-show="listingType === 'vehicle'" x-cloak>
+                            <h3 class="h5 mb-3">Характеристики автомобиля</h3>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Марка</label>
+                                    <input type="hidden" name="vehicle[brand_id]" :value="vehicle.brandId">
+                                    <input type="text"
+                                           class="form-control"
+                                           name="vehicle[make]"
+                                           list="brand-options"
+                                           autocomplete="off"
+                                           x-model="vehicle.make"
+                                           @focus="ensureBrandsLoaded()"
+                                           @input="onBrandInput($event)"
+                                           @change="onBrandSelected()"
+                                           placeholder="Выберите марку из списка"
+                                           required>
+                                    <datalist id="brand-options"></datalist>
+                                    <template x-if="formErrors.brand">
+                                        <small class="text-danger d-block mt-1" x-text="formErrors.brand"></small>
+                                    </template>
+                                    @error('vehicle.brand_id')
+                                        <small class="text-danger d-block mt-1">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Модель</label>
+                                    <input type="hidden" name="vehicle[model_id]" :value="vehicle.modelId">
+                                    <input type="text"
+                                           class="form-control"
+                                           name="vehicle[model]"
+                                           list="model-options"
+                                           autocomplete="off"
+                                           x-model="vehicle.model"
+                                           @input="onModelInput($event)"
+                                           @change="onModelSelected()"
+                                           placeholder="Выберите модель"
+                                           required>
+                                    <datalist id="model-options"></datalist>
+                                    <template x-if="formErrors.model">
+                                        <small class="text-danger d-block mt-1" x-text="formErrors.model"></small>
+                                    </template>
+                                    @error('vehicle.model_id')
+                                        <small class="text-danger d-block mt-1">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Год выпуска</label>
+                                    <select class="form-select"
+                                            name="vehicle[year]"
+                                            x-model="vehicle.year"
+                                            required>
+                                        <option value="">Выберите год</option>
+                                        @foreach($yearOptions as $yearOption)
+                                            <option value="{{ $yearOption }}" @selected((string) $vehiclePrefill['year'] === (string) $yearOption)>
+                                                {{ $yearOption }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <template x-if="formErrors.year">
+                                        <small class="text-danger d-block mt-1" x-text="formErrors.year"></small>
+                                    </template>
+                                    @error('vehicle.year')
+                                        <small class="text-danger d-block mt-1">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Пробег (км)</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           name="vehicle[mileage]"
+                                           min="0"
+                                           x-model="vehicle.mileage">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Тип кузова</label>
+                                    <select class="form-select" name="vehicle[body_type]">
+                                        <option value="">Не указан</option>
+                                        @foreach($bodyTypeOptions as $key => $label)
+                                            <option value="{{ $key }}" @selected($vehiclePrefill['body_type'] === $key)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Трансмиссия</label>
+                                    <select class="form-select" name="vehicle[transmission]">
+                                        <option value="">Не указана</option>
+                                        @foreach($transmissionOptions as $key => $label)
+                                            <option value="{{ $key }}" @selected($vehiclePrefill['transmission'] === $key)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Тип топлива</label>
+                                    <select class="form-select" name="vehicle[fuel_type]">
+                                        <option value="">Не указано</option>
+                                        @foreach($fuelTypeOptions as $key => $label)
+                                            <option value="{{ $key }}" @selected($vehiclePrefill['fuel_type'] === $key)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Объём двигателя</label>
+                                    <select class="form-select"
+                                            name="vehicle[engine_displacement_cc]"
+                                            x-model="vehicle.engine_displacement_cc">
+                                        <option value="">Не указан</option>
+                                        @foreach($engineDisplacementOptions as $option)
+                                            <option value="{{ $option['cc'] }}"
+                                                {{ (string) $vehiclePrefill['engine_displacement_cc'] === (string) $option['cc'] ? 'selected' : '' }}>
+                                                {{ $option['label'] }} ({{ $option['cc'] }} см³)
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Цвет кузова</label>
+                                    <select class="form-select"
+                                            name="vehicle[exterior_color]"
+                                            x-model="vehicle.exteriorColor"
+                                            required>
+                                        <option value="">Выберите цвет</option>
+                                        @foreach($colorOptions as $key => $label)
+                                            <option value="{{ $key }}" @selected($vehiclePrefill['exterior_color'] === $key)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    <template x-if="formErrors.color">
+                                        <small class="text-danger d-block mt-1" x-text="formErrors.color"></small>
+                                    </template>
+                                    @error('vehicle.exterior_color')
+                                        <small class="text-danger d-block mt-1">{{ $message }}</small>
+                                    @enderror
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="mt-4">
-                            <x-input-label for="category_id" value="Категория" />
-                            <select name="category_id" id="category_id" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm">
-                                @foreach($categories as $category)
-                                    @php
-                                        $raw = $category->name ?? '';
-                                        $label = '';
-
-                                        if (isset($category->localized_name) && $category->localized_name) {
-                                            $label = (string) $category->localized_name;
-                                        } elseif (is_string($raw)) {
-                                            $decoded = json_decode($raw, true);
-                                            if (is_array($decoded) && count($decoded)) {
-                                                $label = $decoded[app()->getLocale()] ?? $decoded['ru'] ?? $decoded['en'] ?? array_values($decoded)[0];
-                                            } else {
-                                                $label = $raw;
-                                            }
-                                        } elseif ($raw instanceof \Illuminate\Support\Collection) {
-                                            $arr = $raw->toArray();
-                                            $label = $arr[app()->getLocale()] ?? $arr['ru'] ?? $arr['en'] ?? (array_values($arr)[0] ?? '');
-                                        } elseif (is_array($raw)) {
-                                            $label = $raw[app()->getLocale()] ?? $raw['ru'] ?? $raw['en'] ?? (array_values($raw)[0] ?? '');
-                                        } elseif (is_object($raw)) {
-                                            $arr = (array) $raw;
-                                            $label = $arr[app()->getLocale()] ?? $arr['ru'] ?? $arr['en'] ?? (array_values($arr)[0] ?? '');
-                                        } else {
-                                            $label = (string) $raw;
-                                        }
-                                        $label = $label ?? '';
-                                    @endphp
-                                    <option value="{{ $category->id }}" @selected(old('category_id', $listing->category_id) == $category->id)>
-                                        {{ $label }}
-                                    </option>
-                                @endforeach
-                            </select>
+                        <div class="mb-4">
+                            <label class="form-label">Заголовок <span class="text-danger">*</span></label>
+                            <input type="text"
+                                   name="title"
+                                   class="form-control"
+                                   x-model="titleValue"
+                                   :readonly="listingType === 'vehicle'"
+                                   required>
+                            @error('title')
+                                <small class="text-danger d-block mt-1">{{ $message }}</small>
+                            @enderror
                         </div>
 
-                        <div class="mt-4">
-                            <x-input-label for="region_id" value="Регион" />
-                            <select name="region_id" id="region_id" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm">
+                        <div class="mb-4">
+                            <label class="form-label">Описание <span class="text-danger">*</span></label>
+                            <textarea name="description" rows="5" class="form-control" required>{{ $descriptionValue }}</textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Цена (AMD) <span class="text-danger">*</span></label>
+                            <input type="number" name="price" min="0" value="{{ old('price', $listing->price) }}" class="form-control" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Регион <span class="text-danger">*</span></label>
+                            <select name="region_id" class="form-select" required>
+                                <option value="">Выберите регион</option>
                                 @foreach($regions as $region)
                                     @php
                                         $rraw = $region->name ?? '';
@@ -70,74 +289,40 @@
                                     <option value="{{ $region->id }}" @selected(old('region_id', $listing->region_id) == $region->id)>{{ $rlabel }}</option>
                                 @endforeach
                             </select>
+                            @error('region_id')
+                                <small class="text-danger d-block mt-1">{{ $message }}</small>
+                            @enderror
                         </div>
 
-                        <div class="mt-4">
-                            <x-input-label for="price" value="Цена (USD)" />
-                            <x-text-input id="price" class="block mt-1 w-full" type="number" name="price" :value="old('price', $listing->price)" required />
-                        </div>
-
-                        <div class="mt-4">
-                            <x-input-label for="description" value="Описание" />
-                            <textarea name="description" id="description" rows="6" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm">{{ old('description', $listing->description) }}</textarea>
-                        </div>
-
-                        {{-- Текущие изображения (миниатюры) --}}
-                        @php $media = $listing->getMedia('images'); @endphp
-                        @if($media->isNotEmpty())
-                            <div class="mt-4">
-                                <x-input-label value="Текущие изображения" />
-                                <div class="mt-2 flex flex-wrap gap-2">
-                                    @foreach($media as $m)
-                                        <div class="w-1/3 sm:w-1/4 md:w-1/6 border rounded overflow-hidden">
-                                            <a href="{{ $m->getUrl() }}" target="_blank">
-                                                <img src="{{ $m->getUrl() }}" alt="image" class="w-full h-24 object-cover" />
-                                            </a>
+                        @if($existingMedia->isNotEmpty())
+                            <div class="mb-4">
+                                <label class="form-label d-block">Текущие изображения</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach($existingMedia as $media)
+                                        <div class="position-relative" style="width: 110px; height: 80px; border-radius: 12px; overflow: hidden; background: #f1f3f5;">
+                                            <img src="{{ $media->getUrl('thumb') ?: $media->getUrl() }}" alt="media" class="w-100 h-100 object-cover">
                                         </div>
                                     @endforeach
                                 </div>
+                                <small class="text-muted d-block mt-2">Вы можете добавить новые изображения — они будут добавлены к текущим.</small>
                             </div>
                         @endif
 
-                        <div class="mt-4">
-                            <x-input-label for="images" value="Изображения (при загрузке новых, старые будут заменены)" />
-                            <input id="images" name="images[]" type="file" multiple class="block w-full text-sm text-slate-500 mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100" />
+                        <div class="mb-4">
+                            <label class="form-label">Добавить изображения</label>
+                            <input type="file" name="images[]" multiple accept="image/*" class="form-control">
+                            <small class="text-muted">PNG, JPG, WEBP до 5MB</small>
                         </div>
 
-                        @php $vd = $listing->vehicleDetail ?? null; @endphp
-                        @if($vd)
-                            <div class="mt-6 bg-gray-50 p-4 rounded">
-                                <h3 class="font-medium">Характеристики автомобиля</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                                    <div>
-                                        <x-input-label for="vehicle_make" value="Марка" />
-                                        <x-text-input id="vehicle_make" type="text" name="vehicle[make]" :value="old('vehicle.make', $vd->make)" class="mt-1 w-full" />
-                                    </div>
-                                    <div>
-                                        <x-input-label for="vehicle_model" value="Модель" />
-                                        <x-text-input id="vehicle_model" type="text" name="vehicle[model]" :value="old('vehicle.model', $vd->model)" class="mt-1 w-full" />
-                                    </div>
-                                    <div>
-                                        <x-input-label for="vehicle_year" value="Год выпуска" />
-                                        <x-text-input id="vehicle_year" type="number" name="vehicle[year]" :value="old('vehicle.year', $vd->year)" class="mt-1 w-full" />
-                                    </div>
-                                    <div>
-                                        <x-input-label for="vehicle_mileage" value="Пробег (км)" />
-                                        <x-text-input id="vehicle_mileage" type="number" name="vehicle[mileage]" :value="old('vehicle.mileage', $vd->mileage)" class="mt-1 w-full" />
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
-
-                        <div class="flex items-center justify-end mt-4">
-                            <x-primary-button>
-                                Сохранить изменения
-                            </x-primary-button>
+                        <div class="d-flex justify-content-end gap-3">
+                            <a href="{{ route('dashboard.my-listings') }}" class="btn btn-brand-outline">Отмена</a>
+                            <button type="submit" class="btn btn-brand-gradient">Сохранить изменения</button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
+
+    @include('listings.partials.vehicle-form-script')
 </x-app-layout>
-<!-- ...existing code... -->
