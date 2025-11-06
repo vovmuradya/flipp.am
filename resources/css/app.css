@@ -121,6 +121,7 @@ a:hover {
 
 @media (min-width: 992px) {
     .vehicle-fullwidth__grid {
+        display: flex;
         flex-direction: row;
         align-items: flex-start;
         gap: clamp(24px, 3vw, 40px);
@@ -128,15 +129,15 @@ a:hover {
     }
 
     .vehicle-fullwidth__main {
-        flex: 0 0 75%;
-        max-width: 75%;
-        padding-right: clamp(16px, 2vw, 32px);
+        flex: 0 0 calc(75% - 20px);
+        max-width: calc(75% - 20px);
+        order: 1;
     }
 
     .vehicle-fullwidth__sidebar {
-        flex: 0 0 25%;
-        max-width: 25%;
-        padding-left: clamp(16px, 2vw, 32px);
+        flex: 0 0 calc(25% - 20px);
+        max-width: calc(25% - 20px);
+        order: 2;
     }
 
     .vehicle-filter-card--fullwidth {
@@ -529,8 +530,8 @@ a:hover {
 }
 
 .listing-grid--fullwidth {
-    gap: clamp(16px, 2vw, 28px);
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: clamp(20px, 2.5vw, 32px);
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 }
 
 @media (min-width: 640px) {
@@ -539,23 +540,27 @@ a:hover {
     }
 
     .listing-grid--fullwidth {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (min-width: 1024px) {
     .listing-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .listing-grid--fullwidth {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
 @media (min-width: 1440px) {
+    .listing-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
     .listing-grid--fullwidth {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }
 

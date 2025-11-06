@@ -195,19 +195,22 @@ class Listing extends Model implements HasMedia
             ->height(150)
             ->sharpen(10)
             ->format('webp')
-            ->quality(80);
+            ->quality(80)
+            ->nonQueued(); // синхронно
 
         $this->addMediaConversion('medium')
             ->width(600)
             ->height(450)
             ->format('webp')
-            ->quality(85);
+            ->quality(85)
+            ->nonQueued(); // синхронно
 
         $this->addMediaConversion('large')
             ->width(1200)
             ->height(900)
             ->format('webp')
-            ->quality(90);
+            ->quality(90)
+            ->nonQueued(); // синхронно
     }
 
     public function getPreviewUrl(string $conversion = 'thumb'): string

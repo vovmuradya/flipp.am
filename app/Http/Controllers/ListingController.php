@@ -35,10 +35,14 @@ class ListingController extends Controller
         $query = Listing::query()
             ->with(['category', 'region', 'user', 'media']);
 
+        // Применяем фильтр только если указан конкретный тип
         if ($onlyAuctions) {
             $query->fromAuction()->active();
-        } else {
+        } elseif ($onlyRegular) {
             $query->regular()->active();
+        } else {
+            // По умолчанию показываем ВСЕ активные объявления (и обычные, и аукционные)
+            $query->active();
         }
 
         $query->latest();

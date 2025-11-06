@@ -68,10 +68,10 @@
                         }
                     @endphp
 
-                    {{-- ЗАГОЛОВОК --}}
+                    {{-- Заголовок --}}
                     <h1 class="text-3xl font-bold">{{ $listing->title }}</h1>
 
-                    {{-- ЕДИНЫЙ БЛОК КНОПОК УПРАВЛЕНИЯ --}}
+                    {{-- Кнопки --}}
                     <div class="mt-4 flex items-center space-x-2">
                         @auth
                             <form action="{{ route('listings.favorite.toggle', $listing) }}" method="POST">
@@ -97,37 +97,27 @@
                         @endcan
                     </div>
 
-                    {{-- ГАЛЕРЕЯ, ИНФОРМАЦИЯ, ЦЕНА, ОПИСАНИЕ --}}
-                    <div class="mt-6" x-data="{
-                        images: @json($galleryImages),
-                        fallback: @json($fallbackImage),
-                        mainImage: @json($galleryImages[0] ?? $fallbackImage)
-                    }" x-init="mainImage = images.length ? images[0] : fallback">
+                    {{-- Галерея --}}
+                    @php
+                        // Формируем безопасный JSON для Alpine
+                        $alpineData = [
+                            'images' => $galleryImages,
+                            'fallback' => $fallbackImage,
+                            'mainImage' => $galleryImages[0] ?? $fallbackImage,
+                        ];
+                    @endphp
+                    <div class="mt-6" x-data='@json($alpineData)'>
                         <div class="row g-3">
                             <div class="col-12">
-                                <img
-                                    src="{{ $galleryImages[0] ?? $fallbackImage }}"
-                                    x-bind:src="mainImage"
-                                    alt="{{ $listing->title }}"
-                                    class="img-fluid rounded shadow-sm w-100"
-                                    x-on:error="mainImage = fallback">
+                                <img :src="mainImage" alt="{{ addslashes($listing->title) }}" class="img-fluid rounded shadow-sm w-100" @error="mainImage = fallback; $event.target.src = fallback">
                             </div>
                             <template x-if="images.length > 1">
                                 <div class="col-12">
                                     <div class="row g-2 related-thumbnails">
                                         <template x-for="(img, idx) in images" :key="idx">
                                             <div class="col-6 col-sm-4 col-lg-3">
-                                                <button
-                                                    type="button"
-                                                    class="related-thumbnails__item w-100 border-0 bg-transparent p-0"
-                                                    :class="{ 'is-active': mainImage === img }"
-                                                    @click="mainImage = img">
-                                                    <img
-                                                        src="{{ $galleryImages[0] ?? $fallbackImage }}"
-                                                        x-bind:src="img"
-                                                        alt="Дополнительное фото"
-                                                        class="img-fluid rounded shadow-sm w-100"
-                                                        x-on:error="$event.target.src = fallback">
+                                                <button type="button" class="related-thumbnails__item w-100 border-0 bg-transparent p-0" :class="{ 'is-active': mainImage === img }" @click="mainImage = img">
+                                                    <img :src="img" alt="Дополнительное фото" class="img-fluid rounded shadow-sm w-100" @error="$event.target.src = fallback">
                                                 </button>
                                             </div>
                                         </template>
@@ -136,18 +126,21 @@
                             </template>
                         </div>
                     </div>
+
                     <div class="mt-4 text-gray-600">
                         <span>Опубликовано: {{ $listing->created_at->format('d.m.Y') }}</span> |
-                        <span>В: {{ $listing->region?->name }}</span> |
-                        <span>Продавец: {{ $listing->user?->name }}</span>
+                        <span>В: {{ $listing->region?->name ?? 'Без региона' }}</span> |
+                        <span>Продавец: {{ $listing->user?->name ?? '—' }}</span>
                     </div>
+
                     <div class="my-6 text-4xl font-extrabold text-indigo-600">${{ number_format($listing->price, 0, '.', ' ') }}</div>
+
                     <div class="mt-8 prose max-w-none">
                         <h2 class="text-xl font-bold">Описание</h2>
                         <p>{{ $listing->description }}</p>
                     </div>
 
-                    {{-- ТЗ v2.1: Характеристики автомобиля --}}
+                    {{-- Характеристики автомобиля --}}
                     @if($listing->listing_type === 'vehicle' && $listing->vehicleDetail)
                         @php
                             $vehicle = $listing->vehicleDetail;
@@ -276,127 +269,170 @@
                         </div>
                     @endif
 
+                    {{-- Дополнительные кастомные поля --}}
                     @if($listing->customFieldValues->isNotEmpty())
-                        <div class="mt-6">
-                            <h4 class="text-xl font-bold mb-4">Характеристики</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
-                                @foreach($listing->customFieldValues as $customValue)
-                                    <div>
-                                        <span class="text-gray-600">{{ $customValue->field->name }}:</span>
-                                        <strong class="text-gray-900 ml-2">{{ $customValue->value }}</strong>
-                                    </div>
-                                @endforeach
-                            </div>
+                    <div class="mt-6">
+                        <h4 class="text-xl font-bold mb-4">Характеристики</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                            @foreach($listing->customFieldValues as $customValue)
+                                <div>
+                                    <span class="text-gray-600">{{ $customValue->field->name }}:</span>
+                                    <strong class="text-gray-900 ml-2">{{ $customValue->value }}</strong>
+                                </div>
+                            @endforeach
                         </div>
-                    @endif
+                    </div>
+                @endif
 
-                    @if($relatedListings->isNotEmpty())
-                        <div class="related-listings">
-                            <h3 class="h4 fw-bold mb-3">Похожие объявления</h3>
-                            <div class="related-listings__grid">
-                                @foreach($relatedListings as $item)
-                                    @php
-                                        $relatedImage = $item->getFirstMediaUrl('images', 'medium')
-                                            ?: $item->getFirstMediaUrl('auction_photos', 'medium')
-                                            ?: asset('images/no-image.jpg');
-                                    @endphp
-                                    <a href="{{ route('listings.show', $item) }}"
-                                       class="card related-listings__card border-0 shadow-sm rounded-3 text-decoration-none text-dark p-3">
-                                        <img src="{{ $relatedImage }}"
-                                             alt="{{ $item->title }}"
-                                             class="related-listings__image mb-3">
-                                        <div class="card-body p-0">
-                                            <h4 class="fs-6 fw-semibold text-truncate mb-1" title="{{ $item->title }}">
-                                                {{ $item->title }}
-                                            </h4>
-                                            <p class="text-muted small mb-2">{{ $item->region?->name ?? 'Регион не указан' }}</p>
-                                            <p class="fw-semibold text-primary mb-0">
-                                                {{ number_format($item->price, 0, '.', ' ') }} {{ $item->currency }}
-                                            </p>
-                                        </div>
-                                    </a>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
-
-                    {{-- БЛОК СООБЩЕНИЙ --}}
-                    @auth
-                        <div class="mt-8 border-t pt-6">
-                            <h3 class="text-xl font-bold mb-4">Связаться с продавцом</h3>
-
-                            @if(auth()->id() === $listing->user_id)
-                                <p class="text-gray-500">Это ваше объявление.</p>
-                            @else
-                                @if(session('success_message'))
-                                    <div class="mb-4 text-green-600 font-semibold">{{ session('success_message') }}</div>
-                                @endif
-                                <form action="{{ route('listings.messages.store', $listing) }}" method="POST">
-                                    @csrf
-                                    <div>
-                                        <textarea name="body" rows="4" class="w-full border-gray-300 rounded-md" placeholder="Напишите ваше сообщение..." required minlength="10"></textarea>
-                                        @error('body')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
-                                    </div>
-                                    <div class="mt-4">
-                                        <x-primary-button>Отправить сообщение</x-primary-button>
-                                    </div>
-                                </form>
-                            @endif
-                        </div>
-                    @endauth
-
-                    {{-- БЛОК ДЛЯ ОТЗЫВОВ --}}
+                {{-- Связаться с продавцом --}}
+                @auth
                     <div class="mt-8 border-t pt-6">
-                        <h3 class="text-xl font-bold mb-4">Отзывы о продавце</h3>
+                        <h3 class="text-xl font-bold mb-4">Связаться с продавцом</h3>
 
-                        {{-- Список уже оставленных отзывов --}}
-                        <div class="space-y-4">
-                            @forelse($listing->reviews as $review)
-                                <div class="border-b pb-2">
-                                    <div class="flex items-center mb-1">
-                                        <span class="font-semibold">{{ $review->reviewer->name }}</span>
-                                        <div class="ml-2 flex text-yellow-400">
-                                            @for ($i = 0; $i < $review->rating; $i++) ★ @endfor
-                                        </div>
-                                    </div>
-                                    <p class="text-gray-700">{{ $review->comment }}</p>
-                                    <p class="text-xs text-gray-500 mt-1">{{ $review->created_at->format('d.m.Y') }}</p>
-                                </div>
-                            @empty
-                                <p class="text-gray-500">Отзывов пока нет.</p>
-                            @endforelse
-                        </div>
-
-                        {{-- Форма для добавления нового отзыва --}}
-                        @auth
-                            @if(auth()->id() !== $listing->user_id && !$listing->reviews->contains('reviewer_id', auth()->id()))
-                                <div class="mt-6">
-                                    <h4 class="text-lg font-semibold mb-2">Оставить отзыв</h4>
-                                    @if(session('success'))<div class="mb-4 text-green-600 font-semibold">{{ session('success') }}</div>@endif
-                                    @if(session('error'))<div class="mb-4 text-red-600 font-semibold">{{ session('error') }}</div>@endif
-                                    <form action="{{ route('listings.reviews.store', $listing) }}" method="POST">
-                                        @csrf
-                                        <div class="flex items-center space-x-1 text-gray-400 flex-row-reverse justify-end">
-                                            <input type="radio" name="rating" value="5" class="hidden peer" id="rate-5" required><label for="rate-5" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
-                                            <input type="radio" name="rating" value="4" class="hidden peer" id="rate-4"><label for="rate-4" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
-                                            <input type="radio" name="rating" value="3" class="hidden peer" id="rate-3"><label for="rate-3" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
-                                            <input type="radio" name="rating" value="2" class="hidden peer" id="rate-2"><label for="rate-2" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
-                                            <input type="radio" name="rating" value="1" class="hidden peer" id="rate-1"><label for="rate-1" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
-                                            <label class="mr-2">Оценка:</label>
-                                        </div>
-                                        @error('rating')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
-                                        <div class="mt-4">
-                                            <textarea name="comment" rows="4" class="w-full border-gray-300 rounded-md" placeholder="Напишите ваш отзыв..." required minlength="10"></textarea>
-                                            @error('comment')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
-                                        </div>
-                                        <div class="mt-4"><x-primary-button>Отправить отзыв</x-primary-button></div>
-                                    </form>
-                                </div>
+                        @if(auth()->id() === $listing->user_id)
+                            <p class="text-gray-500">Это ваше объявление.</p>
+                        @else
+                            @if(session('success_message'))
+                                <div class="mb-4 text-green-600 font-semibold">{{ session('success_message') }}</div>
                             @endif
-                        @endauth
+
+                            <form action="{{ route('listings.messages.store', $listing) }}" method="POST">
+                                @csrf
+                                <div>
+                                    <textarea name="body" rows="4" class="w-full border-gray-300 rounded-md" placeholder="Напишите ваше сообщение..." required minlength="10"></textarea>
+                                    @error('body')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                                </div>
+                                <div class="mt-4">
+                                    <x-primary-button>Отправить сообщение</x-primary-button>
+                                </div>
+                            </form>
+                        @endif
+                    </div>
+                @endauth
+
+                {{-- Отзывы --}}
+                <div class="mt-8 border-t pt-6">
+                    <h3 class="text-xl font-bold mb-4">Отзывы о продавце</h3>
+
+                    <div class="space-y-4">
+                        @forelse($listing->reviews as $review)
+                            <div class="border-b pb-2">
+                                <div class="flex items-center mb-1">
+                                    <span class="font-semibold">{{ $review->reviewer->name }}</span>
+                                    <div class="ml-2 flex text-yellow-400">
+                                        @for ($i = 0; $i < $review->rating; $i++)
+                                            ★
+                                        @endfor
+                                    </div>
+                                </div>
+                                <p class="text-gray-700">{{ $review->comment }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ $review->created_at->format('d.m.Y') }}</p>
+                            </div>
+                        @empty
+                            <p class="text-gray-500">Отзывов пока нет.</p>
+                        @endforelse
                     </div>
 
+                    @auth
+                        @if(auth()->id() !== $listing->user_id && !$listing->reviews->contains('reviewer_id', auth()->id()))
+                            <div class="mt-6">
+                                <h4 class="text-lg font-semibold mb-2">Оставить отзыв</h4>
+
+                                @if(session('success'))
+                                    <div class="mb-4 text-green-600 font-semibold">{{ session('success') }}</div>
+                                @endif
+
+                                @if(session('error'))
+                                    <div class="mb-4 text-red-600 font-semibold">{{ session('error') }}</div>
+                                @endif
+
+                                <form action="{{ route('listings.reviews.store', $listing) }}" method="POST">
+                                    @csrf
+                                    <div class="flex items-center space-x-1 text-gray-400 flex-row-reverse justify-end">
+                                        <input type="radio" name="rating" value="5" class="hidden peer" id="rate-5" required>
+                                        <label for="rate-5" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
+                                        <input type="radio" name="rating" value="4" class="hidden peer" id="rate-4">
+                                        <label for="rate-4" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
+                                        <input type="radio" name="rating" value="3" class="hidden peer" id="rate-3">
+                                        <label for="rate-3" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
+                                        <input type="radio" name="rating" value="2" class="hidden peer" id="rate-2">
+                                        <label for="rate-2" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
+                                        <input type="radio" name="rating" value="1" class="hidden peer" id="rate-1">
+                                        <label for="rate-1" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
+                                        <label class="mr-2">Оценка:</label>
+                                    </div>
+                                    @error('rating')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+
+                                    <div class="mt-4">
+                                        <textarea name="comment" rows="4" class="w-full border-gray-300 rounded-md" placeholder="Напишите ваш отзыв..." required minlength="10"></textarea>
+                                        @error('comment')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                                    </div>
+
+                                    <div class="mt-4">
+                                        <x-primary-button>Отправить отзыв</x-primary-button>
+                                    </div>
+                                </form>
+                            </div>
+                        @endif
+                    @endauth
                 </div>
+
+                {{-- Похожие объявления --}}
+                @if($relatedListings->isNotEmpty())
+                    <div class="mt-8 border-t pt-6">
+                        <h3 class="text-2xl font-bold mb-6">Похожие объявления</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            @foreach($relatedListings as $item)
+                                @php
+                                    $relatedImage = null;
+
+                                    if ($item->hasMedia('images')) {
+                                        $relatedImage = $item->getFirstMediaUrl('images', 'medium')
+                                            ?: $item->getFirstMediaUrl('images');
+                                    }
+
+                                    if (!$relatedImage && $item->hasMedia('auction_photos')) {
+                                        $relatedImage = $item->getFirstMediaUrl('auction_photos', 'medium')
+                                            ?: $item->getFirstMediaUrl('auction_photos');
+                                    }
+
+                                    if (!$relatedImage && $item->vehicleDetail) {
+                                        $relatedImage = $item->vehicleDetail->preview_image_url
+                                            ?? $item->vehicleDetail->main_image_url
+                                            ?? null;
+                                    }
+
+                                    if ($relatedImage && !filter_var($relatedImage, FILTER_VALIDATE_URL)) {
+                                        $relatedImage = asset(ltrim($relatedImage, '/'));
+                                    }
+
+                                    $relatedImage = $relatedImage ?: asset('images/no-image.jpg');
+                                @endphp
+                                <a href="{{ route('listings.show', $item) }}"
+                                   class="block bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition overflow-hidden">
+                                    <div class="bg-gray-100" style="aspect-ratio: 4 / 3;">
+                                        <img src="{{ $relatedImage }}"
+                                             alt="{{ $item->title }}"
+                                             class="w-full h-full object-cover"
+                                             onerror="this.src='{{ asset('images/no-image.jpg') }}'">
+                                    </div>
+                                    <div class="p-4">
+                                        <h4 class="text-sm font-semibold text-gray-900 truncate mb-1" title="{{ $item->title }}">
+                                            {{ $item->title }}
+                                        </h4>
+                                        <p class="text-xs text-gray-500 mb-2">
+                                            {{ $item->region?->name ?? 'Без региона' }}
+                                        </p>
+                                        <p class="text-lg font-bold text-indigo-600">
+                                            ${{ number_format($item->price, 0, '.', ' ') }}
+                                        </p>
+                                    </div>
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
             </div>
         </div>
     </div>
