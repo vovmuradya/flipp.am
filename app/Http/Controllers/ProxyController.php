@@ -69,11 +69,15 @@ class ProxyController extends Controller
         }
 
         // Принимаем опциональный реферер (страница лота)
+        $configuredReferer = config('services.copart.referer') ?? 'https://www.copart.com/';
+        $configuredOrigin = config('services.copart.origin') ?? 'https://www.copart.com';
+        $configuredUserAgent = config('services.copart.user_agent') ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
         $referer = $request->query('r')
             ? urldecode($request->query('r'))
-            : (str_contains($host, 'iaai') ? 'https://www.iaai.com/' : 'https://www.copart.com/');
+            : (str_contains($host, 'iaai') ? 'https://www.iaai.com/' : $configuredReferer);
 
-        $origin = str_contains($host, 'iaai') ? 'https://www.iaai.com' : 'https://www.copart.com';
+        $origin = str_contains($host, 'iaai') ? 'https://www.iaai.com' : $configuredOrigin;
         $copartCookieHeader = str_contains($host, 'copart.com') ? $this->getCopartCookieHeader() : null;
         $iaaiCookies = str_contains($host, 'iaai') ? $this->getIaaiCookies() : [];
 
@@ -81,7 +85,7 @@ class ProxyController extends Controller
             // Функция для выполнения запроса с общими заголовками
             $doRequest = function(string $targetUrl) use ($referer, $copartCookieHeader, $iaaiCookies, $origin) {
                 $headers = [
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    'User-Agent' => $configuredUserAgent,
                     'Accept' => 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
                     'Accept-Language' => 'en-US,en;q=0.9',
                     'Referer' => $referer,
@@ -301,10 +305,12 @@ class ProxyController extends Controller
             }
         }
 
-        $origin = $isIaai ? 'https://www.iaai.com' : 'https://www.copart.com';
+        $configuredOrigin = config('services.copart.origin') ?? 'https://www.copart.com';
+        $configuredUserAgent = config('services.copart.user_agent') ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+        $origin = $isIaai ? 'https://www.iaai.com' : $configuredOrigin;
 
         $headerList = [
-            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'User-Agent: ' . $configuredUserAgent,
             'Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
             'Accept-Language: en-US,en;q=0.9',
             'Referer: ' . $referer,

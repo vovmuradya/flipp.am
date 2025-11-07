@@ -106,6 +106,30 @@ class AuctionParserService
         return $cookieString !== '' ? $cookieString : null;
     }
 
+    private function copartConfigValue(string $key, string $default): string
+    {
+        $value = config("services.copart.{$key}");
+
+        return is_string($value) && trim($value) !== ''
+            ? trim($value)
+            : $default;
+    }
+
+    private function copartUserAgent(): string
+    {
+        return $this->copartConfigValue('user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    }
+
+    private function copartOrigin(): string
+    {
+        return $this->copartConfigValue('origin', 'https://www.copart.com');
+    }
+
+    private function copartRefererFallback(): string
+    {
+        return $this->copartConfigValue('referer', 'https://www.copart.com/');
+    }
+
     /**
      * Общие опции HTTP для запросов к Copart. Позволяет прокидывать cookie jar и принудительный DNS-resolve.
      */
@@ -329,13 +353,13 @@ class AuctionParserService
             $engineStr = null;
 
             $headers = [
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'User-Agent' => $this->copartUserAgent(),
                 'Accept' => 'application/json, text/plain, */*',
                 'Referer' => $url,
                 'Accept-Language' => 'en-US,en;q=0.9',
                 'Cache-Control' => 'no-cache',
                 'Pragma' => 'no-cache',
-                'Origin' => 'https://www.copart.com',
+                'Origin' => $this->copartOrigin(),
                 'X-Requested-With' => 'XMLHttpRequest',
                 'Sec-Fetch-Dest' => 'empty',
                 'Sec-Fetch-Mode' => 'cors',
@@ -1558,13 +1582,15 @@ private function normalizeText(?string $value): ?string
 
             // Fetch the HTML content of the auction page
             $headers = [
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'User-Agent' => $this->copartUserAgent(),
                 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                 'Accept-Language' => 'en-US,en;q=0.5',
                 'Accept-Encoding' => 'gzip, deflate',
                 'DNT' => '1',
                 'Connection' => 'keep-alive',
                 'Upgrade-Insecure-Requests' => '1',
+                'Referer' => $this->copartRefererFallback(),
+                'Origin' => $this->copartOrigin(),
             ];
             if ($cookieHeader = $this->getCopartCookieHeader()) {
                 $headers['Cookie'] = $cookieHeader;
@@ -1750,7 +1776,7 @@ private function normalizeText(?string $value): ?string
                 try {
                     $response = Http::timeout(5)
                         ->withHeaders([
-                            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            'User-Agent' => $this->copartUserAgent(),
                         ])
                         ->withOptions($this->copartHttpOptions())
                         ->head($testUrl); // Use HEAD to just check if URL exists

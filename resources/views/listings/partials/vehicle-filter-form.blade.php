@@ -16,7 +16,7 @@
                    name="q"
                    id="listing-search-input"
                    class="form-control"
-                   placeholder="Например, Nissan Rogue"
+                   placeholder="Например: Toyota Camry, шины R16"
                    value="{{ request('q') }}">
         </div>
 

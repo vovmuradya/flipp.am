@@ -1,7 +1,5 @@
 <div class="brand-filter home-filter"
      x-data="filters({
-        initialCategoryId: '{{ request('category_id') }}',
-        initialFields: {{ json_encode($categories->find(request('category_id'))?->customFields ?? []) }},
         initialQuery: @json(request('q'))
      })">
     <form action="{{ route('search.index') }}" method="GET" x-ref="filterForm" class="home-filter__form">
@@ -19,16 +17,37 @@
             </div>
 
             <div class="home-filter__field">
-                <label class="form-label fw-semibold small text-muted text-uppercase mb-2">Категория</label>
-                <select name="category_id"
-                        class="form-select form-select-lg"
-                        x-model="selectedCategory"
-                        @change="fetchFields">
-                    <option value="">Все категории</option>
-                    @foreach($categories as $category)
-                        <option value="{{ $category->id }}">{{ $category->localized_name }}</option>
-                    @endforeach
-                </select>
+                <label class="form-label fw-semibold small text-muted text-uppercase mb-2">Марка</label>
+                <div class="position-relative">
+                    <input
+                        type="text"
+                        name="brand"
+                        class="form-control form-control-lg"
+                        data-filter="brand"
+                        autocomplete="off"
+                        placeholder="Введите марку"
+                        value="{{ request('brand') }}">
+                    <div class="list-group shadow-sm position-absolute w-100"
+                         data-suggestions="brand"
+                         style="z-index: 30; display: none;"></div>
+                </div>
+            </div>
+
+            <div class="home-filter__field">
+                <label class="form-label fw-semibold small text-muted text-uppercase mb-2">Модель</label>
+                <div class="position-relative">
+                    <input
+                        type="text"
+                        name="model"
+                        class="form-control form-control-lg"
+                        data-filter="model"
+                        autocomplete="off"
+                        placeholder="Введите модель"
+                        value="{{ request('model') }}">
+                    <div class="list-group shadow-sm position-absolute w-100"
+                         data-suggestions="model"
+                         style="z-index: 30; display: none;"></div>
+                </div>
             </div>
 
             <div class="home-filter__field">
@@ -60,15 +79,9 @@
             </div>
         </div>
 
-        <div x-show="customFields.length > 0" class="home-filter__dynamic mt-3">
-            <div class="row g-3">
-                <!-- Динамические поля -->
-            </div>
-        </div>
-
         <div class="home-filter__actions">
-            <button type="submit" class="btn btn-brand-gradient btn-lg w-100">Найти</button>
-            <a href="{{ route('search.index') }}" class="btn btn-outline-secondary btn-lg w-100 mt-2 mt-lg-0">Сбросить</a>
+            <button type="submit" class="btn btn-brand-gradient btn-lg w-100 w-md-auto">Найти</button>
+            <a href="{{ route('search.index') }}" class="btn btn-outline-secondary btn-lg w-100 w-md-auto mt-2 mt-md-0">Сбросить</a>
         </div>
 
         <div class="quick-filters mt-4">
@@ -87,18 +100,7 @@
 <script>
     function filters(config) {
         return {
-            selectedCategory: config.initialCategoryId,
-            customFields: config.initialFields,
             searchTerm: config.initialQuery ?? '',
-            fetchFields() {
-                if (!this.selectedCategory) {
-                    this.customFields = [];
-                    return;
-                }
-                fetch(`/api/categories/${this.selectedCategory}/fields`)
-                    .then(response => response.json())
-                    .then(data => { this.customFields = data; });
-            },
             applyQuickFilter(value) {
                 this.searchTerm = value;
                 this.$nextTick(() => {
@@ -108,3 +110,5 @@
         }
     }
 </script>
+
+@include('listings.partials.brand-model-autocomplete-script')

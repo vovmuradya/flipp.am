@@ -580,25 +580,25 @@ class ListingController extends Controller
                 }
             }
 
-            // ✅ Фото с аукциона — отправляем в очередь (если настроена асинхронная очередь)
-            if ($request->has('auction_photos')) {
-                $photoUrls = array_values(array_filter((array) $request->auction_photos));
-                if (!empty($photoUrls)) {
-                    if ($detail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($detail->preview_image_url)) {
-                        $detail->preview_image_url = $photoUrls[0];
-                        $detail->save();
-                    }
+        // ✅ Фото с аукциона — отправляем в очередь (если настроена асинхронная очередь)
+        if ($request->has('auction_photos')) {
+            $photoUrls = array_values(array_filter((array) $request->auction_photos));
+            if (!empty($photoUrls)) {
+                if ($detail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($detail->preview_image_url)) {
+                    $detail->preview_image_url = $photoUrls[0];
+                    $detail->save();
+                }
 
-                    if (config('queue.default') !== 'sync') {
-                        ImportAuctionPhotos::dispatchAfterResponse($listing->id, $photoUrls);
-                    } else {
-                        Log::info('⚠️ ImportAuctionPhotos skipped (queue driver sync)', [
-                            'listing_id' => $listing->id,
-                            'count' => count($photoUrls),
-                        ]);
-                    }
+                if (config('queue.default') !== 'sync') {
+                    ImportAuctionPhotos::dispatchAfterResponse($listing->id, $photoUrls);
+                } else {
+                    Log::info('⚠️ ImportAuctionPhotos skipped (queue driver sync)', [
+                        'listing_id' => $listing->id,
+                        'count' => count($photoUrls),
+                    ]);
                 }
             }
+        }
 
             DB::commit();
 
@@ -791,26 +791,26 @@ class ListingController extends Controller
                 }
             }
 
-            // ✅ Фото с аукциона — в очередь, если она асинхронная
-            if ($request->has('auction_photos')) {
-                $photoUrls = array_values(array_filter((array) $request->auction_photos));
-                if (!empty($photoUrls)) {
-                    if ($listing->vehicleDetail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($listing->vehicleDetail->preview_image_url)) {
-                        $listing->vehicleDetail->update([
-                            'preview_image_url' => $photoUrls[0],
-                        ]);
-                    }
+        // ✅ Фото с аукциона — в очередь, если она асинхронная
+        if ($request->has('auction_photos')) {
+            $photoUrls = array_values(array_filter((array) $request->auction_photos));
+            if (!empty($photoUrls)) {
+                if ($listing->vehicleDetail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($listing->vehicleDetail->preview_image_url)) {
+                    $listing->vehicleDetail->update([
+                        'preview_image_url' => $photoUrls[0],
+                    ]);
+                }
 
-                    if (config('queue.default') !== 'sync') {
-                        ImportAuctionPhotos::dispatchAfterResponse($listing->id, $photoUrls);
-                    } else {
-                        Log::info('⚠️ ImportAuctionPhotos skipped on update (queue driver sync)', [
-                            'listing_id' => $listing->id,
-                            'count' => count($photoUrls),
-                        ]);
-                    }
+                if (config('queue.default') !== 'sync') {
+                    ImportAuctionPhotos::dispatchAfterResponse($listing->id, $photoUrls);
+                } else {
+                    Log::info('⚠️ ImportAuctionPhotos skipped on update (queue driver sync)', [
+                        'listing_id' => $listing->id,
+                        'count' => count($photoUrls),
+                    ]);
                 }
             }
+        }
 
             DB::commit();
 
@@ -830,9 +830,6 @@ class ListingController extends Controller
                 ->withErrors(['error' => 'Ошибка: ' . $e->getMessage()]);
         }
     }
-
-
-
     public function destroy(Listing $listing)
     {
         $this->authorize('delete', $listing);

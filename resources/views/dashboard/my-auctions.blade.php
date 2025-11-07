@@ -15,7 +15,7 @@
                 </a>
             </div>
 
-            <div class="vstack gap-3 gap-lg-4">
+            <div class="row gy-4">
                 @forelse($listings as $listing)
                     @php
                         $endsAt = optional($listing->vehicleDetail)->auction_ends_at;
@@ -69,52 +69,54 @@
 
                         $previewImage = $previewImage ?: $fallbackImage;
                     @endphp
-                    <div class="card shadow-sm border-0 rounded-3 position-relative overflow-hidden">
-                        <span class="badge {{ $statusClass }} position-absolute top-0 end-0 m-3 px-3 py-2">
-                            {{ $statusLabel }}
-                        </span>
-                        <div class="row g-0">
-                            <div class="col-12 col-md-4">
-                                <div class="ratio ratio-4x3 bg-light overflow-hidden rounded-start rounded-top rounded-md-start">
-                                    <a href="{{ route('listings.show', $listing) }}" class="d-flex w-100 h-100">
-                                        <img src="{{ $previewImage }}"
-                                             alt="{{ $listing->title }}"
-                                             class="img-fluid w-100 h-100 object-fit-cover"
-                                             loading="lazy"
-                                             onerror="this.src='{{ $fallbackImage }}'">
-                                    </a>
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-8">
-                                <div class="card-body d-flex flex-column h-100">
-                                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-2">
-                                        <h5 class="card-title fs-5 mb-0 text-truncate" title="{{ $listing->title }}">
-                                            {{ $listing->title }}
-                                        </h5>
-                                        <div class="text-muted small">
-                                            Лот № {{ $listing->id }}
-                                        </div>
-                                    </div>
-                                    <p class="card-text text-muted small mb-2">
-                                        Окончание аукциона:
-                                        @if($endsAt)
-                                            {{ $endsAt->timezone(config('app.timezone'))->format('d.m.Y H:i') }}
-                                        @else
-                                            Не указано
-                                        @endif
-                                    </p>
-                                    <p class="card-text fw-semibold fs-5 mb-3">
-                                        Ставка: {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}
-                                    </p>
-                                    <div class="mt-auto d-flex flex-wrap gap-2">
-                                        <a href="{{ route('listings.show', $listing) }}" class="btn btn-brand-gradient">
-                                            Подробнее
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0 rounded-3 position-relative overflow-hidden h-100">
+                            <span class="badge {{ $statusClass }} position-absolute top-0 end-0 m-3 px-3 py-2">
+                                {{ $statusLabel }}
+                            </span>
+                            <div class="row g-0">
+                                <div class="col-12 col-md-4">
+                                    <div class="ratio ratio-4x3 bg-light overflow-hidden rounded-start rounded-top rounded-md-start">
+                                        <a href="{{ route('listings.show', $listing) }}" class="d-flex w-100 h-100">
+                                            <img src="{{ $previewImage }}"
+                                                 alt="{{ $listing->title }}"
+                                                 class="img-fluid w-100 h-100 object-fit-cover"
+                                                 loading="lazy"
+                                                 onerror="this.src='{{ $fallbackImage }}'">
                                         </a>
-                                        @if(auth()->id() === $listing->user_id)
-                                            <a href="{{ route('auction-listings.edit', $listing) }}" class="btn btn-outline-secondary">
-                                                Редактировать
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <div class="card-body d-flex flex-column h-100">
+                                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-2">
+                                        <h5 class="card-title fs-5 mb-0 text-truncate" title="{{ $listing->title }}">
+                                                {{ $listing->title }}
+                                            </h5>
+                                            <div class="text-muted small">
+                                                Лот № {{ $listing->id }}
+                                            </div>
+                                        </div>
+                                        <p class="card-text text-muted small mb-2">
+                                            Окончание аукциона:
+                                            @if($endsAt)
+                                                {{ $endsAt->timezone(config('app.timezone'))->format('d.m.Y H:i') }}
+                                            @else
+                                                Не указано
+                                            @endif
+                                        </p>
+                                        <p class="card-text fw-semibold fs-5 mb-3">
+                                            Ставка: {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}
+                                        </p>
+                                        <div class="mt-auto d-flex flex-wrap gap-2">
+                                            <a href="{{ route('listings.show', $listing) }}" class="btn btn-brand-gradient">
+                                                Подробнее
                                             </a>
-                                        @endif
+                                            @if(auth()->id() === $listing->user_id)
+                                                <a href="{{ route('auction-listings.edit', $listing) }}" class="btn btn-outline-secondary">
+                                                    Редактировать
+                                                </a>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             </div>

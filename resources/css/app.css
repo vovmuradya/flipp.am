@@ -75,11 +75,8 @@ a:hover {
 }
 
 .vehicle-fullwidth__grid {
-    display: flex;
-    flex-direction: column;
     width: 100%;
-    gap: clamp(16px, 2.5vw, 28px);
-    padding-inline: clamp(12px, 4vw, 28px);
+    margin: 0;
 }
 
 .vehicle-fullwidth__main,
@@ -120,26 +117,6 @@ a:hover {
 }
 
 @media (min-width: 992px) {
-    .vehicle-fullwidth__grid {
-        display: flex;
-        flex-direction: row;
-        align-items: flex-start;
-        gap: clamp(24px, 3vw, 40px);
-        padding-inline: clamp(20px, 4vw, 40px);
-    }
-
-    .vehicle-fullwidth__main {
-        flex: 0 0 calc(75% - 20px);
-        max-width: calc(75% - 20px);
-        order: 1;
-    }
-
-    .vehicle-fullwidth__sidebar {
-        flex: 0 0 calc(25% - 20px);
-        max-width: calc(25% - 20px);
-        order: 2;
-    }
-
     .vehicle-filter-card--fullwidth {
         position: sticky;
         top: 96px;
@@ -658,6 +635,14 @@ a:hover {
     height: 100%;
 }
 
+.brand-slider .brand-listing-card__media {
+    min-height: 190px;
+}
+
+.brand-slider .brand-listing-card__media img {
+    height: 190px;
+}
+
 .brand-slider__nav {
     display: flex;
     gap: 12px;
@@ -762,6 +747,12 @@ a:hover {
         height: auto;
         aspect-ratio: 1 / 1.4;
         object-fit: cover;
+    }
+
+    .brand-slider .brand-listing-card__media,
+    .brand-slider .brand-listing-card__media img {
+        min-height: auto;
+        height: auto;
     }
 
     .brand-listing-card__content {
@@ -1103,6 +1094,9 @@ a:hover {
     padding: 4px 0;
     box-shadow: 0 10px 22px rgba(10, 12, 16, 0.2);
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    position: sticky;
+    top: 0;
+    z-index: 1050;
 }
 
 .idrom-navbar .container-fluid {
@@ -1719,7 +1713,6 @@ body {
 
     .home-filter__actions {
         flex-direction: row;
-        justify-content: flex-start;
         align-items: center;
         gap: 1rem;
     }
@@ -1735,6 +1728,10 @@ body {
         padding: 1.25rem;
         border-radius: 1rem;
         box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+    }
+
+    .home-filter__field--category {
+        display: none;
     }
 
     .quick-filters {
