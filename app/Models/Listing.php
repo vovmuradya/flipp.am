@@ -135,6 +135,7 @@ class Listing extends Model implements HasMedia
             'user_id'           => $this->user_id,
             'listing_type'      => $this->listing_type,
             'created_timestamp' => optional($this->created_at)->timestamp,
+            'is_from_auction'   => $this->isFromAuction(),
         ];
 
         // Поля автомобиля (ТЗ v2.1)
@@ -149,7 +150,6 @@ class Listing extends Model implements HasMedia
                 'fuel_type'              => $this->vehicleDetail->fuel_type,
                 'engine_displacement_cc' => $this->vehicleDetail->engine_displacement_cc,
                 'exterior_color'         => $this->vehicleDetail->exterior_color,
-                'is_from_auction'        => (bool) $this->vehicleDetail->is_from_auction,
             ]);
         }
 

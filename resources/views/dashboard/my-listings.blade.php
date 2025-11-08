@@ -2,16 +2,16 @@
     <section class="brand-section">
         <div class="brand-container">
             <div class="brand-section__header">
-                <h2 class="brand-section__title">Мои объявления</h2>
+                <h2 class="brand-section__title">{{ __('Мои объявления') }}</h2>
                 <p class="brand-section__subtitle">
-                    Управляйте активными и черновыми объявлениями, редактируйте информацию или быстро создавайте новые карточки.
+                    {{ __('Управляйте активными и черновыми объявлениями, редактируйте информацию или быстро создавайте новые карточки.') }}
                 </p>
             </div>
 
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-                <h3 class="h5 fw-semibold mb-0">Всего объявлений: {{ $listings->total() }}</h3>
+                <h3 class="h5 fw-semibold mb-0">{{ __('Всего объявлений: :count', ['count' => $listings->total()]) }}</h3>
                 <a href="{{ route('listings.create') }}" class="btn btn-brand-gradient">
-                    + Создать объявление
+                    + {{ __('Создать объявление') }}
                 </a>
             </div>
 
@@ -69,27 +69,27 @@
                                         {{ $listing->title }}
                                     </h5>
                                     <span class="badge rounded-pill {{ $listing->status === 'active' ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis' }}">
-                                        {{ $listing->status === 'active' ? 'Активно' : 'Черновик' }}
+                                        {{ $listing->status === 'active' ? __('Активно') : __('Черновик') }}
                                     </span>
                                 </div>
                                 <p class="card-text text-muted small mb-1">
-                                    {{ $listing->region?->name ?? 'Регион не указан' }}
+                                    {{ $listing->region?->name ?? __('Регион не указан') }}
                                 </p>
                                 <p class="card-text fw-semibold mb-2">
                                     {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}
                                 </p>
                                 <p class="card-text text-muted small mt-auto mb-3">
-                                    Добавлено: {{ $listing->created_at->format('d.m.Y') }}
+                                    {{ __('Добавлено: :date', ['date' => $listing->created_at->format('d.m.Y')]) }}
                                 </p>
                                 <div class="d-flex gap-2">
                                     <a href="{{ route('listings.edit', $listing) }}" class="btn btn-sm btn-brand-gradient flex-grow-1">
-                                        Редактировать
+                                        {{ __('Редактировать') }}
                                     </a>
-                                    <form action="{{ route('listings.destroy', $listing) }}" method="POST" class="flex-grow-1" onsubmit="return confirm('Удалить объявление?');">
+                                    <form action="{{ route('listings.destroy', $listing) }}" method="POST" class="flex-grow-1" onsubmit="return confirm('{{ __('Удалить объявление?') }}');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
-                                            Удалить
+                                            {{ __('Удалить') }}
                                         </button>
                                     </form>
                                 </div>
@@ -99,7 +99,7 @@
                 @empty
                     <div class="col-12">
                         <div class="brand-surface text-center py-5 text-muted">
-                            У вас пока нет объявлений. Нажмите «Создать объявление», чтобы добавить первое.
+                            {{ __('У вас пока нет объявлений. Нажмите «Создать объявление», чтобы добавить первое.') }}
                         </div>
                     </div>
                 @endforelse

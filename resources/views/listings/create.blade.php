@@ -6,11 +6,11 @@
             <div class="brand-surface p-0 overflow-hidden">
                 <div class="brand-form__header {{ $auctionData ? 'brand-form__header--auction' : '' }}">
                     <h1 class="text-2xl font-bold mb-1">
-                        {{ $auctionData ? '🚗 Создать объявление с аукциона' : 'Создать объявление' }}
+                        {{ $auctionData ? __('🚗 Создать объявление с аукциона') : __('Создать объявление') }}
                     </h1>
                     @if($auctionData && isset($auctionData['auction_url']))
                         <p class="mb-0">
-                            Источник: <a href="{{ $auctionData['auction_url'] }}" target="_blank">{{ $auctionData['auction_url'] }}</a>
+                            {{ __('Источник:') }} <a href="{{ $auctionData['auction_url'] }}" target="_blank">{{ $auctionData['auction_url'] }}</a>
                         </p>
                     @endif
                 </div>
@@ -18,7 +18,7 @@
                 <div class="p-6">
                     @if(request()->has('from_auction') && !$auctionData)
                         <div class="brand-surface mb-4" style="background: rgba(244,140,37,0.08); border-radius: 14px;">
-                            <h2 class="text-lg font-semibold mb-3">🔗 Введите ссылку на аукцион</h2>
+                            <h2 class="text-lg font-semibold mb-3">{{ __('🔗 Введите ссылку на аукцион') }}</h2>
                             <form id="auctionUrlForm" class="d-flex gap-2 flex-wrap" method="POST" action="{{ route('listings.import-auction') }}">
                                 @csrf
                                 <input type="url"
@@ -29,7 +29,7 @@
                                        value="{{ old('auction_url') }}"
                                        required>
                                 <button type="submit" id="parseBtn" class="btn-brand-gradient">
-                                    Загрузить
+                                    {{ __('Загрузить') }}
                                 </button>
                             </form>
                             @error('auction_url')
@@ -75,7 +75,7 @@
                             $engineDisplacementOptions[] = [
                                 'cc' => $cc,
                                 'liters' => $liters,
-                                'label' => number_format($liters, 1, '.', '') . ' л',
+                                'label' => number_format($liters, 1, '.', '') . ' ' . __('л'),
                             ];
                         }
                         $currentYear = (int) date('Y');
@@ -223,7 +223,9 @@
                                 $finalPhotos[] = $proxyBase . '?u=' . rawurlencode($upstream) . ($auctionRef ? ('&r=' . rawurlencode($auctionRef)) : '');
                             }
                         }
-                        $mainImageDefault = ($finalPhotos[0] ?? 'https://placehold.co/200x150/e5e7eb/6b7280?text=Нет+фото');
+                        $noPhotoPlaceholder = rawurlencode(__('Нет фото'));
+                        $placeholderUrl = "https://placehold.co/200x150/e5e7eb/6b7280?text={$noPhotoPlaceholder}";
+                        $mainImageDefault = ($finalPhotos[0] ?? $placeholderUrl);
 
                         $allCategories = collect($categories ?? []);
                         $vehicleCategoryIds = $allCategories->whereIn('slug', ['cars', 'motorcycles', 'trucks'])->pluck('id')->values()->all();
@@ -237,9 +239,9 @@
                         ];
 
                         $sectionCards = [
-                            'vehicle' => ['title' => 'Автомобили', 'icon' => '🚗'],
-                            'parts' => ['title' => 'Запчасти', 'icon' => '🛠️'],
-                            'tires' => ['title' => 'Шины', 'icon' => '🛞'],
+                            'vehicle' => ['title' => __('Автомобили'), 'icon' => '🚗'],
+                            'parts' => ['title' => __('Запчасти'), 'icon' => '🛠️'],
+                            'tires' => ['title' => __('Шины'), 'icon' => '🛞'],
                         ];
 
                         $initialType = $ad ? 'vehicle' : (old('section') ?? old('listing_type') ?? 'vehicle');
@@ -313,16 +315,16 @@
 
                     @if($ad && !empty($finalPhotos))
                         <div class="mb-4">
-                            <h3 class="text-lg fw-semibold mb-3">📸 Фотографии с Copart ({{ count($finalPhotos) }})</h3>
+                            <h3 class="text-lg fw-semibold mb-3">{{ __('📸 Фотографии с Copart (:count)', ['count' => count($finalPhotos)]) }}</h3>
                             <div x-data="{ mainImage: @js($mainImageDefault) }">
                                 <div class="mx-auto mb-3" style="width: 220px; height: 165px; border-radius: 14px; overflow: hidden; background: #f1f3f5;">
-                                    <img :src="mainImage" src="{{ $mainImageDefault }}" alt="Главное фото"
+                                    <img :src="mainImage" src="{{ $mainImageDefault }}" alt="{{ __('Главное фото') }}"
                                          style="width: 100%; height: 100%; object-fit: contain;"
-                                         onerror="this.src='https://placehold.co/200x150/e5e7eb/6b7280?text=Нет+фото'">
+                                         onerror="this.src='{{ $placeholderUrl }}'">
                                 </div>
                                 <div class="d-flex flex-wrap gap-2">
                                     @foreach($finalPhotos as $index => $photoUrl)
-                                        <img src="{{ $photoUrl }}" alt="Фото {{ $index + 1 }}" width="70" height="70"
+                                        <img src="{{ $photoUrl }}" alt="{{ __('Фото :index', ['index' => $index + 1]) }}" width="70" height="70"
                                              style="border-radius: 10px; object-fit: cover; cursor: pointer; border: 2px solid #e5e7eb;"
                                              @click="mainImage = @js($photoUrl)"
                                              onerror="this.style.display='none'">
@@ -334,7 +336,7 @@
 
                     @if ($errors->any())
                         <div class="alert alert-danger">
-                            <h6 class="fw-semibold mb-2">Исправьте следующие ошибки:</h6>
+                            <h6 class="fw-semibold mb-2">{{ __('Исправьте следующие ошибки:') }}</h6>
                             <ul class="mb-0">
                                 @foreach ($errors->all() as $error)
                                     <li>{{ $error }}</li>
@@ -357,7 +359,7 @@
                             <input type="hidden" name="listing_type" :value="listingType || ''">
 
                             <div class="mb-4">
-                                <label class="form-label fw-semibold">Выберите раздел</label>
+                                <label class="form-label fw-semibold">{{ __('Выберите раздел') }}</label>
                                 <div class="d-flex flex-wrap gap-3">
                                     @foreach($sectionCards as $typeKey => $card)
                                         <button type="button"
@@ -391,7 +393,7 @@
                         @endif
 
                         <div class="brand-surface mb-4" id="vehicle-fields" x-show="listingType === 'vehicle'" x-cloak>
-                                <h3 class="h5 mb-3">Характеристики автомобиля</h3>
+                                <h3 class="h5 mb-3">{{ __('Характеристики автомобиля') }}</h3>
                                 @if($ad)
                                     @php
                                         $auctionVehicleValues = [
@@ -419,7 +421,7 @@
                                             'model' => $auctionVehicleValues['model'] !== '' ? $auctionVehicleValues['model'] : '—',
                                             'year' => $auctionVehicleValues['year'] !== '' ? $auctionVehicleValues['year'] : '—',
                                             'mileage' => is_numeric($auctionVehicleValues['mileage'])
-                                                ? number_format((int) $auctionVehicleValues['mileage'], 0, '.', ' ') . ' км'
+                                                ? number_format((int) $auctionVehicleValues['mileage'], 0, '.', ' ') . ' ' . __('км')
                                                 : ($auctionVehicleValues['mileage'] !== '' ? $auctionVehicleValues['mileage'] : '—'),
                                             'body_type' => $auctionBodyTypeLabel ?? '—',
                                             'transmission' => $auctionVehicleValues['transmission'] !== ''
@@ -429,49 +431,49 @@
                                                 ? ($fuelTypeOptions[$auctionVehicleValues['fuel_type']] ?? $auctionVehicleValues['fuel_type'])
                                                 : '—',
                                             'engine_displacement_cc' => is_numeric($auctionVehicleValues['engine_displacement_cc'])
-                                                ? number_format((int) $auctionVehicleValues['engine_displacement_cc'], 0, '.', ' ') . ' см³'
+                                                ? number_format((int) $auctionVehicleValues['engine_displacement_cc'], 0, '.', ' ') . ' ' . __('см³')
                                                 : ($auctionVehicleValues['engine_displacement_cc'] !== '' ? $auctionVehicleValues['engine_displacement_cc'] : '—'),
                                             'exterior_color' => $displayExteriorColor !== '' ? $displayExteriorColor : '—',
                                         ];
                                     @endphp
                                     <div class="alert alert-warning mb-3 py-2 px-3">
-                                        Эти данные загружены с Copart и предназначены только для просмотра.
+                                        {{ __('Эти данные загружены с Copart и предназначены только для просмотра.') }}
                                     </div>
                                     <div class="row g-3">
                                         <div class="col-md-4">
-                                            <label class="form-label">Марка</label>
+                                            <label class="form-label">{{ __('Марка') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['make'] }}</p>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Модель</label>
+                                            <label class="form-label">{{ __('Модель') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['model'] }}</p>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Год выпуска</label>
+                                            <label class="form-label">{{ __('Год выпуска') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['year'] }}</p>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Пробег</label>
+                                            <label class="form-label">{{ __('Пробег') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['mileage'] }}</p>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Тип кузова</label>
+                                            <label class="form-label">{{ __('Тип кузова') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['body_type'] }}</p>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Трансмиссия</label>
+                                            <label class="form-label">{{ __('Трансмиссия') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['transmission'] }}</p>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Топливо</label>
+                                            <label class="form-label">{{ __('Топливо') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['fuel_type'] }}</p>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Двигатель</label>
+                                            <label class="form-label">{{ __('Двигатель') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['engine_displacement_cc'] }}</p>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Цвет кузова</label>
+                                            <label class="form-label">{{ __('Цвет кузова') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['exterior_color'] }}</p>
                                         </div>
                                     </div>
@@ -483,7 +485,7 @@
                                 @else
                                     <div class="row g-3">
                                         <div class="col-md-6">
-                                            <label class="form-label">Марка</label>
+                                            <label class="form-label">{{ __('Марка') }}</label>
                                             <input type="hidden" name="vehicle[brand_id]" :value="vehicle.brandId">
                                             <div class="position-relative">
                                                 <input type="text"
@@ -496,7 +498,7 @@
                                                        @focus="ensureBrandsLoaded()"
                                                        @input="onBrandInput($event)"
                                                        @change="onBrandSelected()"
-                                                       placeholder="Начните вводить марку (например, Nissan)"
+                                                       placeholder="{{ __('Начните вводить марку (например, Nissan)') }}"
                                                        x-bind:required="listingType === 'vehicle'">
                                             </div>
                                             <datalist id="brand-options">
@@ -505,9 +507,9 @@
                                                 </template>
                                             </datalist>
                                             <template x-if="vehicle.loadingBrands">
-                                                <small class="text-muted d-block mt-1">Загружаем список марок…</small>
+                                                <small class="text-muted d-block mt-1">{{ __('Загружаем список марок…') }}</small>
                                             </template>
-                                            <small class="text-muted d-block mt-1">Выберите марку из выпадающего списка или продолжайте вводить вручную.</small>
+                                            <small class="text-muted d-block mt-1">{{ __('Выберите марку из выпадающего списка или продолжайте вводить вручную.') }}</small>
                                             <template x-if="formErrors.brand">
                                                 <small class="text-danger d-block" x-text="formErrors.brand"></small>
                                             </template>
@@ -516,7 +518,7 @@
                                             @enderror
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label">Модель</label>
+                                            <label class="form-label">{{ __('Модель') }}</label>
                                             <input type="hidden" name="vehicle[model_id]" :value="vehicle.modelId">
                                             <div class="position-relative">
                                                 <input type="text"
@@ -528,7 +530,7 @@
                                                        x-model="vehicle.model"
                                                        @input="onModelInput($event)"
                                                        @change="onModelSelected()"
-                                                       placeholder="Начните вводить модель (например, Rogue)"
+                                                       placeholder="{{ __('Начните вводить модель (например, Rogue)') }}"
                                                        x-bind:required="listingType === 'vehicle'">
                                             </div>
                                             <datalist id="model-options">
@@ -537,10 +539,10 @@
                                                 </template>
                                             </datalist>
                                             <template x-if="vehicle.loadingModels">
-                                                <small class="text-muted d-block mt-1">Загружаем модели…</small>
+                                                <small class="text-muted d-block mt-1">{{ __('Загружаем модели…') }}</small>
                                             </template>
                                             <small class="text-muted d-block mt-1">
-                                                Выберите модель после выбора марки — список подстраивается автоматически.
+                                                {{ __('Выберите модель после выбора марки — список подстраивается автоматически.') }}
                                             </small>
                                             <template x-if="formErrors.model">
                                                 <small class="text-danger d-block" x-text="formErrors.model"></small>
@@ -550,12 +552,12 @@
                                             @enderror
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Год выпуска</label>
+                                            <label class="form-label">{{ __('Год выпуска') }}</label>
                                             <select name="vehicle[year]"
                                                     class="form-select"
                                                     x-model="vehicle.year"
                                                     x-bind:required="listingType === 'vehicle'">
-                                                <option value="">Выберите год</option>
+                                                <option value="">{{ __('Выберите год') }}</option>
                                                 @foreach($yearOptions as $yearOption)
                                                     <option value="{{ $yearOption }}"
                                                         {{ (string)old('vehicle.year', $adV['year'] ?? $ad['year'] ?? '') === (string)$yearOption ? 'selected' : '' }}>
@@ -571,29 +573,29 @@
                                             @enderror
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Поколение</label>
+                                            <label class="form-label">{{ __('Поколение') }}</label>
                                             <select class="form-select"
                                                     x-model="vehicle.generationId"
                                                     @change="handleGenerationChange"
                                                     :disabled="!vehicle.modelId || vehicle.loadingGenerations || vehicle.generations.length === 0">
-                                                <option value="">Выберите поколение</option>
+                                                <option value="">{{ __('Выберите поколение') }}</option>
                                                 <template x-for="generation in vehicle.generations" :key="generation.id">
                                                     <option :value="String(generation.id)" x-text="generationLabel(generation)"></option>
                                                 </template>
                                             </select>
                                             <template x-if="vehicle.loadingGenerations">
-                                                <small class="text-muted d-block mt-1">Загружаем поколения…</small>
+                                                <small class="text-muted d-block mt-1">{{ __('Загружаем поколения…') }}</small>
                                             </template>
                                             <input type="hidden" name="vehicle[generation_id]" :value="vehicle.generationId">
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Пробег (км)</label>
+                                            <label class="form-label">{{ __('Пробег (км)') }}</label>
                                             <input type="number" name="vehicle[mileage]" min="0" value="{{ old('vehicle.mileage', $adV['mileage'] ?? $ad['mileage'] ?? '') }}" class="form-control" x-bind:required="listingType === 'vehicle'">
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Тип кузова</label>
+                                            <label class="form-label">{{ __('Тип кузова') }}</label>
                                             <select name="vehicle[body_type]" class="form-select" x-bind:required="listingType === 'vehicle'">
-                                                <option value="">Выберите</option>
+                                                <option value="">{{ __('Выберите') }}</option>
                                                 @php
                                                     $selectedBody = old('vehicle.body_type', $adV['body_type'] ?? $ad['body_type'] ?? '');
                                                 @endphp
@@ -603,9 +605,9 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Трансмиссия</label>
+                                            <label class="form-label">{{ __('Трансмиссия') }}</label>
                                             <select name="vehicle[transmission]" class="form-select" x-bind:required="listingType === 'vehicle'">
-                                                <option value="">Выберите</option>
+                                                <option value="">{{ __('Выберите') }}</option>
                                                 @php
                                                     $selectedTransmission = old('vehicle.transmission', $adV['transmission'] ?? $ad['transmission'] ?? '');
                                                 @endphp
@@ -615,9 +617,9 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Топливо</label>
+                                            <label class="form-label">{{ __('Топливо') }}</label>
                                             <select name="vehicle[fuel_type]" class="form-select" x-bind:required="listingType === 'vehicle'">
-                                                <option value="">Выберите</option>
+                                                <option value="">{{ __('Выберите') }}</option>
                                                 @php
                                                     $selectedFuelType = old('vehicle.fuel_type', $adV['fuel_type'] ?? $ad['fuel_type'] ?? '');
                                                 @endphp
@@ -627,27 +629,27 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Объём двигателя</label>
+                                            <label class="form-label">{{ __('Объём двигателя') }}</label>
                                             <select name="vehicle[engine_displacement_cc]"
                                                     class="form-select"
                                                     x-model="vehicle.engine_displacement_cc"
                                                     x-bind:required="listingType === 'vehicle'">
-                                                <option value="">Не указан</option>
+                                                <option value="">{{ __('Не указан') }}</option>
                                                 @foreach($engineDisplacementOptions as $option)
                                                     <option value="{{ $option['cc'] }}"
                                                         {{ (string) old('vehicle.engine_displacement_cc', $vehiclePrefill['engine_displacement_cc']) === (string) $option['cc'] ? 'selected' : '' }}>
-                                                        {{ $option['label'] }} ({{ $option['cc'] }} см³)
+                                                        {{ $option['label'] }} ({{ $option['cc'] }} {{ __('см³') }})
                                                     </option>
                                                 @endforeach
                                             </select>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Цвет кузова</label>
+                                            <label class="form-label">{{ __('Цвет кузова') }}</label>
                                             <select name="vehicle[exterior_color]"
                                                     class="form-select"
                                                     x-model="vehicle.exteriorColor"
                                                     x-bind:required="listingType === 'vehicle'">
-                                                <option value="">Выберите цвет</option>
+                                                <option value="">{{ __('Выберите цвет') }}</option>
                                                 @foreach($colorOptions as $colorKey => $colorLabel)
                                                     <option value="{{ $colorKey }}"
                                                         {{ old('vehicle.exterior_color', $vehiclePrefill['exterior_color']) === $colorKey ? 'selected' : '' }}>
@@ -667,7 +669,7 @@
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">Заголовок <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ __('Заголовок') }} <span class="text-danger">*</span></label>
                             <input type="text"
                                    name="title"
                                    class="form-control"
@@ -681,20 +683,20 @@
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">Описание <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ __('Описание') }} <span class="text-danger">*</span></label>
                             <textarea name="description" rows="5" class="form-control" required>{{ $descriptionValue }}</textarea>
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">Цена (AMD) <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ __('Цена (AMD)') }} <span class="text-danger">*</span></label>
                             <input type="number" name="price" min="0" value="{{ old('price', $ad['price'] ?? '') }}" class="form-control" required>
                         </div>
 
                     @if(! $ad)
                         <div>
-                            <label class="form-label">Регион <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ __('Регион') }} <span class="text-danger">*</span></label>
                             <select name="region_id" id="region_id" class="form-select" required>
-                                <option value="">Выберите регион</option>
+                                <option value="">{{ __('Выберите регион') }}</option>
                                 @foreach($regions as $region)
                                     <option value="{{ $region->id }}" {{ old('region_id') == $region->id ? 'selected' : '' }}>{{ $region->name }}</option>
                                 @endforeach
@@ -705,16 +707,16 @@
                         </div>
 
                         <div>
-                            <label class="form-label">Изображения</label>
+                            <label class="form-label">{{ __('Изображения') }}</label>
                             <input type="file" id="images" name="images[]" multiple accept="image/*" class="form-control">
-                            <small class="text-muted">PNG, JPG, WEBP до 5MB</small>
+                            <small class="text-muted">{{ __('PNG, JPG, WEBP до 5MB') }}</small>
                         </div>
                     @endif
 
                         <div class="d-flex justify-content-end gap-3 pt-3">
-                            <a href="{{ route('home') }}" class="btn-brand-outline">Отмена</a>
+                            <a href="{{ route('home') }}" class="btn-brand-outline">{{ __('Отмена') }}</a>
                             <button type="submit" class="btn-brand-gradient" :disabled="!formVisible">
-                                {{ $ad ? '🚀 Создать объявление с аукциона' : 'Создать объявление' }}
+                                {{ $ad ? __('🚀 Создать объявление с аукциона') : __('Создать объявление') }}
                             </button>
                         </div>
                     </form>

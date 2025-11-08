@@ -1,11 +1,9 @@
 <x-app-layout>
     @php
-        use App\Support\VehicleAttributeOptions;
-
-        $bodyTypeOptions = VehicleAttributeOptions::bodyTypes();
-        $transmissionOptions = VehicleAttributeOptions::transmissions();
-        $fuelTypeOptions = VehicleAttributeOptions::fuelTypes();
-        $colorOptions = VehicleAttributeOptions::colors();
+        $bodyTypeOptions = \App\Support\VehicleAttributeOptions::bodyTypes();
+        $transmissionOptions = \App\Support\VehicleAttributeOptions::transmissions();
+        $fuelTypeOptions = \App\Support\VehicleAttributeOptions::fuelTypes();
+        $colorOptions = \App\Support\VehicleAttributeOptions::colors();
         $engineDisplacementOptions = [];
         for ($i = 1; $i <= 100; $i++) {
             $liters = $i / 10;
@@ -13,7 +11,7 @@
             $engineDisplacementOptions[] = [
                 'cc' => $cc,
                 'liters' => $liters,
-                'label' => number_format($liters, 1, '.', '') . ' л',
+                'label' => number_format($liters, 1, '.', '') . ' ' . __('л'),
             ];
         }
         $currentYear = (int) date('Y');
@@ -90,9 +88,9 @@
     <section class="brand-section">
         <div class="brand-container">
             <div class="brand-section__header">
-                <h1 class="brand-section__title">Редактирование объявления</h1>
+                <h1 class="brand-section__title">{{ __('Редактирование объявления') }}</h1>
                 <p class="brand-section__subtitle">
-                    Обновите данные, замените фотографии и сохраните изменения — карточка обновится моментально.
+                    {{ __('Обновите данные, замените фотографии и сохраните изменения — карточка обновится моментально.') }}
                 </p>
             </div>
 
@@ -112,10 +110,10 @@
                         <input type="hidden" name="category_id" id="category_id" :value="categoryId">
 
                         <div class="brand-surface mb-4" x-show="listingType === 'vehicle'" x-cloak>
-                            <h3 class="h5 mb-3">Характеристики автомобиля</h3>
+                            <h3 class="h5 mb-3">{{ __('Характеристики автомобиля') }}</h3>
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label">Марка</label>
+                                    <label class="form-label">{{ __('Марка') }}</label>
                                     <input type="hidden" name="vehicle[brand_id]" :value="vehicle.brandId">
                                     <input type="text"
                                            class="form-control"
@@ -126,7 +124,7 @@
                                            @focus="ensureBrandsLoaded()"
                                            @input="onBrandInput($event)"
                                            @change="onBrandSelected()"
-                                           placeholder="Выберите марку из списка"
+                                           placeholder="{{ __('Выберите марку из списка') }}"
                                            required>
                                     <datalist id="brand-options"></datalist>
                                     <template x-if="formErrors.brand">
@@ -137,7 +135,7 @@
                                     @enderror
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Модель</label>
+                                    <label class="form-label">{{ __('Модель') }}</label>
                                     <input type="hidden" name="vehicle[model_id]" :value="vehicle.modelId">
                                     <input type="text"
                                            class="form-control"
@@ -147,7 +145,7 @@
                                            x-model="vehicle.model"
                                            @input="onModelInput($event)"
                                            @change="onModelSelected()"
-                                           placeholder="Выберите модель"
+                                           placeholder="{{ __('Выберите модель') }}"
                                            required>
                                     <datalist id="model-options"></datalist>
                                     <template x-if="formErrors.model">
@@ -158,12 +156,12 @@
                                     @enderror
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Год выпуска</label>
+                                    <label class="form-label">{{ __('Год выпуска') }}</label>
                                     <select class="form-select"
                                             name="vehicle[year]"
                                             x-model="vehicle.year"
                                             required>
-                                        <option value="">Выберите год</option>
+                                        <option value="">{{ __('Выберите год') }}</option>
                                         @foreach($yearOptions as $yearOption)
                                             <option value="{{ $yearOption }}" @selected((string) $vehiclePrefill['year'] === (string) $yearOption)>
                                                 {{ $yearOption }}
@@ -178,7 +176,7 @@
                                     @enderror
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Пробег (км)</label>
+                                    <label class="form-label">{{ __('Пробег (км)') }}</label>
                                     <input type="number"
                                            class="form-control"
                                            name="vehicle[mileage]"
@@ -186,53 +184,53 @@
                                            x-model="vehicle.mileage">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Тип кузова</label>
+                                    <label class="form-label">{{ __('Тип кузова') }}</label>
                                     <select class="form-select" name="vehicle[body_type]">
-                                        <option value="">Не указан</option>
+                                        <option value="">{{ __('Не указан') }}</option>
                                         @foreach($bodyTypeOptions as $key => $label)
                                             <option value="{{ $key }}" @selected($vehiclePrefill['body_type'] === $key)>{{ $label }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Трансмиссия</label>
+                                    <label class="form-label">{{ __('Трансмиссия') }}</label>
                                     <select class="form-select" name="vehicle[transmission]">
-                                        <option value="">Не указана</option>
+                                        <option value="">{{ __('Не указана') }}</option>
                                         @foreach($transmissionOptions as $key => $label)
                                             <option value="{{ $key }}" @selected($vehiclePrefill['transmission'] === $key)>{{ $label }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Тип топлива</label>
+                                    <label class="form-label">{{ __('Тип топлива') }}</label>
                                     <select class="form-select" name="vehicle[fuel_type]">
-                                        <option value="">Не указано</option>
+                                        <option value="">{{ __('Не указано') }}</option>
                                         @foreach($fuelTypeOptions as $key => $label)
                                             <option value="{{ $key }}" @selected($vehiclePrefill['fuel_type'] === $key)>{{ $label }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Объём двигателя</label>
+                                    <label class="form-label">{{ __('Объём двигателя') }}</label>
                                     <select class="form-select"
                                             name="vehicle[engine_displacement_cc]"
                                             x-model="vehicle.engine_displacement_cc">
-                                        <option value="">Не указан</option>
+                                        <option value="">{{ __('Не указан') }}</option>
                                         @foreach($engineDisplacementOptions as $option)
                                             <option value="{{ $option['cc'] }}"
                                                 {{ (string) $vehiclePrefill['engine_displacement_cc'] === (string) $option['cc'] ? 'selected' : '' }}>
-                                                {{ $option['label'] }} ({{ $option['cc'] }} см³)
+                                                {{ $option['label'] }} ({{ $option['cc'] }} {{ __('см³') }})
                                             </option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Цвет кузова</label>
+                                    <label class="form-label">{{ __('Цвет кузова') }}</label>
                                     <select class="form-select"
                                             name="vehicle[exterior_color]"
                                             x-model="vehicle.exteriorColor"
                                             required>
-                                        <option value="">Выберите цвет</option>
+                                        <option value="">{{ __('Выберите цвет') }}</option>
                                         @foreach($colorOptions as $key => $label)
                                             <option value="{{ $key }}" @selected($vehiclePrefill['exterior_color'] === $key)>{{ $label }}</option>
                                         @endforeach
@@ -248,7 +246,7 @@
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">Заголовок <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ __('Заголовок') }} <span class="text-danger">*</span></label>
                             <input type="text"
                                    name="title"
                                    class="form-control"
@@ -261,19 +259,19 @@
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">Описание <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ __('Описание') }} <span class="text-danger">*</span></label>
                             <textarea name="description" rows="5" class="form-control" required>{{ $descriptionValue }}</textarea>
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">Цена (AMD) <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ __('Цена (AMD)') }} <span class="text-danger">*</span></label>
                             <input type="number" name="price" min="0" value="{{ old('price', $listing->price) }}" class="form-control" required>
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">Регион <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ __('Регион') }} <span class="text-danger">*</span></label>
                             <select name="region_id" class="form-select" required>
-                                <option value="">Выберите регион</option>
+                                <option value="">{{ __('Выберите регион') }}</option>
                                 @foreach($regions as $region)
                                     @php
                                         $rraw = $region->name ?? '';
@@ -296,7 +294,7 @@
 
                         @if($existingMedia->isNotEmpty())
                             <div class="mb-4">
-                                <label class="form-label d-block">Текущие изображения</label>
+                                <label class="form-label d-block">{{ __('Текущие изображения') }}</label>
                                 <div class="d-flex flex-wrap gap-2">
                                     @foreach($existingMedia as $media)
                                         <div class="position-relative" style="width: 110px; height: 80px; border-radius: 12px; overflow: hidden; background: #f1f3f5;">
@@ -304,19 +302,19 @@
                                         </div>
                                     @endforeach
                                 </div>
-                                <small class="text-muted d-block mt-2">Вы можете добавить новые изображения — они будут добавлены к текущим.</small>
+                                <small class="text-muted d-block mt-2">{{ __('Вы можете добавить новые изображения — они будут добавлены к текущим.') }}</small>
                             </div>
                         @endif
 
                         <div class="mb-4">
-                            <label class="form-label">Добавить изображения</label>
+                            <label class="form-label">{{ __('Добавить изображения') }}</label>
                             <input type="file" name="images[]" multiple accept="image/*" class="form-control">
-                            <small class="text-muted">PNG, JPG, WEBP до 5MB</small>
+                            <small class="text-muted">{{ __('PNG, JPG, WEBP до 5MB') }}</small>
                         </div>
 
                         <div class="d-flex justify-content-end gap-3">
-                            <a href="{{ route('dashboard.my-listings') }}" class="btn btn-brand-outline">Отмена</a>
-                            <button type="submit" class="btn btn-brand-gradient">Сохранить изменения</button>
+                            <a href="{{ route('dashboard.my-listings') }}" class="btn btn-brand-outline">{{ __('Отмена') }}</a>
+                            <button type="submit" class="btn btn-brand-gradient">{{ __('Сохранить изменения') }}</button>
                         </div>
                     </form>
                 </div>

@@ -85,6 +85,23 @@ return [
 
     'faker_locale' => 'ru_RU',
 
+    'supported_locales' => ['hy', 'ru', 'en'],
+
+    'locale_labels' => [
+        'hy' => [
+            'short' => 'Հայ',
+            'label' => 'Հայերեն',
+        ],
+        'ru' => [
+            'short' => 'Рус',
+            'label' => 'Русский',
+        ],
+        'en' => [
+            'short' => 'En',
+            'label' => 'English',
+        ],
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Encryption Key

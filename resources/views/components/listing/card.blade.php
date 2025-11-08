@@ -17,24 +17,50 @@
 
 <div class="brand-listing-card">
     @php
-        $fallbackImage = asset('images/no-image.svg');
+        static $inlineFallback = null;
+
+        if ($inlineFallback === null) {
+            $fallbackCandidates = [
+                public_path('images/no-image.jpg') => 'image/jpeg',
+                public_path('images/no-image.svg') => 'image/svg+xml',
+            ];
+
+            foreach ($fallbackCandidates as $path => $mime) {
+                if (is_readable($path)) {
+                    $inlineFallback = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+                    break;
+                }
+            }
+
+            if ($inlineFallback === null) {
+                $svgText = __('Нет фото');
+                $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#e5e7eb"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-family="Arial" font-size="22">'.$svgText.'</text></svg>';
+                $inlineFallback = 'data:image/svg+xml;base64,' . base64_encode($svg);
+            }
+        }
+
+        $fallbackImage = $inlineFallback;
         $photoSources = [];
 
-        $addMediaCollection = function ($mediaItems) use (&$photoSources) {
+        $buildMediaUrl = function ($media) {
+            $conversion = $media->hasGeneratedConversion('medium') ? 'medium' : null;
+            return $conversion
+                ? route('media.show', ['media' => $media->id, 'conversion' => $conversion])
+                : route('media.show', ['media' => $media->id]);
+        };
+
+        $addMediaCollection = function ($mediaItems) use (&$photoSources, $buildMediaUrl) {
             foreach ($mediaItems as $media) {
-                $photoSources[] = $media->hasGeneratedConversion('medium')
-                    ? $media->getFullUrl('medium')
-                    : $media->getFullUrl();
+                $photoSources[] = $buildMediaUrl($media);
             }
         };
 
-        if ($listing->relationLoaded('media')) {
-            $addMediaCollection($listing->getMedia('images'));
-            $addMediaCollection($listing->getMedia('auction_photos'));
-        } else {
-            $addMediaCollection($listing->loadMissing('media')->getMedia('images'));
-            $addMediaCollection($listing->getMedia('auction_photos'));
+        if (!$listing->relationLoaded('media')) {
+            $listing->loadMissing('media');
         }
+
+        $addMediaCollection($listing->getMedia('images'));
+        $addMediaCollection($listing->getMedia('auction_photos'));
 
         $photoSources = array_slice(array_values(array_filter(array_unique($photoSources))), 0, 12);
 
@@ -77,14 +103,14 @@
                 class="brand-listing-card__timer"
                 data-countdown
                 data-expires="{{ $expiresIso }}"
-                data-prefix="Осталось"
-                data-expired-text="Лот завершён"
+                data-prefix="{{ __('Осталось') }}"
+                data-expired-text="{{ __('Лот завершён') }}"
             >
                 <span data-countdown-text>
                     @if($isExpired)
-                        Лот завершён
+                        {{ __('Лот завершён') }}
                     @else
-                        Осталось: {{ $remainingLabel }}
+                        {{ __('Осталось: :time', ['time' => $remainingLabel]) }}
                     @endif
                 </span>
             </div>
@@ -109,7 +135,7 @@
     <a href="{{ route('listings.show', $listing) }}" class="text-decoration-none">
         <div class="brand-listing-card__content">
             <h4 class="brand-listing-card__title">{{ $listing->title }}</h4>
-            <p class="brand-listing-card__meta">{{ $listing->region?->name ?? 'Регион не указан' }}</p>
+            <p class="brand-listing-card__meta">{{ $listing->region?->name ?? __('Регион не указан') }}</p>
             <p class="brand-listing-card__price">
                 {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}
             </p>
@@ -122,12 +148,17 @@
         <script>
             (function () {
                 const initialized = new WeakMap();
+                const localeStrings = {
+                    expired: @json(__('Лот завершён')),
+                    prefix: @json(__('Осталось')),
+                    dayLabel: @json(__('д')),
+                };
 
                 function pad(value) {
                     return String(value).padStart(2, '0');
                 }
 
-                function formatRemaining(diffMillis) {
+                function formatRemaining(diffMillis, dayLabel) {
                     if (diffMillis <= 0) {
                         return null;
                     }
@@ -139,7 +170,7 @@
                     const seconds = totalSeconds % 60;
 
                     if (days > 0) {
-                        return `${days}д ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+                        return `${days}${dayLabel} ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
                     }
 
                     const totalHours = Math.floor(totalSeconds / 3600);
@@ -152,20 +183,20 @@
                         return;
                     }
 
-                    const { endTs, textNode, expiredText, prefix } = meta;
+                    const { endTs, textNode, expiredText, prefix, dayLabel } = meta;
                     const now = Date.now();
                     const remaining = endTs - now;
 
                     if (remaining <= 0) {
-                        textNode.textContent = expiredText || 'Лот завершён';
+                        textNode.textContent = expiredText || localeStrings.expired;
                         el.dataset.countdownState = 'expired';
                         return;
                     }
 
-                    const formatted = formatRemaining(remaining);
+                    const formatted = formatRemaining(remaining, dayLabel);
                     textNode.textContent = formatted
                         ? `${prefix ? prefix + ': ' : ''}${formatted}`
-                        : (expiredText || 'Лот завершён');
+                        : (expiredText || localeStrings.expired);
                 }
 
                 function initCountdown(el) {
@@ -191,8 +222,9 @@
                     initialized.set(el, {
                         endTs,
                         textNode,
-                        expiredText: el.dataset.expiredText || 'Лот завершён',
-                        prefix: el.dataset.prefix || ''
+                        expiredText: el.dataset.expiredText || localeStrings.expired,
+                        prefix: el.dataset.prefix ?? localeStrings.prefix,
+                        dayLabel: el.dataset.dayLabel || localeStrings.dayLabel,
                     });
 
                     updateCountdown(el);
@@ -207,72 +239,6 @@
                             document.querySelectorAll('[data-countdown]').forEach(updateCountdown);
                         }, 1000);
                     }
-                }
-
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', boot);
-                } else {
-                    boot();
-                }
-            })();
-
-            (function () {
-                const initialized = new WeakSet();
-
-                function parsePhotos(data) {
-                    try {
-                        const parsed = JSON.parse(data);
-                        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-                    } catch (error) {
-                        return [];
-                    }
-                }
-
-                function initCarousel(container) {
-                    if (initialized.has(container)) {
-                        return;
-                    }
-
-                    const sources = parsePhotos(container.dataset.photoSources || '[]');
-                    if (sources.length <= 1) {
-                        return;
-                    }
-
-                    const image = container.querySelector('img');
-                    if (!image) {
-                        return;
-                    }
-
-                    let currentIndex = 0;
-
-                    const showIndex = (index) => {
-                        if (!sources[index] || currentIndex === index) {
-                            return;
-                        }
-                        currentIndex = index;
-                        image.src = sources[index];
-                    };
-
-                    container.addEventListener('mousemove', (event) => {
-                        const rect = container.getBoundingClientRect();
-                        if (!rect.width) {
-                            return;
-                        }
-                        const relativeX = Math.min(Math.max(event.clientX - rect.left, 0), rect.width);
-                        const ratio = relativeX / rect.width;
-                        const targetIndex = Math.min(sources.length - 1, Math.floor(ratio * sources.length));
-                        showIndex(targetIndex);
-                    });
-
-                    container.addEventListener('mouseleave', () => {
-                        showIndex(0);
-                    });
-
-                    initialized.add(container);
-                }
-
-                function boot() {
-                    document.querySelectorAll('[data-photo-sources]').forEach(initCarousel);
                 }
 
                 if (document.readyState === 'loading') {

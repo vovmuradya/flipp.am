@@ -14,14 +14,14 @@
                             $participant = $message->sender_id === auth()->id() ? $message->receiver : $message->sender;
                         @endphp
                         <a href="{{ route('dashboard.conversation.show', ['listing' => $message->listing, 'participant' => $participant]) }}" class="block p-4 hover:bg-gray-50">
-                            <div class="font-semibold">Переписка с {{ $participant->name }}</div>
-                            <div class="text-sm text-gray-600">По объявлению: <span class="text-indigo-600">{{ $message->listing->title }}</span></div>
+                            <div class="font-semibold">{{ __('Переписка с :name', ['name' => $participant->name]) }}</div>
+                            <div class="text-sm text-gray-600">{{ __('По объявлению:') }} <span class="text-indigo-600">{{ $message->listing->title }}</span></div>
                             <div class="text-sm text-gray-500 mt-1 truncate">
-                                {{ $message->sender_id === auth()->id() ? 'Вы: ' : '' }}{{ $message->body }}
+                                {{ $message->sender_id === auth()->id() ? __('Вы: ') : '' }}{{ $message->body }}
                             </div>
                         </a>
                     @empty
-                        <p class="p-4">У вас пока нет сообщений.</p>
+                        <p class="p-4">{{ __('У вас пока нет сообщений.') }}</p>
                     @endforelse
                 </div>
             </div>

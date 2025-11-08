@@ -1,9 +1,9 @@
 <x-guest-layout>
     <section class="auth-card__section">
         <header class="auth-card__header">
-            <h2 class="auth-card__title">Войти в аккаунт</h2>
+            <h2 class="auth-card__title">{{ __('Войти в аккаунт') }}</h2>
             <p class="auth-card__subtitle">
-                Управляйте объявлениями, переписывайтесь с покупателями и отслеживайте отклики в личном кабинете idrom.am.
+                {{ __('Управляйте объявлениями, переписывайтесь с покупателями и отслеживайте отклики в личном кабинете idrom.am.') }}
             </p>
         </header>
 
@@ -17,7 +17,7 @@
         @if ($errors->any())
             <div class="auth-alert auth-alert--error">
                 <i class="fa-solid fa-triangle-exclamation"></i>
-                <span>Проверьте введённые данные и попробуйте снова.</span>
+                <span>{{ __('Проверьте введённые данные и попробуйте снова.') }}</span>
             </div>
         @endif
 
@@ -31,16 +31,16 @@
         <div class="auth-social">
             <a href="{{ route('auth.provider.redirect', 'google') }}" class="btn-social btn-social--google">
                 <i class="fa-brands fa-google"></i>
-                Войти через Google
+                {{ __('Войти через Google') }}
             </a>
             <a href="{{ route('auth.provider.redirect', 'facebook') }}" class="btn-social btn-social--facebook">
                 <i class="fa-brands fa-facebook-f"></i>
-                Войти через Facebook
+                {{ __('Войти через Facebook') }}
             </a>
         </div>
 
         <div class="auth-divider">
-            <span>или</span>
+            <span>{{ __('или') }}</span>
         </div>
 
         <form method="POST" action="{{ route('login') }}" class="auth-form">
@@ -68,7 +68,7 @@
             </div>
 
             <div class="auth-form__field">
-                <label for="password" class="auth-form__label">Пароль</label>
+                <label for="password" class="auth-form__label">{{ __('Пароль') }}</label>
                 <div class="auth-input">
                     <span class="auth-input__icon"><i class="fa-solid fa-lock"></i></span>
                     <input
@@ -77,7 +77,7 @@
                         name="password"
                         required
                         autocomplete="current-password"
-                        placeholder="Введите пароль"
+                        placeholder="{{ __('Введите пароль') }}"
                         class="auth-input__control"
                     >
                 </div>
@@ -94,22 +94,22 @@
                         name="remember"
                         {{ old('remember') ? 'checked' : '' }}
                     >
-                    <span>Запомнить меня</span>
+                    <span>{{ __('Запомнить меня') }}</span>
                 </label>
 
                 @if (Route::has('password.request'))
-                    <a href="{{ route('password.request') }}" class="auth-link">Забыли пароль?</a>
+                    <a href="{{ route('password.request') }}" class="auth-link">{{ __('Забыли пароль?') }}</a>
                 @endif
             </div>
 
             <button type="submit" class="btn-brand-red btn-brand-full auth-form__submit">
-                Войти
+                {{ __('Войти') }}
             </button>
         </form>
 
         <p class="auth-card__switch">
-            Нет аккаунта?
-            <a href="{{ route('register') }}">Зарегистрироваться</a>
+            {{ __('Нет аккаунта?') }}
+            <a href="{{ route('register') }}">{{ __('Зарегистрироваться') }}</a>
         </p>
     </section>
 </x-guest-layout>

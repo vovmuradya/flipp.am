@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\PhoneVerificationService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,11 @@ class RegisteredUserController extends Controller
         return view('auth.register');
     }
 
+    public function __construct(
+        private readonly PhoneVerificationService $phoneVerification
+    ) {
+    }
+
     /**
      * Handle an incoming registration request.
      *
@@ -32,12 +38,22 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'phone' => ['required', 'string', 'min:6', 'max:20', 'unique:users,phone'],
+            'verification_code' => ['required', 'digits:6'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
+
+        if (! $this->phoneVerification->verify($request->phone, $request->verification_code)) {
+            return back()
+                ->withErrors(['verification_code' => __('Неверный или просроченный код подтверждения.')])
+                ->withInput($request->except('password', 'password_confirmation', 'verification_code'));
+        }
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'phone' => $this->phoneVerification->normalize($request->phone),
+            'phone_verified_at' => now(),
             'password' => Hash::make($request->password),
         ]);
 

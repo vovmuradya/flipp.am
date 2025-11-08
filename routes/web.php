@@ -11,7 +11,10 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Api\AuctionListingController; // ТЗ v2.1
 use App\Http\Controllers\ImageProxyController; // Прокси изображений
 use App\Http\Controllers\ProxyController; // Новый прокси-контроллер
+use App\Http\Controllers\MediaController;
 use App\Http\Controllers\Auth\SocialAuthController;
+use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\Auth\PhoneVerificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,6 +26,8 @@ use App\Http\Controllers\Auth\SocialAuthController;
 Route::get('/', [ListingController::class, 'index'])->name('home');
 Route::get('/search', [SearchController::class, 'index'])->name('search.index');
 Route::get('/listings', [ListingController::class, 'index'])->name('listings.index');
+Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
+Route::post('/auth/phone/send-code', [PhoneVerificationController::class, 'send'])->name('auth.phone.send-code');
 
 Route::prefix('auth')->name('auth.')->group(function () {
     Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect'])
@@ -38,6 +43,9 @@ Route::prefix('auth')->name('auth.')->group(function () {
 // Прокси изображений (публично, т.к. фото в публичных объявлениях)
 Route::get('/image-proxy', [ImageProxyController::class, 'show'])->name('image.proxy');
 Route::get('/proxy/image', [ProxyController::class, 'image'])->name('proxy.image'); // Новый маршрут для прокси-контроллера изображений
+Route::get('/media/{media}/{conversion?}', [MediaController::class, 'show'])
+    ->where('conversion', '[A-Za-z0-9_\-]+')
+    ->name('media.show');
 
 // Защищённые
 Route::middleware('auth')->group(function () {
@@ -83,5 +91,4 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/listings/{listing}', [ListingController::class, 'show'])->name('listings.show');
-
 require __DIR__.'/auth.php';

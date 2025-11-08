@@ -1,12 +1,12 @@
 <x-app-layout>
 <div class="max-w-2xl mx-auto px-4 py-8">
     <div class="bg-white rounded-lg shadow-md p-6">
-        <h1 class="text-2xl font-bold mb-6">Добавить автомобиль с аукциона</h1>
+        <h1 class="text-2xl font-bold mb-6">{{ __('Добавить автомобиль с аукциона') }}</h1>
 
         <div class="mb-6">
             <p class="text-gray-600 mb-4">
-                Вставьте ссылку на автомобиль с поддерживаемого аукциона Copart.
-                Система автоматически извлечет основные данные об автомобиле.
+                {{ __('Вставьте ссылку на автомобиль с поддерживаемого аукциона Copart.') }}
+                {{ __('Система автоматически извлечет основные данные об автомобиле.') }}
             </p>
         </div>
 
@@ -14,7 +14,7 @@
         <div id="url-form" class="space-y-4">
             <div>
                 <label for="auction-url" class="block text-sm font-medium text-gray-700 mb-2">
-                    Ссылка на лот с аукциона
+                    {{ __('Ссылка на лот с аукциона') }}
                 </label>
                 <input
                     type="url"
@@ -25,7 +25,7 @@
                     required
                 >
                 <p class="mt-2 text-sm text-gray-500">
-                    Поддерживаемый сайт: Copart.com
+                    {{ __('Поддерживаемый сайт: Copart.com') }}
                 </p>
             </div>
 
@@ -41,17 +41,17 @@
                     id="fetch-button"
                     class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <span id="button-text">Далее</span>
+                    <span id="button-text">{{ __('Далее') }}</span>
                     <span id="button-loader" class="hidden">
                         <svg class="animate-spin inline-block w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Загрузка...
+                        {{ __('Загрузка...') }}
                     </span>
                 </button>
                 <a href="{{ route('listings.create') }}" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-                    Отмена
+                    {{ __('Отмена') }}
                 </a>
             </div>
         </div>
@@ -67,12 +67,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const buttonLoader = document.getElementById('button-loader');
     const errorMessage = document.getElementById('error-message');
     const errorText = document.getElementById('error-text');
+    const messages = {
+        empty: @json(__('Пожалуйста, введите ссылку на аукцион')),
+        generic: @json(__('Произошла ошибка')),
+        request: @json(__('Произошла ошибка при обработке запроса')),
+    };
 
     fetchButton.addEventListener('click', async function() {
         const url = urlInput.value.trim();
 
         if (!url) {
-            showError('Пожалуйста, введите ссылку на аукцион');
+            showError(messages.empty);
             return;
         }
 
@@ -115,11 +120,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.body.appendChild(form);
                 form.submit();
             } else {
-                showError(data.message || 'Произошла ошибка');
+                showError(data.message || messages.generic);
             }
         } catch (error) {
             console.error('Fetch error:', error);
-            showError('Произошла ошибка при обработке запроса');
+            showError(messages.request);
         } finally {
             fetchButton.disabled = false;
             buttonText.classList.remove('hidden');

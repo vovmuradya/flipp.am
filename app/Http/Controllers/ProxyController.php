@@ -83,7 +83,7 @@ class ProxyController extends Controller
 
         try {
             // Функция для выполнения запроса с общими заголовками
-            $doRequest = function(string $targetUrl) use ($referer, $copartCookieHeader, $iaaiCookies, $origin) {
+            $doRequest = function(string $targetUrl) use ($referer, $copartCookieHeader, $iaaiCookies, $origin, $configuredUserAgent) {
                 $headers = [
                     'User-Agent' => $configuredUserAgent,
                     'Accept' => 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
@@ -230,23 +230,22 @@ class ProxyController extends Controller
      */
     private function placeholderResponse(string $text = 'No+Image+Available')
     {
-        try {
-            $placeholder = Http::timeout(10)
-                ->withOptions(['http_errors' => false])
-                ->get('https://via.placeholder.com/800x600/e5e7eb/6b7280?text=' . $text);
-
-            $body = $placeholder->successful() ? $placeholder->body() : base64_decode('iVBORw0KGgoAAAANSUhEUgAAAwAAAAIACAYAAABvQm0fAAAACXBIWXMAAAsSAAALEgHS3X78AAAAGXRFWHRTb2Z0d2FyZQBwYWludC5uZXQgNC4wLjJCJ3e2AAAB+klEQVR4nO3SMQEAIAwAsHf/0x1C2K7L4K9m7gIVpGm9GgAAAAAAAAAAAAAAAAAAgE8E5v0BAAAAAAAAAAAAAAAAAPC2wJgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgH3u0AQAAB0w4g+QAAAAASUVORK5CYII=');
-
-            return response($body, 200)
-                ->header('Content-Type', 'image/png')
-                ->header('Cache-Control', 'public, max-age=3600');
-        } catch (\Throwable $e) {
-            // В крайнем случае — пустой 1x1 PNG
-            $transparentPng = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
-            return response($transparentPng, 200)
-                ->header('Content-Type', 'image/png')
-                ->header('Cache-Control', 'public, max-age=3600');
+        $localPlaceholder = public_path('images/no-image.jpg');
+        if (is_readable($localPlaceholder)) {
+            $body = @file_get_contents($localPlaceholder);
+            if ($body !== false) {
+                return response($body, 200)
+                    ->header('Content-Type', 'image/jpeg')
+                    ->header('Cache-Control', 'public, max-age=3600');
+            }
         }
+
+        // Fallback: встроенный PNG (без сетевых запросов)
+        $fallbackPng = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAwAAAAIACAYAAABvQm0fAAAACXBIWXMAAAsSAAALEgHS3X78AAAAGXRFWHRTb2Z0d2FyZQBwYWludC5uZXQgNC4wLjJCJ3e2AAAB+klEQVR4nO3SMQEAIAwAsHf/0x1C2K7L4K9m7gIVpGm9GgAAAAAAAAAAAAAAAAAAgE8E5v0BAAAAAAAAAAAAAAAAAPC2wJgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgH3u0AQAAB0w4g+QAAAAASUVORK5CYII=');
+
+        return response($fallbackPng, 200)
+            ->header('Content-Type', 'image/png')
+            ->header('Cache-Control', 'public, max-age=3600');
     }
 
     /**

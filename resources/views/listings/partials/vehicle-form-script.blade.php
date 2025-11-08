@@ -92,21 +92,10 @@
                             this.syncModelFromName();
                             this.updateAutoTitle(true);
 
-                            if (!this.vehicle.brandId) {
-                                this.formErrors.brand = 'Выберите марку из списка.';
-                            }
-                            if (!this.vehicle.modelId) {
-                                this.formErrors.model = 'Выберите модель из списка.';
-                            }
                             if (!this.vehicle.year) {
                                 this.formErrors.year = 'Выберите год выпуска.';
                             } else if (this.yearOptions.length && !this.yearOptions.includes(String(this.vehicle.year))) {
                                 this.formErrors.year = 'Выберите год из списка.';
-                            }
-                            if (!this.vehicle.exteriorColor) {
-                                this.formErrors.color = 'Выберите цвет кузова.';
-                            } else if (!this.isColorValid(this.vehicle.exteriorColor)) {
-                                this.formErrors.color = 'Цвет должен быть выбран из списка.';
                             }
                         }
 

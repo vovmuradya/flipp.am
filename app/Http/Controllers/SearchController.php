@@ -15,7 +15,13 @@ class SearchController extends Controller
         $sortBy = $request->input('sort_by', 'created_at');
         $sortOrder = $request->input('sort_order', 'desc');
 
-        $allowedSorts = ['created_at', 'price', 'views_count', 'title'];
+        $sortOptions = [
+            'created_at' => __('По дате'),
+            'price' => __('По цене'),
+            'views_count' => __('По популярности'),
+            'title' => __('По названию'),
+        ];
+        $allowedSorts = array_keys($sortOptions);
         if (!in_array($sortBy, $allowedSorts)) {
             $sortBy = 'created_at';
         }
@@ -37,9 +43,25 @@ class SearchController extends Controller
         if ($request->filled('price_to')) {
             $search->where('price', '<=', (int)$request->input('price_to'));
         }
+        if ($request->filled('currency')) {
+            $search->where('currency', strtoupper($request->input('currency')));
+        }
+        if ($request->filled('year_from')) {
+            $search->where('year', '>=', (int)$request->input('year_from'));
+        }
+        if ($request->filled('year_to')) {
+            $search->where('year', '<=', (int)$request->input('year_to'));
+        }
 
         if ($request->filled('listing_type')) {
             $search->where('listing_type', $request->input('listing_type'));
+        }
+
+        $origin = $request->input('origin');
+        if ($origin === 'regular') {
+            $search->where('is_from_auction', false);
+        } elseif (in_array($origin, ['auction', 'abroad', 'transit'])) {
+            $search->where('is_from_auction', true);
         }
 
         // Обработка кастомных фильтров
@@ -78,7 +100,8 @@ class SearchController extends Controller
             'listings' => $listings,
             'categories' => $categories,
             'allCategories' => $allCategories, // Для JS
-            'regions' => $regions
+            'regions' => $regions,
+            'sortOptions' => $sortOptions,
         ]);
     }
 }

@@ -32,15 +32,15 @@
                 </a>
 
                 <div class="auth-aside__content">
-                    <h1 class="auth-aside__title">Место, где автомобили находят новых владельцев</h1>
+                    <h1 class="auth-aside__title">{{ __('Место, где автомобили находят новых владельцев') }}</h1>
                     <p class="auth-aside__subtitle">
-                        Публикуйте объявления, следите за лотами с аукционов и общайтесь с покупателями — всё в одном профиле.
+                        {{ __('Публикуйте объявления, следите за лотами с аукционов и общайтесь с покупателями — всё в одном профиле.') }}
                     </p>
 
                     <ul class="auth-aside__list">
-                        <li><i class="fa-solid fa-check"></i> Быстрая подача объявления с фото и характеристиками</li>
-                        <li><i class="fa-solid fa-check"></i> Уведомления о сообщениях и избранных предложениях</li>
-                        <li><i class="fa-solid fa-check"></i> Инструменты для частных продавцов, дилеров и сервисов</li>
+                        <li><i class="fa-solid fa-check"></i> {{ __('Быстрая подача объявления с фото и характеристиками') }}</li>
+                        <li><i class="fa-solid fa-check"></i> {{ __('Уведомления о сообщениях и избранных предложениях') }}</li>
+                        <li><i class="fa-solid fa-check"></i> {{ __('Инструменты для частных продавцов, дилеров и сервисов') }}</li>
                     </ul>
                 </div>
             </div>
@@ -54,5 +54,6 @@
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
         @stack('scripts')
+        @include('layouts.partials.locale-modal')
     </body>
 </html>

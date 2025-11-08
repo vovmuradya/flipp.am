@@ -31,6 +31,15 @@ class ListingController extends Controller
     {
         $onlyRegular = $request->boolean('only_regular');
         $onlyAuctions = $request->boolean('only_auctions');
+        $originFilter = $request->string('origin')->lower();
+
+        if ($originFilter === 'regular') {
+            $onlyRegular = true;
+            $onlyAuctions = false;
+        } elseif (in_array($originFilter, ['auction', 'abroad', 'transit'])) {
+            $onlyRegular = false;
+            $onlyAuctions = true;
+        }
 
         $query = Listing::query()
             ->with(['category', 'region', 'user', 'media']);
@@ -63,6 +72,10 @@ class ListingController extends Controller
         }
         if ($request->filled('price_to') && is_numeric($request->price_to)) {
             $query->where('price', '<=', (float) $request->price_to);
+        }
+        if ($request->filled('currency')) {
+            $currency = strtoupper($request->input('currency'));
+            $query->where('currency', $currency);
         }
 
         // Поиск по тексту
@@ -133,14 +146,17 @@ class ListingController extends Controller
             });
         }
 
-        $listings = $query->paginate(20)->withQueryString();
+        if ($onlyRegular || $onlyAuctions) {
+            $listings = $query->paginate(20)->withQueryString();
+        } else {
+            $listings = $query->limit(40)->get();
+        }
 
-        $sliderRegularListings = collect();
+        $featuredListings = collect();
 
         if (!$onlyRegular && !$onlyAuctions) {
-            $sliderRegularListings = Listing::query()
-                ->with(['category', 'region', 'media'])
-                ->regular()
+            $featuredListings = Listing::query()
+                ->with(['vehicleDetail', 'media'])
                 ->active()
                 ->latest()
                 ->take(12)
@@ -172,33 +188,32 @@ class ListingController extends Controller
             return Region::all();
         });
 
-        $auctionListings = collect();
-        $auctionListings = collect();
-        if (!$onlyRegular && !$onlyAuctions) {
-            $auctionListings = Listing::query()
-                ->with(['vehicleDetail', 'media'])
-                ->fromAuction()
-                ->active()
-                ->latest()
-                ->take(8)
-                ->get();
-        }
-
         $brands = ($onlyRegular || $onlyAuctions)
             ? CarBrand::query()
                 ->orderByRaw('COALESCE(NULLIF(name_ru, \'\'), name_en)')
                 ->get(['id', 'name_ru', 'name_en'])
             : collect();
 
+        $currentOrigin = $originFilter;
+        if (!$currentOrigin) {
+            if ($onlyRegular) {
+                $currentOrigin = 'regular';
+            } elseif ($onlyAuctions) {
+                $currentOrigin = 'abroad';
+            } else {
+                $currentOrigin = 'regular';
+            }
+        }
+
         return view('listings.index', compact(
             'listings',
             'categories',
             'regions',
-            'auctionListings',
+            'featuredListings',
             'onlyRegular',
             'onlyAuctions',
-            'sliderRegularListings',
-            'brands'
+            'brands',
+            'currentOrigin'
         ));
     }
 

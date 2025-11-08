@@ -19,7 +19,7 @@
                                     @if($listing->hasMedia('images'))
                                         <img src="{{ $listing->getFirstMediaUrl('images', 'thumb') }}" alt="{{ $listing->title }}" class="w-24 h-24 object-cover rounded-md shadow-sm">
                                     @else
-                                        <img src="{{ $fallbackImage }}" alt="Нет изображения" class="w-24 h-24 object-cover rounded-md shadow-sm">
+                                        <img src="{{ $fallbackImage }}" alt="{{ __('Нет изображения') }}" class="w-24 h-24 object-cover rounded-md shadow-sm">
                                     @endif
                                 </a>
                                 <div>
@@ -53,7 +53,7 @@
                                                 $catName = '—';
                                             }
                                         @endphp
-                                        <span>Категория: {{ $catName }}</span>
+                                        <span>{{ __('Категория:') }} {{ $catName }}</span>
                                     </div>
                                     <div class="text-lg font-bold text-gray-800 mt-2">
                                         ${{ number_format($listing->price, 0) }}
@@ -63,11 +63,11 @@
                             {{-- Кнопка для удаления из избранного --}}
                             <form action="{{ route('listings.favorite.toggle', $listing) }}" method="POST">
                                 @csrf
-                                <button type="submit" class="text-red-500 hover:underline">Удалить из избранного</button>
+                                <button type="submit" class="text-red-500 hover:underline">{{ __('Удалить из избранного') }}</button>
                             </form>
                         </div>
                     @empty
-                        <p>Вы еще ничего не добавили в избранное.</p>
+                        <p>{{ __('Вы еще ничего не добавили в избранное.') }}</p>
                     @endforelse
 
                     <div class="mt-8">

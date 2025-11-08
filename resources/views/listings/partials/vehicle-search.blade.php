@@ -3,6 +3,7 @@
 
     $mode = $mode ?? 'regular';
     $fullWidth = $fullWidth ?? false;
+    $showFilterOnTop = $showFilterOnTop ?? false;
 
     $bodyOptions = VehicleAttributeOptions::bodyTypes();
     $transmissionOptions = VehicleAttributeOptions::transmissions();
@@ -40,8 +41,8 @@
 
 @if($fullWidth)
     <div class="vehicle-fullwidth">
-        <div class="vehicle-fullwidth__grid row g-4 g-xl-5 align-items-start">
-            <aside class="vehicle-fullwidth__sidebar col-12 col-lg-3 order-1 order-lg-2">
+        @if($showFilterOnTop)
+            <div class="vehicle-filter-top mb-4">
                 @include('listings.partials.vehicle-filter-form', [
                     'mode' => $mode,
                     'bodyOptions' => $bodyOptions,
@@ -52,39 +53,25 @@
                     'resetParams' => $resetParams,
                     'fullWidth' => true,
                 ])
-            </aside>
-            <div class="vehicle-fullwidth__main col-12 col-lg-9 order-2 order-lg-1">
-                <div class="listing-grid listing-grid--fullwidth">
-                    @forelse ($listings as $listing)
-                        <x-listing.card :listing="$listing" />
-                    @empty
-                        <p class="text-center text-muted py-4">Объявлений пока нет. Попробуйте изменить фильтры.</p>
-                    @endforelse
-                </div>
-                <div class="vehicle-fullwidth__pagination">
-                    {{ $listings->appends(request()->except('page'))->links() }}
-                </div>
+            </div>
+        @endif
+
+        <div class="vehicle-fullwidth__main">
+            <div class="listing-grid listing-grid--fullwidth">
+                @forelse ($listings as $listing)
+                    <x-listing.card :listing="$listing" />
+                @empty
+                    <p class="text-center text-muted py-4">{{ __('Объявлений пока нет.') }}</p>
+                @endforelse
+            </div>
+            <div class="vehicle-fullwidth__pagination">
+                {{ $listings->appends(request()->except('page'))->links() }}
             </div>
         </div>
     </div>
 @else
-    <div class="row g-4 align-items-start">
-        <div class="col-12 col-lg-9 order-2 order-lg-1">
-            <div class="brand-surface">
-                <div class="listing-grid">
-                    @forelse ($listings as $listing)
-                        <x-listing.card :listing="$listing" />
-                    @empty
-                        <p class="text-center text-muted py-4">Объявлений пока нет. Попробуйте изменить фильтры.</p>
-                    @endforelse
-                </div>
-            </div>
-            <div class="pt-3">
-                {{ $listings->appends(request()->except('page'))->links() }}
-            </div>
-        </div>
-
-        <div class="col-12 col-lg-3 order-1 order-lg-2">
+    @if($showFilterOnTop)
+        <div class="vehicle-filter-top mb-4">
             @include('listings.partials.vehicle-filter-form', [
                 'mode' => $mode,
                 'bodyOptions' => $bodyOptions,
@@ -93,9 +80,22 @@
                 'engineOptions' => $engineOptions,
                 'activeFilters' => $activeFilters,
                 'resetParams' => $resetParams,
-                'fullWidth' => false,
+                'fullWidth' => true,
             ])
         </div>
+    @endif
+
+    <div class="brand-surface">
+        <div class="listing-grid">
+            @forelse ($listings as $listing)
+                <x-listing.card :listing="$listing" />
+            @empty
+                <p class="text-center text-muted py-4">{{ __('Объявлений пока нет.') }}</p>
+            @endforelse
+        </div>
+    </div>
+    <div class="pt-3">
+        {{ $listings->appends(request()->except('page'))->links() }}
     </div>
 @endif
 

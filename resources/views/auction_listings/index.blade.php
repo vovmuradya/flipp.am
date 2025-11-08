@@ -2,9 +2,9 @@
     <section class="brand-section">
         <div class="brand-container">
             <div class="brand-section__header">
-                <h2 class="brand-section__title">Мои аукционные объявления</h2>
+                <h2 class="brand-section__title">{{ __('Мои аукционные объявления') }}</h2>
                 <p class="brand-section__subtitle">
-                    Управляйте объявлениями, импортированными с Copart: обновляйте информацию, отслеживайте статус и создавайте новые лоты.
+                    {{ __('Управляйте объявлениями, импортированными с Copart: обновляйте информацию, отслеживайте статус и создавайте новые лоты.') }}
                 </p>
             </div>
 
@@ -18,21 +18,21 @@
             <div class="brand-surface">
                 <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-4">
                     <div>
-                        <h3 class="h5 fw-semibold mb-1">Список ваших лотов</h3>
-                        <p class="mb-0 text-muted">Все объявления, которые вы импортировали с Copart.</p>
+                        <h3 class="h5 fw-semibold mb-1">{{ __('Список ваших лотов') }}</h3>
+                        <p class="mb-0 text-muted">{{ __('Все объявления, которые вы импортировали с Copart.') }}</p>
                     </div>
                     <a href="{{ route('listings.create-from-auction') }}" class="btn btn-brand-gradient">
-                        Добавить новое
+                        {{ __('Добавить новое') }}
                     </a>
                 </div>
 
                 @if($listings->isEmpty())
                     <div class="text-center py-5" style="border: 1px dashed rgba(18,18,18,0.08); border-radius: 18px;">
                         <div class="mb-3" style="font-size: 32px;">🗂️</div>
-                        <h4 class="fw-semibold">Пока нет импортированных объявлений</h4>
-                        <p class="text-muted mb-4">Импортируйте лот с Copart — фотографии и характеристики подтянутся автоматически.</p>
+                        <h4 class="fw-semibold">{{ __('Пока нет импортированных объявлений') }}</h4>
+                        <p class="text-muted mb-4">{{ __('Импортируйте лот с Copart — фотографии и характеристики подтянутся автоматически.') }}</p>
                         <a href="{{ route('listings.create-from-auction') }}" class="btn btn-brand-gradient">
-                            Импортировать с Copart
+                            {{ __('Импортировать с Copart') }}
                         </a>
                     </div>
                 @else
@@ -40,11 +40,11 @@
                         <table class="table align-middle mb-0">
                             <thead>
                             <tr>
-                                <th scope="col">Фото</th>
-                                <th scope="col">Заголовок</th>
-                                <th scope="col">Цена</th>
-                                <th scope="col">Статус</th>
-                                <th scope="col" class="text-end">Действия</th>
+                                <th scope="col">{{ __('Фото') }}</th>
+                                <th scope="col">{{ __('Заголовок') }}</th>
+                                <th scope="col">{{ __('Цена') }}</th>
+                                <th scope="col">{{ __('Статус') }}</th>
+                                <th scope="col" class="text-end">{{ __('Действия') }}</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -80,14 +80,14 @@
                                                     style="background: rgba(17,17,17,0.75); color: #fff; font-size: 10px;"
                                                     data-countdown
                                                     data-expires="{{ $expiresIso }}"
-                                                    data-prefix="До конца"
-                                                    data-expired-text="Лот завершён"
+                                                    data-prefix="{{ __('До конца') }}"
+                                                    data-expired-text="{{ __('Лот завершён') }}"
                                                 >
                                                     <span data-countdown-text>
                                                         @if($isExpired)
-                                                            Лот завершён
+                                                            {{ __('Лот завершён') }}
                                                         @else
-                                                            До конца: {{ $remainingLabel }}
+                                                            {{ __('До конца: :time', ['time' => $remainingLabel]) }}
                                                         @endif
                                                     </span>
                                                 </div>
@@ -104,21 +104,21 @@
                                     </td>
                                     <td>
                                         @if($listing->status === 'active')
-                                            <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">Активно</span>
+                                            <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">{{ __('Активно') }}</span>
                                         @else
-                                            <span class="badge bg-warning-subtle text-warning px-3 py-2 rounded-pill">Черновик</span>
+                                            <span class="badge bg-warning-subtle text-warning px-3 py-2 rounded-pill">{{ __('Черновик') }}</span>
                                         @endif
                                     </td>
                                     <td class="text-end">
                                         <div class="d-flex justify-content-end gap-3">
                                             <a href="{{ route('auction-listings.edit', $listing) }}" class="text-decoration-none fw-semibold" style="color: var(--brand-orange);">
-                                                Редактировать
+                                                {{ __('Редактировать') }}
                                             </a>
-                                            <form action="{{ route('auction-listings.destroy', $listing) }}" method="POST" onsubmit="return confirm('Удалить объявление?');">
+                                            <form action="{{ route('auction-listings.destroy', $listing) }}" method="POST" onsubmit="return confirm('{{ __('Удалить объявление?') }}');">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="btn btn-link p-0 text-decoration-none fw-semibold" style="color: var(--brand-red);">
-                                                    Удалить
+                                                    {{ __('Удалить') }}
                                                 </button>
                                             </form>
                                         </div>

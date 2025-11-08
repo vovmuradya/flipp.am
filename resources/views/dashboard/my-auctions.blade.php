@@ -2,16 +2,16 @@
     <section class="brand-section">
         <div class="brand-container">
             <div class="brand-section__header">
-                <h2 class="brand-section__title">Авто с аукционов Copart</h2>
+                <h2 class="brand-section__title">{{ __('Авто с аукционов Copart') }}</h2>
                 <p class="brand-section__subtitle">
-                    Просматривайте и отслеживайте все импортированные лоты. Следите за статусом и переходите к подробному описанию в один клик.
+                    {{ __('Просматривайте и отслеживайте все импортированные лоты. Следите за статусом и переходите к подробному описанию в один клик.') }}
                 </p>
             </div>
 
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-                <h3 class="h5 fw-semibold mb-0">Найдено {{ $listings->total() }} лотов</h3>
+                <h3 class="h5 fw-semibold mb-0">{{ __('Найдено :count лотов', ['count' => $listings->total()]) }}</h3>
                 <a href="{{ route('listings.create-from-auction') }}" class="btn btn-brand-outline">
-                    + Добавить из Copart
+                    + {{ __('Добавить из Copart') }}
                 </a>
             </div>
 
@@ -19,18 +19,18 @@
                 @forelse($listings as $listing)
                     @php
                         $endsAt = optional($listing->vehicleDetail)->auction_ends_at;
-                        $statusLabel = 'Active';
+                        $statusLabel = __('Active');
                         $statusClass = 'bg-success-subtle text-success-emphasis';
 
                         if ($endsAt instanceof \Carbon\Carbon) {
                             if ($endsAt->isPast()) {
-                                $statusLabel = 'Ended';
+                                $statusLabel = __('Ended');
                                 $statusClass = 'bg-secondary-subtle text-secondary-emphasis';
                             } elseif ($endsAt->diffInHours(now()) >= 24) {
-                                $statusLabel = 'Upcoming';
+                                $statusLabel = __('Upcoming');
                                 $statusClass = 'bg-warning-subtle text-warning-emphasis';
                             } else {
-                                $statusLabel = 'Active';
+                                $statusLabel = __('Active');
                                 $statusClass = 'bg-success-subtle text-success-emphasis';
                             }
                         }
@@ -93,27 +93,27 @@
                                                 {{ $listing->title }}
                                             </h5>
                                             <div class="text-muted small">
-                                                Лот № {{ $listing->id }}
+                                                {{ __('Лот № :id', ['id' => $listing->id]) }}
                                             </div>
                                         </div>
                                         <p class="card-text text-muted small mb-2">
-                                            Окончание аукциона:
+                                            {{ __('Окончание аукциона:') }}
                                             @if($endsAt)
                                                 {{ $endsAt->timezone(config('app.timezone'))->format('d.m.Y H:i') }}
                                             @else
-                                                Не указано
+                                                {{ __('Не указано') }}
                                             @endif
                                         </p>
                                         <p class="card-text fw-semibold fs-5 mb-3">
-                                            Ставка: {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}
+                                            {{ __('Ставка: :amount :currency', ['amount' => number_format($listing->price, 0, '.', ' '), 'currency' => $listing->currency]) }}
                                         </p>
                                         <div class="mt-auto d-flex flex-wrap gap-2">
                                             <a href="{{ route('listings.show', $listing) }}" class="btn btn-brand-gradient">
-                                                Подробнее
+                                                {{ __('Подробнее') }}
                                             </a>
                                             @if(auth()->id() === $listing->user_id)
                                                 <a href="{{ route('auction-listings.edit', $listing) }}" class="btn btn-outline-secondary">
-                                                    Редактировать
+                                                    {{ __('Редактировать') }}
                                                 </a>
                                             @endif
                                         </div>
@@ -124,7 +124,7 @@
                     </div>
                 @empty
                     <div class="brand-surface text-center py-5 text-muted">
-                        По заданным параметрам ничего не найдено. Попробуйте изменить фильтры.
+                        {{ __('По заданным параметрам ничего не найдено. Попробуйте изменить фильтры.') }}
                     </div>
                 @endforelse
             </div>

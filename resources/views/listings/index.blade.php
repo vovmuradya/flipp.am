@@ -5,53 +5,27 @@
         $isFullWidth = $onlyRegular || $onlyAuctions;
     @endphp
     <section class="brand-section {{ $isFullWidth ? 'brand-section--fullwidth' : '' }}">
-        @if(!$onlyRegular && !$onlyAuctions && $sliderRegularListings->isNotEmpty())
-            <div class="brand-slider brand-slider--fullwidth" data-slider="regular">
-                <div class="brand-slider__header">
-                    <div>
-                        <h3 class="brand-slider__title">Свежие объявления</h3>
-                        <p class="brand-slider__subtitle">Самые новые предложения от частных продавцов и дилеров.</p>
-                    </div>
-                </div>
-
-                <div class="brand-slider__viewport" data-slider-viewport>
-                    <div class="brand-slider__track" data-slider-track>
-                        @foreach($sliderRegularListings as $listing)
-                            <div class="brand-slider__panel">
-                                <x-listing.card :listing="$listing" />
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-
-                <div class="brand-slider__nav brand-slider__nav--floating">
-                    <button type="button" class="brand-slider__nav-btn" data-slider-prev aria-label="Предыдущие объявления" disabled>
-                        <i class="fa-solid fa-chevron-left"></i>
-                    </button>
-                    <button type="button" class="brand-slider__nav-btn" data-slider-next aria-label="Следующие объявления">
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                </div>
-            </div>
-        @endif
-
-        @if(!$onlyRegular && !$onlyAuctions && isset($auctionListings) && $auctionListings->isNotEmpty())
+        @if(!$onlyRegular && !$onlyAuctions && $featuredListings->isNotEmpty())
             <div class="brand-slider brand-slider--fullwidth mt-5" data-slider="auction">
                 <div class="brand-slider__header">
                     <div>
-                        <h3 class="brand-slider__title">Аукционные автомобили</h3>
-                        <p class="brand-slider__subtitle">Актуальные предложения от проверенных дилеров.</p>
+                        <h3 class="brand-slider__title">{{ __('Актуальные автомобили') }}</h3>
+                        <p class="brand-slider__subtitle">{{ __('Смешанная подборка из аукционов и частных объявлений.') }}</p>
                     </div>
                 </div>
 
                 <div class="brand-slider__viewport" data-slider-viewport>
                     <div class="brand-slider__track" data-slider-track>
-                        @foreach($auctionListings as $listing)
+                        @foreach($featuredListings as $listing)
+                            @php
+                                $isAuction = $listing->isFromAuction();
+                                $expiresAt = $isAuction ? optional($listing->vehicleDetail)->auction_ends_at : null;
+                            @endphp
                             <div class="brand-slider__panel">
                                 <x-listing.card
                                     :listing="$listing"
-                                    badge="Аукцион"
-                                    :expires="optional($listing->vehicleDetail)->auction_ends_at"
+                                    :badge="$isAuction ? __('Аукцион') : null"
+                                    :expires="$expiresAt"
                                 />
                             </div>
                         @endforeach
@@ -59,10 +33,10 @@
                 </div>
 
                 <div class="brand-slider__nav brand-slider__nav--floating">
-                    <button type="button" class="brand-slider__nav-btn" data-slider-prev aria-label="Предыдущие аукционные объявления" disabled>
+                    <button type="button" class="brand-slider__nav-btn" data-slider-prev aria-label="{{ __('Предыдущие аукционные объявления') }}" disabled>
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
-                    <button type="button" class="brand-slider__nav-btn" data-slider-next aria-label="Следующие аукционные объявления">
+                    <button type="button" class="brand-slider__nav-btn" data-slider-next aria-label="{{ __('Следующие аукционные объявления') }}">
                         <i class="fa-solid fa-chevron-right"></i>
                     </button>
                 </div>
@@ -85,19 +59,14 @@
                     'fullWidth' => true,
                 ])
             @else
-                @include('listings._partials.filters')
-
                 <div class="brand-surface">
                     <div class="listing-grid">
-                        @forelse ($listings as $listing)
-                            <x-listing.card :listing="$listing" />
-                        @empty
-                            <p class="text-center text-muted py-4">Объявлений пока нет.</p>
-                        @endforelse
-                    </div>
-                    <div class="mt-4">
-                        {{ $listings->links() }}
-                    </div>
+                    @forelse ($listings as $listing)
+                        <x-listing.card :listing="$listing" />
+                    @empty
+                        <p class="text-center text-muted py-4">{{ __('Объявлений пока нет.') }}</p>
+                    @endforelse
+                </div>
                 </div>
             @endif
         </div>

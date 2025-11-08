@@ -1,14 +1,14 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Переписка с {{ $participant->name }}
+            {{ __('Переписка с :name', ['name' => $participant->name]) }}
         </h2>
     </x-slot>
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    <div class="mb-4">По объявлению: <a href="{{ route('listings.show', $listing) }}" class="text-indigo-600 font-bold">{{ $listing->title }}</a></div>
+                    <div class="mb-4">{{ __('По объявлению:') }} <a href="{{ route('listings.show', $listing) }}" class="text-indigo-600 font-bold">{{ $listing->title }}</a></div>
 
                     {{-- История чата --}}
                     <div class="space-y-4 mb-6">
@@ -25,8 +25,8 @@
                     <div class="border-t pt-6">
                         <form action="{{ route('dashboard.conversation.reply', ['listing' => $listing, 'participant' => $participant]) }}" method="POST">
                             @csrf
-                            <textarea name="body" rows="4" class="w-full border-gray-300 rounded-md" placeholder="Написать ответ..." required></textarea>
-                            <div class="mt-4"><x-primary-button>Отправить</x-primary-button></div>
+                            <textarea name="body" rows="4" class="w-full border-gray-300 rounded-md" placeholder="{{ __('Написать ответ...') }}" required></textarea>
+                            <div class="mt-4"><x-primary-button>{{ __('Отправить') }}</x-primary-button></div>
                         </form>
                     </div>
                 </div>
