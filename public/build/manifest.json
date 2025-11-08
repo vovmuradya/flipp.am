@@ -1,0 +1,22 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-C3Z33aYD.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-D2oUeWaa.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/listing-form.js": {
+    "file": "assets/listing-form-cnxFoHJI.js",
+    "name": "listing-form",
+    "src": "resources/js/listing-form.js",
+    "isEntry": true
+  }
+}
