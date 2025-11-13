@@ -3,20 +3,26 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
         'name',
         'email',
         'password',
         'phone',
+        'phone_verified_at',
         'role',
         'avatar',
+        'timezone',
+        'language',
+        'notification_settings',
         'provider',
         'provider_id',
         'provider_token',
@@ -39,6 +45,31 @@ class User extends Authenticatable
             'phone_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    protected function notificationSettings(): Attribute
+    {
+        $defaults = [
+            'messages' => true,
+            'auctions' => true,
+            'listings' => true,
+        ];
+
+        return Attribute::make(
+            get: function ($value) use ($defaults) {
+                $decoded = is_array($value)
+                    ? $value
+                    : (json_decode($value ?? '[]', true) ?: []);
+
+                return array_merge($defaults, $decoded);
+            },
+            set: function ($value) use ($defaults) {
+                $incoming = is_array($value) ? $value : (array) $value;
+                $normalized = array_merge($defaults, array_filter($incoming, fn ($v) => $v !== null));
+
+                return $normalized;
+            }
+        );
     }
 
     public function listings()
@@ -69,6 +100,11 @@ class User extends Authenticatable
     public function reviewsReceived()
     {
         return $this->hasMany(Review::class, 'reviewee_id');
+    }
+
+    public function devices()
+    {
+        return $this->hasMany(Device::class);
     }
 
     // ==================== Методы для работы с ролями (ТЗ v2.1) ====================

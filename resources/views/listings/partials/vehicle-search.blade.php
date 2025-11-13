@@ -1,9 +1,11 @@
 @php
     use App\Support\VehicleAttributeOptions;
 
-    $mode = $mode ?? 'regular';
+    $mode = $mode ?? null;
     $fullWidth = $fullWidth ?? false;
-    $showFilterOnTop = $showFilterOnTop ?? false;
+    $formAction = $formAction ?? null;
+    $formMethod = $formMethod ?? 'GET';
+    $resetUrl = $resetUrl ?? null;
 
     $bodyOptions = VehicleAttributeOptions::bodyTypes();
     $transmissionOptions = VehicleAttributeOptions::transmissions();
@@ -34,15 +36,31 @@
         'Двигатель до' => request('engine_to') ? (request('engine_to') . ' см³') : null,
     ])->filter();
 
-    $resetParams = $mode === 'auction'
-        ? ['only_auctions' => 1]
-        : ['only_regular' => 1];
+    $resetParams = match ($mode) {
+        'auction' => ['only_auctions' => 1],
+        'regular' => ['only_regular' => 1],
+        default => [],
+    };
 @endphp
 
 @if($fullWidth)
     <div class="vehicle-fullwidth">
-        @if($showFilterOnTop)
-            <div class="vehicle-filter-top mb-4">
+        <div class="vehicle-fullwidth__grid">
+            <div class="vehicle-fullwidth__main vehicle-fullwidth__results" id="ajax-search-results" data-listings-container>
+                <div class="listing-grid{{ $fullWidth ? ' listing-grid--compact' : '' }}">
+                    @forelse ($listings as $listing)
+                        <x-listing.card :listing="$listing" />
+                    @empty
+                        <p class="text-center text-muted py-4">{{ __('Объявлений пока нет.') }}</p>
+                    @endforelse
+                </div>
+                <div class="vehicle-fullwidth__pagination">
+                    @if ($listings instanceof \Illuminate\Pagination\LengthAwarePaginator || $listings instanceof \Illuminate\Pagination\Paginator)
+                        {{ $listings->appends(request()->except('page'))->links() }}
+                    @endif
+                </div>
+            </div>
+            <aside class="vehicle-fullwidth__sidebar">
                 @include('listings.partials.vehicle-filter-form', [
                     'mode' => $mode,
                     'bodyOptions' => $bodyOptions,
@@ -51,42 +69,17 @@
                     'engineOptions' => $engineOptions,
                     'activeFilters' => $activeFilters,
                     'resetParams' => $resetParams,
-                    'fullWidth' => true,
+                    'resetUrl' => $resetUrl,
+                    'fullWidth' => false,
+                    'formAction' => $formAction,
+                    'formMethod' => $formMethod,
                 ])
-            </div>
-        @endif
-
-        <div class="vehicle-fullwidth__main">
-            <div class="listing-grid listing-grid--fullwidth">
-                @forelse ($listings as $listing)
-                    <x-listing.card :listing="$listing" />
-                @empty
-                    <p class="text-center text-muted py-4">{{ __('Объявлений пока нет.') }}</p>
-                @endforelse
-            </div>
-            <div class="vehicle-fullwidth__pagination">
-                {{ $listings->appends(request()->except('page'))->links() }}
-            </div>
+            </aside>
         </div>
     </div>
 @else
-    @if($showFilterOnTop)
-        <div class="vehicle-filter-top mb-4">
-            @include('listings.partials.vehicle-filter-form', [
-                'mode' => $mode,
-                'bodyOptions' => $bodyOptions,
-                'transmissionOptions' => $transmissionOptions,
-                'fuelOptions' => $fuelOptions,
-                'engineOptions' => $engineOptions,
-                'activeFilters' => $activeFilters,
-                'resetParams' => $resetParams,
-                'fullWidth' => true,
-            ])
-        </div>
-    @endif
-
-    <div class="brand-surface">
-        <div class="listing-grid">
+    <div class="brand-surface" data-listings-container>
+        <div class="listing-grid{{ $fullWidth ? ' listing-grid--compact' : '' }}">
             @forelse ($listings as $listing)
                 <x-listing.card :listing="$listing" />
             @empty
@@ -94,7 +87,7 @@
             @endforelse
         </div>
     </div>
-    <div class="pt-3">
+    <div class="pt-3" id="ajax-search-results">
         {{ $listings->appends(request()->except('page'))->links() }}
     </div>
 @endif

@@ -1,22 +1,29 @@
 @php
     use App\Support\VehicleAttributeOptions;
     $colorOptions = $colorOptions ?? VehicleAttributeOptions::colors();
+    $formAction = $formAction ?? route('listings.index');
+    $formMethod = $formMethod ?? 'GET';
+    $filterMode = $mode ?? null;
+    $resetParams = $resetParams ?? [];
+    $resetUrl = $resetUrl ?? route('listings.index', $resetParams);
+    $collapsibleId = $collapsibleId ?? 'vehicle-filter-collapsible-' . uniqid();
 @endphp
 
 <div class="vehicle-filter-card {{ $fullWidth ?? false ? 'vehicle-filter-card--fullwidth' : 'brand-surface sticky-top' }}"
+     data-filter-card
      @if(empty($fullWidth)) style="top: 90px; z-index: 1;" @endif>
-    <form method="GET"
-          action="{{ route('listings.index') }}"
-          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-end"
+    <form method="{{ $formMethod }}"
+          action="{{ $formAction }}"
+          class="vehicle-filter-form"
           id="vehicle-filter-form">
-        @if($mode === 'auction')
+        @if($filterMode === 'auction')
             <input type="hidden" name="only_auctions" value="1">
-        @else
+        @elseif($filterMode === 'regular')
             <input type="hidden" name="only_regular" value="1">
         @endif
 
-        {{-- Поиск (поле занимает всю ширину) --}}
-        <div class="sm:col-span-2 md:col-span-4">
+        {{-- Поиск --}}
+        <div class="vehicle-filter-row" data-filter-mobile-toggle aria-controls="{{ $collapsibleId }}">
             <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Поиск') }}</label>
             <input type="search"
                    name="q"
@@ -26,8 +33,9 @@
                    value="{{ request('q') }}">
         </div>
 
-        {{-- Марка и Модель --}}
-        <div>
+        <div id="{{ $collapsibleId }}" data-filter-collapsible>
+        {{-- Марка --}}
+        <div class="vehicle-filter-row">
             <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Марка') }}</label>
             <div class="relative mt-1">
                 <input type="text"
@@ -42,7 +50,8 @@
             </div>
         </div>
 
-        <div>
+        {{-- Модель --}}
+        <div class="vehicle-filter-row vehicle-filter-row--model">
             <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Модель') }}</label>
             <div class="relative mt-1">
                 <input type="text"
@@ -57,130 +66,138 @@
             </div>
         </div>
 
-        {{-- Цена: from / to / currency --}}
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Цена от') }}</label>
-            <input type="number" name="price_from" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" value="{{ request('price_from') }}">
-        </div>
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Цена до') }}</label>
-            <input type="number" name="price_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" value="{{ request('price_to') }}">
-        </div>
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Валюта') }}</label>
-            <select name="currency" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                <option value="">{{ __('AMD / $') }}</option>
-                <option value="AMD" @selected(request('currency') === 'AMD')>֏ AMD</option>
-                <option value="USD" @selected(request('currency') === 'USD')>$ USD</option>
-            </select>
-        </div>
-
-        {{-- Год: from / to --}}
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Год от') }}</label>
-            <input type="number" name="year_from" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" value="{{ request('year_from') }}">
-        </div>
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Год до') }}</label>
-            <input type="number" name="year_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" value="{{ request('year_to') }}">
-        </div>
-
-        {{-- Тип кузова / Трансмиссия --}}
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Тип кузова') }}</label>
-            <select name="body_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                <option value="">{{ __('Любой') }}</option>
-                @foreach($bodyOptions as $key => $label)
-                    <option value="{{ $key }}" @selected(request('body_type') === $key)>{{ __($label) }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Трансмиссия') }}</label>
-            <select name="transmission" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                <option value="">{{ __('Любая') }}</option>
-                @foreach($transmissionOptions as $key => $label)
-                    <option value="{{ $key }}" @selected(request('transmission') === $key)>{{ __($label) }}</option>
-                @endforeach
-            </select>
-        </div>
-
-        {{-- Топливо --}}
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Топливо') }}</label>
-            <select name="fuel_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                <option value="">{{ __('Любое') }}</option>
-                @foreach($fuelOptions as $key => $label)
-                    <option value="{{ $key }}" @selected(request('fuel_type') === $key)>{{ __($label) }}</option>
-                @endforeach
-            </select>
-        </div>
-
-        {{-- Двигатель from/to --}}
-        <div class="md:col-span-2">
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Двигатель от') }}</label>
-                    <select name="engine_from" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                        <option value="">{{ __('Любой') }}</option>
-                        @foreach($engineOptions as $option)
-                            <option value="{{ $option['cc'] }}" @selected((string)request('engine_from') === (string)$option['cc'])>
-                                {{ $option['label'] }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Двигатель до') }}</label>
-                    <select name="engine_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                        <option value="">{{ __('Любой') }}</option>
-                        @foreach($engineOptions as $option)
-                            <option value="{{ $option['cc'] }}" @selected((string)request('engine_to') === (string)$option['cc'])>
-                                {{ $option['label'] }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
+        {{-- Цена: от / до / валюта --}}
+        <div class="vehicle-filter-row vehicle-filter-row--split-3">
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Цена от') }}</label>
+                <input type="number" name="price_from" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" value="{{ request('price_from') }}">
+            </div>
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Цена до') }}</label>
+                <input type="number" name="price_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" value="{{ request('price_to') }}">
+            </div>
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Валюта') }}</label>
+                <select name="currency" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('AMD / $') }}</option>
+                    <option value="AMD" @selected(request('currency') === 'AMD')>֏ AMD</option>
+                    <option value="USD" @selected(request('currency') === 'USD')>$ USD</option>
+                </select>
             </div>
         </div>
 
-        {{-- Привод / Состояние / Цвет --}}
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Привод') }}</label>
-            <select name="drive_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                <option value="">{{ __('Любой') }}</option>
-                <option value="fwd">{{ __('Передний') }}</option>
-                <option value="rwd">{{ __('Задний') }}</option>
-                <option value="awd">{{ __('Полный') }}</option>
-            </select>
-        </div>
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Состояние') }}</label>
-            <select name="condition" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                <option value="">{{ __('Любое') }}</option>
-                <option value="undamaged">{{ __('Небитый') }}</option>
-                <option value="damaged">{{ __('Битый') }}</option>
-            </select>
-        </div>
-        <div>
-            <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Цвет') }}</label>
-            <select name="color" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                <option value="">{{ __('Любой') }}</option>
-                @foreach($colorOptions as $key => $label)
-                    <option value="{{ $key }}" @selected(request('color') === $key)>{{ __($label) }}</option>
-                @endforeach
-            </select>
+        {{-- Год: от / до --}}
+        <div class="vehicle-filter-row vehicle-filter-row--split-2">
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Год от') }}</label>
+                <input type="number" name="year_from" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" value="{{ request('year_from') }}">
+            </div>
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Год до') }}</label>
+                <input type="number" name="year_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" value="{{ request('year_to') }}">
+            </div>
         </div>
 
-        {{-- Кнопки (на всю ширину формы) --}}
-        <div class="sm:col-span-2 md:col-span-4 flex gap-2 mt-2">
+        {{-- Тип кузова / Трансмиссия --}}
+        <div class="vehicle-filter-row vehicle-filter-row--split-2">
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Тип кузова') }}</label>
+                <select name="body_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('Любой') }}</option>
+                    @foreach($bodyOptions as $key => $label)
+                        <option value="{{ $key }}" @selected(request('body_type') === $key)>{{ __($label) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Трансмиссия') }}</label>
+                <select name="transmission" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('Любая') }}</option>
+                    @foreach($transmissionOptions as $key => $label)
+                        <option value="{{ $key }}" @selected(request('transmission') === $key)>{{ __($label) }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        {{-- Топливо / Привод --}}
+        <div class="vehicle-filter-row vehicle-filter-row--split-2">
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Топливо') }}</label>
+                <select name="fuel_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('Любое') }}</option>
+                    @foreach($fuelOptions as $key => $label)
+                        <option value="{{ $key }}" @selected(request('fuel_type') === $key)>{{ __($label) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Привод') }}</label>
+                <select name="drive_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('Любой') }}</option>
+                    <option value="fwd" @selected(request('drive_type') === 'fwd')>{{ __('Передний') }}</option>
+                    <option value="rwd" @selected(request('drive_type') === 'rwd')>{{ __('Задний') }}</option>
+                    <option value="awd" @selected(request('drive_type') === 'awd')>{{ __('Полный') }}</option>
+                </select>
+            </div>
+        </div>
+
+        {{-- Двигатель --}}
+        <div class="vehicle-filter-row vehicle-filter-row--split-2">
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Двигатель от') }}</label>
+                <select name="engine_from" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('Любой') }}</option>
+                    @foreach($engineOptions as $option)
+                        <option value="{{ $option['cc'] }}" @selected((string)request('engine_from') === (string)$option['cc'])>
+                            {{ $option['label'] }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Двигатель до') }}</label>
+                <select name="engine_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('Любой') }}</option>
+                    @foreach($engineOptions as $option)
+                        <option value="{{ $option['cc'] }}" @selected((string)request('engine_to') === (string)$option['cc'])>
+                            {{ $option['label'] }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        {{-- Цвет / Состояние --}}
+        <div class="vehicle-filter-row vehicle-filter-row--split-2">
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Цвет') }}</label>
+                <select name="color" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('Любой') }}</option>
+                    @foreach($colorOptions as $key => $label)
+                        <option value="{{ $key }}" @selected(request('color') === $key)>{{ __($label) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="vehicle-filter-field">
+                <label class="text-xs font-semibold uppercase text-gray-500">{{ __('Состояние') }}</label>
+                <select name="condition" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('Любое') }}</option>
+                    <option value="undamaged" @selected(request('condition') === 'undamaged')>{{ __('Небитый') }}</option>
+                    <option value="damaged" @selected(request('condition') === 'damaged')>{{ __('Битый') }}</option>
+                </select>
+            </div>
+        </div>
+
+        {{-- Кнопки --}}
+        <div class="vehicle-filter-row vehicle-filter-row--actions">
             <button type="submit" class="btn btn-brand-gradient flex-1">{{ __('Применить') }}</button>
-            <a href="{{ route('listings.index', $resetParams) }}" class="btn btn-brand-outline flex-1 text-center">{{ __('Сбросить') }}</a>
+            <a href="{{ $resetUrl }}" class="btn btn-brand-outline flex-1 text-center">{{ __('Сбросить') }}</a>
+        </div>
+        <button type="button" class="btn btn-link p-0 text-decoration-underline" data-filter-close-mobile>{{ __('Скрыть фильтры') }}</button>
         </div>
 
     </form>
-
-    <div id="ajax-search-results" class="mt-4"></div>
 
     <script>
         const vehicleFilterMessages = {
@@ -192,6 +209,57 @@
         (function () {
             const form = document.getElementById('vehicle-filter-form');
             if (!form) return;
+
+            const card = form.closest('[data-filter-card]');
+            const mobileQuery = window.matchMedia('(max-width: 767.98px)');
+            const closeButtons = form.querySelectorAll('[data-filter-close-mobile]');
+            const searchInput = form.querySelector('#listing-search-input');
+
+            const setMobileState = () => {
+                if (!card) return;
+                if (mobileQuery.matches) {
+                    card.dataset.mobileExpanded = card.dataset.mobileExpanded === 'true' ? 'true' : 'false';
+                } else {
+                    card.removeAttribute('data-mobile-expanded');
+                }
+            };
+
+            const openMobileFilters = () => {
+                if (!card || !mobileQuery.matches) return;
+                card.dataset.mobileExpanded = 'true';
+            };
+
+            const closeMobileFilters = () => {
+                if (!card || !mobileQuery.matches) return;
+                card.dataset.mobileExpanded = 'false';
+            };
+
+            setMobileState();
+            mobileQuery.addEventListener('change', () => {
+                setMobileState();
+            });
+
+            if (searchInput) {
+                searchInput.addEventListener('focus', openMobileFilters);
+            }
+
+            closeButtons.forEach((btn) => btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                closeMobileFilters();
+            }));
+
+            document.addEventListener('click', (event) => {
+                if (!card || !mobileQuery.matches) {
+                    return;
+                }
+                if (card.dataset.mobileExpanded !== 'true') {
+                    return;
+                }
+                if (card.contains(event.target)) {
+                    return;
+                }
+                closeMobileFilters();
+            });
 
             const resultSelectors = [
                 '#listings-grid', '.listings-grid', '.listings', '.results-list', '.listings-list', '[data-listings-container]'

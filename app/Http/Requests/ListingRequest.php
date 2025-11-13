@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use App\Rules\RequiredLanguage;
 
 class ListingRequest extends FormRequest
@@ -20,6 +21,7 @@ class ListingRequest extends FormRequest
             'title' => ['required', 'string', 'min:3', 'max:255'],
             'description' => ['required', 'string', 'min:20', 'max:5000'],
             'price' => ['required', 'numeric', 'min:0', 'max:999999999'],
+            'currency' => ['nullable', 'string', Rule::in(['USD', 'AMD', 'RUB'])],
             'category_id' => ['required', 'exists:categories,id'],
             'region_id' => ['nullable', 'exists:regions,id'],
             'images' => ['nullable', 'array', 'max:'.$maxImages],
@@ -55,6 +57,8 @@ class ListingRequest extends FormRequest
                 'vehicle.is_from_auction' => ['nullable', 'boolean'],
                 'vehicle.source_auction_url' => ['nullable', 'url', 'max:512'],
                 'vehicle.auction_ends_at' => ['nullable', 'date'],
+                'vehicle.buy_now_price' => ['nullable', 'numeric', 'min:0'],
+                'vehicle.buy_now_currency' => ['nullable', 'string', 'max:4'],
             ];
             foreach ($vehicleRules as $k => $v) {
                 $rules[$k] = $v;

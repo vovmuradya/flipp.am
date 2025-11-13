@@ -2,7 +2,6 @@
     <div class="container-fluid">
         <a class="navbar-brand" href="{{ route('home') }}">
             <span class="brand-logo">
-                <i class="fa-solid fa-car-side"></i>
             </span>
             <span class="brand-text">idrom.am</span>
         </a>

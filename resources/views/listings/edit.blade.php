@@ -268,29 +268,13 @@
                             <input type="number" name="price" min="0" value="{{ old('price', $listing->price) }}" class="form-control" required>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="form-label">{{ __('Регион') }} <span class="text-danger">*</span></label>
-                            <select name="region_id" class="form-select" required>
-                                <option value="">{{ __('Выберите регион') }}</option>
-                                @foreach($regions as $region)
-                                    @php
-                                        $rraw = $region->name ?? '';
-                                        if (is_string($rraw)) {
-                                            $rdec = json_decode($rraw, true);
-                                            $rlabel = is_array($rdec) ? ($rdec[app()->getLocale()] ?? $rdec['ru'] ?? $rdec['en'] ?? array_values($rdec)[0]) : $rraw;
-                                        } elseif (is_array($rraw)) {
-                                            $rlabel = $rraw[app()->getLocale()] ?? $rraw['ru'] ?? $rraw['en'] ?? (array_values($rraw)[0] ?? '');
-                                        } else {
-                                            $rlabel = (string) $rraw;
-                                        }
-                                    @endphp
-                                    <option value="{{ $region->id }}" @selected(old('region_id', $listing->region_id) == $region->id)>{{ $rlabel }}</option>
-                                @endforeach
-                            </select>
-                            @error('region_id')
-                                <small class="text-danger d-block mt-1">{{ $message }}</small>
-                            @enderror
-                        </div>
+                        @include('listings.partials.region-dropdown', [
+                            'regions' => $regions,
+                            'selectedRegion' => old('region_id', $listing->region_id),
+                            'fieldName' => 'region_id',
+                            'label' => __('Регион'),
+                            'required' => true,
+                        ])
 
                         @if($existingMedia->isNotEmpty())
                             <div class="mb-4">

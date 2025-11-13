@@ -19,6 +19,8 @@
                 @forelse($listings as $listing)
                     @php
                         $endsAt = optional($listing->vehicleDetail)->auction_ends_at;
+                        $endsAtLocal = $endsAt?->timezone(config('app.timezone'));
+                        $endsAtIso = $endsAtLocal?->toIso8601String();
                         $statusLabel = __('Active');
                         $statusClass = 'bg-success-subtle text-success-emphasis';
 
@@ -69,58 +71,67 @@
 
                         $previewImage = $previewImage ?: $fallbackImage;
                     @endphp
-                    <div class="col-12">
-                        <div class="card shadow-sm border-0 rounded-3 position-relative overflow-hidden h-100">
-                            <span class="badge {{ $statusClass }} position-absolute top-0 end-0 m-3 px-3 py-2">
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <article class="auction-card" id="auction-card-{{ $listing->id }}" data-listing-card="{{ $listing->id }}">
+                            <span class="auction-card__badge {{ $statusClass }}">
                                 {{ $statusLabel }}
                             </span>
-                            <div class="row g-0">
-                                <div class="col-12 col-md-4">
-                                    <div class="ratio ratio-4x3 bg-light overflow-hidden rounded-start rounded-top rounded-md-start">
-                                        <a href="{{ route('listings.show', $listing) }}" class="d-flex w-100 h-100">
-                                            <img src="{{ $previewImage }}"
-                                                 alt="{{ $listing->title }}"
-                                                 class="img-fluid w-100 h-100 object-fit-cover"
-                                                 loading="lazy"
-                                                 onerror="this.src='{{ $fallbackImage }}'">
-                                        </a>
-                                    </div>
+                            <a href="{{ route('listings.show', $listing) }}" class="auction-card__image">
+                                <img src="{{ $previewImage }}" alt="{{ $listing->title }}" loading="lazy" onerror="this.src='{{ $fallbackImage }}'">
+                            </a>
+                            <div class="auction-card__body">
+                                <div class="auction-card__heading">
+                                    <h5 title="{{ $listing->title }}">{{ $listing->title }}</h5>
+                                    <span class="auction-card__lot">{{ __('Лот № :id', ['id' => $listing->id]) }}</span>
                                 </div>
-                                <div class="col-12 col-md-8">
-                                    <div class="card-body d-flex flex-column h-100">
-                                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-2">
-                                        <h5 class="card-title fs-5 mb-0 text-truncate" title="{{ $listing->title }}">
-                                                {{ $listing->title }}
-                                            </h5>
-                                            <div class="text-muted small">
-                                                {{ __('Лот № :id', ['id' => $listing->id]) }}
-                                            </div>
-                                        </div>
-                                        <p class="card-text text-muted small mb-2">
-                                            {{ __('Окончание аукциона:') }}
-                                            @if($endsAt)
-                                                {{ $endsAt->timezone(config('app.timezone'))->format('d.m.Y H:i') }}
-                                            @else
-                                                {{ __('Не указано') }}
-                                            @endif
-                                        </p>
-                                        <p class="card-text fw-semibold fs-5 mb-3">
-                                            {{ __('Ставка: :amount :currency', ['amount' => number_format($listing->price, 0, '.', ' '), 'currency' => $listing->currency]) }}
-                                        </p>
-                                        <div class="mt-auto d-flex flex-wrap gap-2">
-                                            <a href="{{ route('listings.show', $listing) }}" class="btn btn-brand-gradient">
-                                                {{ __('Подробнее') }}
-                                            </a>
-                                            @if(auth()->id() === $listing->user_id)
-                                                <a href="{{ route('auction-listings.edit', $listing) }}" class="btn btn-outline-secondary">
-                                                    {{ __('Редактировать') }}
-                                                </a>
-                                            @endif
-                                        </div>
-                                    </div>
+                                <ul class="auction-card__meta">
+                                    <li>
+                                        <span>{{ __('Окончание') }}</span>
+                                        @if($endsAtIso)
+                                            <strong class="d-flex flex-column align-items-end gap-1 text-end">
+                                                <span
+                                                    data-countdown
+                                                    data-expires="{{ $endsAtIso }}"
+                                                    data-prefix="{{ __('До конца') }}"
+                                                    data-expired-text="{{ __('Лот завершён') }}"
+                                                    data-day-label="{{ __('д') }}"
+                                                >
+                                                    <span data-countdown-text>{{ __('Загрузка…') }}</span>
+                                                </span>
+                                                <small class="text-muted">{{ $endsAtLocal->format('d.m.Y H:i') }}</small>
+                                            </strong>
+                                        @else
+                                            <strong>{{ __('Не указано') }}</strong>
+                                        @endif
+                                    </li>
+                                    <li>
+                                        <span>{{ __('Ставка') }}</span>
+                                        <strong>{{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}</strong>
+                                    </li>
+                                </ul>
+                                <div class="auction-card__actions">
+                                    <a href="{{ route('listings.show', $listing) }}" class="btn btn-brand-gradient">
+                                        {{ __('Подробнее') }}
+                                    </a>
+                                    @if(auth()->id() === $listing->user_id)
+                                        <a href="{{ route('auction-listings.edit', $listing) }}" class="btn btn-outline-secondary">
+                                            {{ __('Редактировать') }}
+                                        </a>
+                                        <form action="{{ route('auction-listings.destroy', $listing) }}"
+                                              method="POST"
+                                              data-auction-delete
+                                              data-listing-card="auction-card-{{ $listing->id }}"
+                                              data-confirm="{{ __('Удалить это объявление?') }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-outline-danger">
+                                                {{ __('Удалить') }}
+                                            </button>
+                                        </form>
+                                    @endif
                                 </div>
                             </div>
-                        </div>
+                        </article>
                     </div>
                 @empty
                     <div class="brand-surface text-center py-5 text-muted">
@@ -135,3 +146,60 @@
         </div>
     </section>
 </x-app-layout>
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            document.querySelectorAll('[data-auction-delete]').forEach((form) => {
+                form.addEventListener('submit', (event) => {
+                    if (form.dataset.pending === 'true') {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    const message = form.dataset.confirm || '';
+                    if (message && !window.confirm(message)) {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    if (!window.fetch || !token) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    form.dataset.pending = 'true';
+
+                    const payload = new URLSearchParams(new FormData(form)).toString();
+
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': token,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        },
+                        body: payload,
+                    }).then((response) => {
+                        if (!response.ok) {
+                            throw new Error('Request failed');
+                        }
+
+                        const cardId = form.dataset.listingCard;
+                        const card = cardId ? document.getElementById(cardId) : form.closest('[data-listing-card]');
+                        if (card) {
+                            card.classList.add('auction-card--removed');
+                            setTimeout(() => card.remove(), 250);
+                        }
+                    }).catch(() => {
+                        delete form.dataset.pending;
+                        form.submit();
+                    });
+                });
+            });
+        });
+    </script>
+@endpush

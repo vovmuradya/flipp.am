@@ -14,6 +14,9 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         \App\Console\Commands\UpdateCopartCookiesCommand::class,
+        \App\Console\Commands\AuctionFetchCommand::class,
+        \App\Console\Commands\RefreshCopartCookies::class,
+        \App\Console\Commands\RefreshCopartCurrentBids::class,
     ];
 
     /**
@@ -21,7 +24,15 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        $schedule->command('copart:refresh-cookies --silent')
+            ->everySixHours()
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/copart-cookies.log'));
+
+        $schedule->command('copart:refresh-current-bids --limit=150')
+            ->dailyAt('04:00')
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/copart-bids.log'));
     }
 
     /**

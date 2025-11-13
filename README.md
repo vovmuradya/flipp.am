@@ -59,3 +59,22 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Copart cookies automation
+
+This project talks to Copart APIs, which block stale cookies.  
+Use the new Artisan command to refresh them automatically:
+
+```bash
+php artisan copart:refresh-cookies
+```
+
+Add the usual Laravel scheduler cron (`* * * * * php /path/artisan schedule:run >> /dev/null 2>&1`) so the command runs every six hours (see `app/Console/Kernel.php`).  
+The command executes `scraper/fetch-copart-cookies.cjs` (now powered by headless Chromium via Puppeteer), writes the result into `COPART_COOKIES` inside `.env`, and logs to `storage/logs/copart-cookies.log`.  
+If you still need to paste cookies manually, `php artisan copart:update-cookies` remains available.
+
+> **Heads-up:** Copart теперь выдаёт нужные cookies (ak_bmsc, bm_sv, Incapsula) только после полноценной загрузки страницы в браузере. Поэтому скрипт требует установленного Chromium (Puppeteer ставит его автоматически) и базовые зависимости `libnss3`, `libatk1.0-0`, `libx11-xcb1` и т.д. На прод-сервере, где запрещён доступ к GUI, этого всё равно достаточно — Chromium запускается в режиме `--no-sandbox`.
+
+## Android mobile client
+
+The `mobile-app/` folder now contains a starter Jetpack Compose application that consumes the `/api/mobile/*` endpoints exposed by this Laravel backend. Open the folder in Android Studio (Iguana or newer), sync Gradle, and run the `app` module. By default it points to `http://10.0.2.2:8000/` so that the Android emulator can talk to `php artisan serve`. Adjust `BuildConfig.API_BASE_URL` inside `app/build.gradle.kts` if you need a different host.

@@ -74,6 +74,54 @@
             </div>
 
             <div class="auth-form__field">
+                <label for="phone" class="auth-form__label">{{ __('Телефон') }}</label>
+                <div class="auth-input">
+                    <span class="auth-input__icon"><i class="fa-solid fa-phone"></i></span>
+                    <input
+                        id="phone"
+                        type="tel"
+                        name="phone"
+                        value="{{ old('phone') }}"
+                        required
+                        autocomplete="tel"
+                        placeholder="+374 00 00 00"
+                        class="auth-input__control"
+                    >
+                </div>
+                <div class="auth-form__actions mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="sendPhoneCode">
+                        {{ __('Получить код') }}
+                    </button>
+                    <small id="phoneCodeStatus" class="text-muted ms-2"></small>
+                </div>
+                @error('phone')
+                    <span class="auth-form__error">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="auth-form__field">
+                <label for="verification_code" class="auth-form__label">{{ __('Код подтверждения') }}</label>
+                <div class="auth-input">
+                    <span class="auth-input__icon"><i class="fa-solid fa-shield-keyhole"></i></span>
+                    <input
+                        id="verification_code"
+                        type="text"
+                        name="verification_code"
+                        value="{{ old('verification_code') }}"
+                        required
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        maxlength="6"
+                        placeholder="123456"
+                        class="auth-input__control"
+                    >
+                </div>
+                @error('verification_code')
+                    <span class="auth-form__error">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="auth-form__field">
                 <label for="password" class="auth-form__label">{{ __('Пароль') }}</label>
                 <div class="auth-input">
                     <span class="auth-input__icon"><i class="fa-solid fa-lock"></i></span>
@@ -181,50 +229,3 @@
         </script>
     @endpush
 </x-guest-layout>
-            <div class="auth-form__field">
-                <label for="phone" class="auth-form__label">{{ __('Телефон') }}</label>
-                <div class="auth-input">
-                    <span class="auth-input__icon"><i class="fa-solid fa-phone"></i></span>
-                    <input
-                        id="phone"
-                        type="tel"
-                        name="phone"
-                        value="{{ old('phone') }}"
-                        required
-                        autocomplete="tel"
-                        placeholder="+374 00 00 00"
-                        class="auth-input__control"
-                    >
-                </div>
-                <div class="auth-form__actions mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="sendPhoneCode">
-                        {{ __('Получить код') }}
-                    </button>
-                    <small id="phoneCodeStatus" class="text-muted ms-2"></small>
-                </div>
-                @error('phone')
-                    <span class="auth-form__error">{{ $message }}</span>
-                @enderror
-            </div>
-
-            <div class="auth-form__field">
-                <label for="verification_code" class="auth-form__label">{{ __('Код подтверждения') }}</label>
-                <div class="auth-input">
-                    <span class="auth-input__icon"><i class="fa-solid fa-shield-keyhole"></i></span>
-                    <input
-                        id="verification_code"
-                        type="text"
-                        name="verification_code"
-                        value="{{ old('verification_code') }}"
-                        required
-                        inputmode="numeric"
-                        pattern="[0-9]*"
-                        maxlength="6"
-                        placeholder="123456"
-                        class="auth-input__control"
-                    >
-                </div>
-                @error('verification_code')
-                    <span class="auth-form__error">{{ $message }}</span>
-                @enderror
-            </div>

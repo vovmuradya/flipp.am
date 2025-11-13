@@ -16,6 +16,11 @@ class PhoneVerificationController extends Controller
 
     public function send(Request $request): JsonResponse
     {
+        $normalizedPhone = $this->service->normalize((string) $request->input('phone', ''));
+        $request->merge([
+            'phone' => $normalizedPhone,
+        ]);
+
         $data = $request->validate([
             'phone' => ['required', 'string', 'min:6', 'max:20'],
         ]);

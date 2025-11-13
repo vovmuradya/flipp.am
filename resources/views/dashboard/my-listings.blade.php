@@ -21,10 +21,47 @@
                         <div class="card shadow-sm border-0 rounded-3 h-100 overflow-hidden">
                             @php
                                 $fallbackImage = asset('images/no-image.jpg');
-                                $previewImage = $listing->getFirstMediaUrl('images', 'medium')
-                                    ?: $listing->getFirstMediaUrl('images')
-                                    ?: $listing->getFirstMediaUrl('auction_photos', 'medium')
-                                    ?: $listing->getFirstMediaUrl('auction_photos');
+
+                                $resolveMedia = static function (?\Spatie\MediaLibrary\MediaCollections\Models\Media $media, bool $allowConversion = true) {
+                                    if (!$media) {
+                                        return null;
+                                    }
+
+                                    $conversion = null;
+                                    if ($allowConversion && method_exists($media, 'hasGeneratedConversion') && $media->hasGeneratedConversion('medium')) {
+                                        $conversion = 'medium';
+                                    }
+
+                                    try {
+                                        $params = ['media' => $media->getKey()];
+                                        if ($conversion) {
+                                            $params['conversion'] = $conversion;
+                                        }
+
+                                        return route('media.show', $params);
+                                    } catch (\Throwable $e) {
+                                        try {
+                                            return $conversion ? $media->getUrl('medium') : $media->getUrl();
+                                        } catch (\Throwable $_) {
+                                            return null;
+                                        }
+                                    }
+                                };
+
+                                $previewImage = $resolveMedia($listing->getFirstMedia('images'))
+                                    ?: $resolveMedia($listing->getFirstMedia('auction_photos'));
+
+                                if (!$previewImage && $listing->vehicleDetail) {
+                                    foreach ([
+                                                 $listing->vehicleDetail->preview_image_url,
+                                                 $listing->vehicleDetail->main_image_url,
+                                             ] as $external) {
+                                        if (is_string($external) && trim($external) !== '') {
+                                            $previewImage = trim($external);
+                                            break;
+                                        }
+                                    }
+                                }
 
                                 if (!$previewImage && $listing->image) {
                                     $rawPath = $listing->image;
@@ -36,18 +73,6 @@
                                             $previewImage = \Illuminate\Support\Facades\Storage::disk('public')->url($normalized);
                                         } elseif (\Illuminate\Support\Facades\Storage::exists($rawPath)) {
                                             $previewImage = \Illuminate\Support\Facades\Storage::url($rawPath);
-                                        }
-                                    }
-                                }
-
-                                if (!$previewImage && $listing->vehicleDetail) {
-                                    foreach ([
-                                        $listing->vehicleDetail->preview_image_url,
-                                        $listing->vehicleDetail->main_image_url,
-                                    ] as $external) {
-                                        if (is_string($external) && trim($external) !== '') {
-                                            $previewImage = trim($external);
-                                            break;
                                         }
                                     }
                                 }
@@ -73,7 +98,7 @@
                                     </span>
                                 </div>
                                 <p class="card-text text-muted small mb-1">
-                                    {{ $listing->region?->name ?? __('Регион не указан') }}
+                                    {{ $listing->region?->localized_name ?? __('Регион не указан') }}
                                 </p>
                                 <p class="card-text fw-semibold mb-2">
                                     {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}

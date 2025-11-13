@@ -38,9 +38,7 @@
                         loadingGenerations: false,
                     },
                     get listingType() {
-                        if (this.selectedType === 'vehicle') return 'vehicle';
-                        if (this.selectedType === 'parts' || this.selectedType === 'tires') return 'parts';
-                        return '';
+                        return this.selectedType === 'vehicle' ? 'vehicle' : '';
                     },
                     get formVisible() {
                         return this.isAuction || Boolean(this.selectedType);

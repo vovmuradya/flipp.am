@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\SearchQueryHelper;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -40,6 +41,17 @@ class Listing extends Model implements HasMedia
             'promoted_until' => 'datetime',
             'last_bumped_at' => 'datetime',
         ];
+    }
+
+    public function searchableAs(): string
+    {
+        $customIndex = env('ALGOLIA_INDEX');
+
+        if (is_string($customIndex) && trim($customIndex) !== '') {
+            return trim($customIndex);
+        }
+
+        return 'listings';
     }
 
     /**
@@ -151,6 +163,26 @@ class Listing extends Model implements HasMedia
                 'engine_displacement_cc' => $this->vehicleDetail->engine_displacement_cc,
                 'exterior_color'         => $this->vehicleDetail->exterior_color,
             ]);
+        }
+
+        $textBuckets = array_filter([
+            $this->title,
+            $this->description,
+            optional($this->vehicleDetail)->make,
+            optional($this->vehicleDetail)->model,
+        ]);
+
+        if (!empty($textBuckets)) {
+            $normalizedTokens = [];
+            foreach ($textBuckets as $bucket) {
+                foreach (SearchQueryHelper::variants($bucket) as $variant) {
+                    $normalizedTokens[] = $variant;
+                }
+            }
+
+            if (!empty($normalizedTokens)) {
+                $searchableData['search_tokens'] = implode(' ', array_unique($normalizedTokens));
+            }
         }
 
         // Кастомные поля (оставляем для обратной совместимости)

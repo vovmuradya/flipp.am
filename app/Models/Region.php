@@ -23,7 +23,15 @@ class Region extends Model
     public function getLocalizedNameAttribute()
     {
         $nameData = $this->name;
-        return $nameData[app()->getLocale()] ?? $nameData['en'] ?? '';
+        if (is_array($nameData)) {
+            $locale = app()->getLocale();
+            return $nameData[$locale]
+                ?? $nameData['ru']
+                ?? $nameData['en']
+                ?? (reset($nameData) ?: '');
+        }
+
+        return (string) $nameData;
     }
 
     public function listings()

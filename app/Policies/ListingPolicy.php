@@ -29,21 +29,17 @@ class ListingPolicy
      */
     public function create(User $user): bool
     {
-        // Админы не могут создавать объявления
         if ($user->role === 'admin') {
             return false;
         }
 
-        // Получаем лимит для роли пользователя
-        $limit = match ($user->role) {
-            'agency' => 100,
-            default => 10, // 'individual' и все остальные
-        };
+        $limit = $user->getMaxActiveListings();
+        if ($limit === PHP_INT_MAX) {
+            return true;
+        }
 
-        // Считаем активные объявления пользователя
         $activeListingsCount = $user->listings()->where('status', 'active')->count();
 
-        // Разрешаем создание, только если лимит не превышен
         return $activeListingsCount < $limit;
     }
 

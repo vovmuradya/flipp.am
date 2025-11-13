@@ -30,9 +30,10 @@ class SocialAuthController extends Controller
     {
         $this->ensureSupportedProvider($provider);
 
-        $this->applyDynamicRedirect($provider);
+        $callbackUrl = $this->resolveCallbackUrl($provider);
 
         return Socialite::driver($provider)
+            ->redirectUrl($callbackUrl)
             ->stateless()
             ->redirect();
     }
@@ -44,10 +45,11 @@ class SocialAuthController extends Controller
     {
         $this->ensureSupportedProvider($provider);
 
-        $this->applyDynamicRedirect($provider);
+        $callbackUrl = $this->resolveCallbackUrl($provider);
 
         try {
             $socialUser = Socialite::driver($provider)
+                ->redirectUrl($callbackUrl)
                 ->stateless()
                 ->user();
         } catch (\Throwable $exception) {
@@ -109,31 +111,52 @@ class SocialAuthController extends Controller
         }
     }
 
-    protected function applyDynamicRedirect(string $provider): void
+    protected function resolveCallbackUrl(string $provider): string
     {
-        $routeName = 'auth.provider.callback';
-
         $configured = config("services.{$provider}.redirect");
-        $fallback = rtrim(config('app.url'), '/') . "/auth/{$provider}/callback";
+        $currentRequest = request();
 
-        if ($configured && $configured !== $fallback) {
-            // Используем явно заданный redirect URI (например, прод-домен).
-            return;
-        }
+        if ($currentRequest) {
+            $host = $currentRequest->getHost();
+            $scheme = $currentRequest->getScheme();
+            $port = $currentRequest->getPort();
 
-        $callbackUrl = $fallback;
+            $needsDynamic = false;
 
-        if (!app()->runningInConsole()) {
-            $currentRequest = request();
+            if ($configured) {
+                $configuredHost = parse_url($configured, PHP_URL_HOST);
+                $configuredPortValue = parse_url($configured, PHP_URL_PORT);
 
-            if ($currentRequest) {
-                $host = $currentRequest->getSchemeAndHttpHost();
-                $callbackUrl = rtrim($host, '/') . "/auth/{$provider}/callback";
+                if (!$configuredHost || strcasecmp($configuredHost, $host ?? '') !== 0) {
+                    $needsDynamic = true;
+                } elseif ($port !== null) {
+                    $currentPort = (int) $port;
+                    $expectedPort = $configuredPortValue !== null ? (int) $configuredPortValue : null;
+
+                    if ($expectedPort === null && !in_array($currentPort, [80, 443], true)) {
+                        $needsDynamic = true;
+                    } elseif ($expectedPort !== null && $expectedPort !== $currentPort) {
+                        $needsDynamic = true;
+                    }
+                }
+            } else {
+                $needsDynamic = true;
+            }
+
+            if ($needsDynamic) {
+                $authority = $host ?? 'localhost';
+                if ($port && !in_array((int) $port, [80, 443], true)) {
+                    $authority .= ':' . $port;
+                }
+
+                return "{$scheme}://{$authority}/auth/{$provider}/callback";
             }
         }
 
-        if ($callbackUrl) {
-            config(["services.{$provider}.redirect" => $callbackUrl]);
+        if ($configured) {
+            return $configured;
         }
+
+        return rtrim(config('app.url'), '/') . "/auth/{$provider}/callback";
     }
 }

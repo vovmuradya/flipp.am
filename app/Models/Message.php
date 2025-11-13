@@ -19,6 +19,11 @@ class Message extends Model
         'read_at',
     ];
 
+    protected $casts = [
+        'is_read' => 'boolean',
+        'read_at' => 'datetime',
+    ];
+
     public function listing()
     {
         return $this->belongsTo(Listing::class);

@@ -57,6 +57,7 @@ Route::middleware('auth')->group(function () {
 
     // ✅ ТЗ v2.1: РАЗДЕЛЕНИЕ ОБЪЯВЛЕНИЙ: Маршруты для аукционных объявлений
     Route::resource('auction-listings', \App\Http\Controllers\AuctionListingController::class)
+        ->only(['edit', 'update', 'destroy'])
         ->middleware(['auth']);
 
     Route::prefix('dashboard')->name('dashboard.')->group(function () {
@@ -75,6 +76,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('edit');
         Route::patch('/', [ProfileController::class, 'update'])->name('update');
+        Route::post('/phone/verify', [ProfileController::class, 'verifyPhone'])->name('phone.verify');
         Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
     });
 

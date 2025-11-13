@@ -1,4 +1,5 @@
 import './bootstrap';
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 
 import Alpine from 'alpinejs';
 
@@ -51,6 +52,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!realPanels.length) {
             return;
         }
+
+        const attachPanelLinks = () => {
+            realPanels.forEach((panel) => {
+                if (panel.dataset.sliderLinkReady === '1') {
+                    return;
+                }
+                panel.dataset.sliderLinkReady = '1';
+
+                panel.addEventListener('click', (event) => {
+                    if (event.defaultPrevented || event.target.closest('a, button, input, textarea, select')) {
+                        return;
+                    }
+
+                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+                        return;
+                    }
+
+                    const anchor = panel.querySelector('a[href]');
+                    if (anchor) {
+                        event.preventDefault();
+                        window.location.href = anchor.href;
+                    }
+                });
+            });
+        };
+        attachPanelLinks();
 
         const state = {
             initialized: false,
@@ -203,6 +230,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (event.target.closest('a, button, input, textarea, select')) {
+                stopPointerDrag();
+                return;
+            }
+
             event.preventDefault();
 
             isPointerDragging = true;
@@ -290,5 +322,205 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         window.addEventListener('load', handleResize);
+        window.addEventListener('load', attachPanelLinks);
+    });
+
+    const MOBILE_FILTER_BREAKPOINT = 768;
+    const filterCards = document.querySelectorAll('[data-filter-card]');
+
+    const isMobileViewport = () => window.innerWidth < MOBILE_FILTER_BREAKPOINT;
+
+    filterCards.forEach((card) => {
+        if (card.dataset.filterMobileReady === '1') {
+            return;
+        }
+
+        const toggleArea = card.querySelector('[data-filter-mobile-toggle]');
+        const collapsible = card.querySelector('[data-filter-collapsible]');
+        const closeBtn = card.querySelector('[data-filter-close-mobile]');
+
+        if (!toggleArea || !collapsible) {
+            return;
+        }
+
+        card.dataset.filterMobileReady = '1';
+
+        const updateAriaExpanded = () => {
+            const expanded = !isMobileViewport() || card.dataset.mobileExpanded === 'true';
+            toggleArea.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        };
+
+        const setExpanded = (expanded) => {
+            if (expanded) {
+                card.dataset.mobileExpanded = 'true';
+            } else {
+                delete card.dataset.mobileExpanded;
+            }
+            updateAriaExpanded();
+        };
+
+        setExpanded(false);
+
+        const openFilters = () => {
+            if (!isMobileViewport()) {
+                return;
+            }
+
+            if (card.dataset.mobileExpanded === 'true') {
+                return;
+            }
+
+            setExpanded(true);
+        };
+
+        const closeFilters = () => {
+            setExpanded(false);
+        };
+
+        toggleArea.addEventListener('click', () => {
+            openFilters();
+        });
+
+        const firstControl = toggleArea.querySelector('input, select, textarea, button');
+        if (firstControl) {
+            firstControl.addEventListener('focus', () => {
+                openFilters();
+            });
+        }
+
+        closeBtn?.addEventListener('click', (event) => {
+            if (!isMobileViewport()) {
+                return;
+            }
+
+            event.preventDefault();
+            closeFilters();
+        });
+
+        const handleResize = () => {
+            if (!isMobileViewport()) {
+                delete card.dataset.mobileExpanded;
+            }
+            updateAriaExpanded();
+        };
+
+        window.addEventListener('resize', handleResize);
+        handleResize();
+    });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const phoneForm = document.querySelector('[data-phone-form]');
+
+    if (!phoneForm) {
+        return;
+    }
+
+    const sendBtn = phoneForm.querySelector('[data-phone-send]');
+    const phoneInput = phoneForm.querySelector('input[name="phone"]');
+    const statusEl = phoneForm.querySelector('[data-phone-status]');
+    const sendUrl = phoneForm.dataset.sendUrl;
+    const csrfToken = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const textEmpty = phoneForm.dataset.textEmpty ?? 'Enter phone number before requesting a code.';
+    const textSending = phoneForm.dataset.textSending ?? 'Sending...';
+    const textSuccess = phoneForm.dataset.textSuccess ?? 'Code sent. Check SMS.';
+    const textError = phoneForm.dataset.textError ?? 'Something went wrong. Try again later.';
+    const textCooldown = phoneForm.dataset.textCooldown ?? 'Resend in :seconds s';
+    const cooldownSeconds = Number(phoneForm.dataset.cooldownSeconds ?? 60);
+
+    if (!sendBtn || !phoneInput || !sendUrl) {
+        return;
+    }
+
+    const defaultButtonText = sendBtn.textContent.trim();
+    let cooldownTimerId = null;
+    let cooldownRemaining = 0;
+
+    const isCoolingDown = () => cooldownTimerId !== null;
+
+    const stopCooldown = () => {
+        if (cooldownTimerId !== null) {
+            window.clearInterval(cooldownTimerId);
+            cooldownTimerId = null;
+        }
+        cooldownRemaining = 0;
+        sendBtn.disabled = false;
+        sendBtn.textContent = defaultButtonText;
+    };
+
+    const startCooldown = () => {
+        if (!cooldownSeconds || cooldownSeconds <= 0) {
+            return;
+        }
+
+        cooldownRemaining = cooldownSeconds;
+        sendBtn.disabled = true;
+
+        const renderCountdown = () => {
+            const label = textCooldown.replace(':seconds', cooldownRemaining.toString());
+            sendBtn.textContent = label;
+        };
+
+        renderCountdown();
+
+        cooldownTimerId = window.setInterval(() => {
+            cooldownRemaining -= 1;
+
+            if (cooldownRemaining <= 0) {
+                stopCooldown();
+                return;
+            }
+
+            renderCountdown();
+        }, 1000);
+    };
+
+    const setStatus = (message, isError = false) => {
+        if (!statusEl) {
+            return;
+        }
+
+        statusEl.textContent = message;
+        statusEl.classList.toggle('text-danger', isError);
+    };
+
+    sendBtn.addEventListener('click', async () => {
+        const phone = phoneInput.value.trim();
+
+        if (!phone) {
+            setStatus(textEmpty, true);
+            phoneInput.focus();
+            return;
+        }
+
+        sendBtn.disabled = true;
+        sendBtn.textContent = textSending;
+
+        try {
+            const response = await fetch(sendUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken ?? '',
+                },
+                body: JSON.stringify({ phone }),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.message || textError);
+            }
+
+            setStatus(payload.message || textSuccess, false);
+            startCooldown();
+        } catch (error) {
+            setStatus(error.message || textError, true);
+        } finally {
+            if (!isCoolingDown()) {
+                sendBtn.disabled = false;
+                sendBtn.textContent = defaultButtonText;
+            }
+        }
     });
 });

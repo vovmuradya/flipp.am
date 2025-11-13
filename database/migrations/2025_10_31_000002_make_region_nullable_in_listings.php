@@ -37,6 +37,7 @@ return new class extends Migration {
                 $table->timestamp('promoted_until')->nullable();
                 $table->timestamp('last_bumped_at')->nullable();
                 $table->string('language', 2);
+                $table->boolean('is_from_auction')->default(false);
                 $table->timestamps();
                 $table->softDeletes();
 
@@ -50,22 +51,15 @@ return new class extends Migration {
             });
 
             try {
-                if (Schema::hasColumn('listings', 'listing_type')) {
-                    DB::statement('INSERT INTO listings_tmp (
-                        id, user_id, category_id, listing_type, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, created_at, updated_at, deleted_at
+                $listingTypeColumn = Schema::hasColumn('listings', 'listing_type') ? 'listing_type' : "'vehicle' as listing_type";
+                $auctionColumn = Schema::hasColumn('listings', 'is_from_auction') ? 'is_from_auction' : '0 as is_from_auction';
+
+                DB::statement("INSERT INTO listings_tmp (
+                        id, user_id, category_id, listing_type, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, is_from_auction, created_at, updated_at, deleted_at
                     )
                     SELECT
-                        id, user_id, category_id, listing_type, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, created_at, updated_at, deleted_at
-                    FROM listings');
-                } else {
-                    // Если в старой схеме нет listing_type, используем значение по умолчанию 'vehicle'
-                    DB::statement("INSERT INTO listings_tmp (
-                        id, user_id, category_id, listing_type, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, created_at, updated_at, deleted_at
-                    )
-                    SELECT
-                        id, user_id, category_id, 'vehicle' as listing_type, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, created_at, updated_at, deleted_at
+                        id, user_id, category_id, {$listingTypeColumn}, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, {$auctionColumn}, created_at, updated_at, deleted_at
                     FROM listings");
-                }
             } catch (\Throwable $e) {
                 Log::warning('Failed to copy data into listings_tmp: ' . $e->getMessage());
             }
@@ -115,6 +109,7 @@ return new class extends Migration {
                 $table->timestamp('promoted_until')->nullable();
                 $table->timestamp('last_bumped_at')->nullable();
                 $table->string('language', 2);
+                $table->boolean('is_from_auction')->default(false);
                 $table->timestamps();
                 $table->softDeletes();
 
@@ -128,21 +123,15 @@ return new class extends Migration {
             });
 
             try {
-                if (Schema::hasColumn('listings', 'listing_type')) {
-                    DB::statement('INSERT INTO listings_tmp (
-                        id, user_id, category_id, listing_type, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, created_at, updated_at, deleted_at
+                $listingTypeColumn = Schema::hasColumn('listings', 'listing_type') ? 'listing_type' : "'vehicle' as listing_type";
+                $auctionColumn = Schema::hasColumn('listings', 'is_from_auction') ? 'is_from_auction' : '0 as is_from_auction';
+
+                DB::statement("INSERT INTO listings_tmp (
+                        id, user_id, category_id, listing_type, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, is_from_auction, created_at, updated_at, deleted_at
                     )
                     SELECT
-                        id, user_id, category_id, listing_type, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, created_at, updated_at, deleted_at
-                    FROM listings');
-                } else {
-                    DB::statement("INSERT INTO listings_tmp (
-                        id, user_id, category_id, listing_type, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, created_at, updated_at, deleted_at
-                    )
-                    SELECT
-                        id, user_id, category_id, 'vehicle' as listing_type, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, created_at, updated_at, deleted_at
+                        id, user_id, category_id, {$listingTypeColumn}, region_id, title, slug, description, price, currency, status, views_count, promoted_until, last_bumped_at, language, {$auctionColumn}, created_at, updated_at, deleted_at
                     FROM listings");
-                }
             } catch (\Throwable $e) {
                 Log::warning('Failed to copy data back into listings_tmp: ' . $e->getMessage());
             }

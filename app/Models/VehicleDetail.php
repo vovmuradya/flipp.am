@@ -23,6 +23,13 @@ class VehicleDetail extends Model
         'is_from_auction',
         'source_auction_url',
         'auction_ends_at',
+        'preview_image_url',
+        'buy_now_price',
+        'buy_now_currency',
+        'operational_status',
+        'current_bid_price',
+        'current_bid_currency',
+        'current_bid_fetched_at',
     ];
     /**
      * The attributes that should be cast.
@@ -35,6 +42,9 @@ class VehicleDetail extends Model
         'engine_displacement_cc' => 'integer',
         'is_from_auction' => 'boolean',
         'auction_ends_at' => 'datetime',
+        'buy_now_price' => 'decimal:2',
+        'current_bid_price' => 'decimal:2',
+        'current_bid_fetched_at' => 'datetime',
     ];
     /**
      * Get the listing that owns the vehicle details.

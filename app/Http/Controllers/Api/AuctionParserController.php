@@ -135,14 +135,14 @@ class AuctionParserController extends Controller
     private function parseCopart(string $url): array
     {
         try {
-            $service = new AuctionParserService();
+            // ✅ Laravel сам создаст и подставит CopartCookieManager
+            $service = app(\App\Services\AuctionParserService::class);
             $data = $service->parseFromUrl($url);
 
             if ($data && !empty($data['make'])) {
                 return $data;
             }
 
-            // Fallback если парсер вернул пусто
             return [
                 'make' => null,
                 'model' => null,
@@ -154,7 +154,7 @@ class AuctionParserController extends Controller
                 'engine_displacement_cc' => null,
                 'exterior_color' => null,
                 'source_auction_url' => $url,
-                'photos' => []
+                'photos' => [],
             ];
         } catch (\Exception $e) {
             Log::error('Copart parsing failed: ' . $e->getMessage());
@@ -169,10 +169,12 @@ class AuctionParserController extends Controller
                 'engine_displacement_cc' => null,
                 'exterior_color' => null,
                 'source_auction_url' => $url,
-                'photos' => []
+                'photos' => [],
             ];
         }
     }
+
+
 
     /**
      * Парсинг IAAI с использованием AuctionParserService
@@ -180,7 +182,7 @@ class AuctionParserController extends Controller
     private function parseIAAI(string $url): array
     {
         try {
-            $service = new AuctionParserService();
+            $service = app(\App\Services\AuctionParserService::class);
             $data = $service->parseFromUrl($url);
 
             if ($data && !empty($data['make'])) {

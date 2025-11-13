@@ -6,14 +6,32 @@
                     @php
                         $fallbackImage = asset('images/no-image.jpg');
                         $galleryImages = [];
+                        $mediaUrlResolver = function ($media) {
+                            if (!is_object($media) || !method_exists($media, 'getKey')) {
+                                return null;
+                            }
+
+                            $useConversion = method_exists($media, 'hasGeneratedConversion') && $media->hasGeneratedConversion('medium');
+
+                            try {
+                                $params = ['media' => $media->getKey()];
+                                if ($useConversion) {
+                                    $params['conversion'] = 'medium';
+                                }
+
+                                return route('media.show', $params);
+                            } catch (\Throwable $e) {
+                                try {
+                                    return $useConversion ? $media->getUrl('medium') : $media->getUrl();
+                                } catch (\Throwable $_) {
+                                    return null;
+                                }
+                            }
+                        };
 
                         if (method_exists($listing, 'hasMedia') && $listing->hasMedia('images')) {
                             foreach ($listing->getMedia('images') as $m) {
-                                try {
-                                    $url = $m->getUrl('medium') ?: $m->getUrl();
-                                } catch (\Throwable $e) {
-                                    $url = null;
-                                }
+                                $url = $mediaUrlResolver($m);
                                 if ($url) {
                                     $galleryImages[] = $url;
                                 }
@@ -22,11 +40,7 @@
 
                         if (method_exists($listing, 'hasMedia') && $listing->hasMedia('auction_photos')) {
                             foreach ($listing->getMedia('auction_photos') as $m) {
-                                try {
-                                    $url = $m->getUrl('medium') ?: $m->getUrl();
-                                } catch (\Throwable $e) {
-                                    $url = null;
-                                }
+                                $url = $mediaUrlResolver($m);
                                 if ($url) {
                                     $galleryImages[] = $url;
                                 }
@@ -57,11 +71,7 @@
 
                         if (!empty($listing->media) && is_iterable($listing->media)) {
                             foreach ($listing->media as $m) {
-                                try {
-                                    $url = method_exists($m, 'getUrl') ? $m->getUrl() : null;
-                                } catch (\Throwable $e) {
-                                    $url = null;
-                                }
+                                $url = $mediaUrlResolver($m);
                                 if ($url) {
                                     $galleryImages[] = $url;
                                 }
@@ -85,7 +95,7 @@
                         $telHref = $sellerPhone ? preg_replace('/[^0-9+]/', '', $sellerPhone) : null;
                     @endphp
 
-                    <div class="lg:grid lg:grid-cols-[minmax(0,1.85fr)_340px] lg:gap-8">
+                    <div class="grid gap-8 lg:grid-cols-[minmax(0,1.85fr)_340px]">
                         <div class="space-y-8">
                             <header>
                                 <h1 class="text-3xl font-bold">{{ $listing->title }}</h1>
@@ -151,12 +161,60 @@
                             <div class="text-gray-600 flex flex-wrap gap-2">
                                 <span>{{ __('Опубликовано: :date', ['date' => $listing->created_at->format('d.m.Y')]) }}</span>
                                 <span>&middot;</span>
-                                <span>{{ __('Регион: :region', ['region' => $listing->region->name ?? __('Без региона')]) }}</span>
+                                <span>{{ __('Регион: :region', ['region' => $listing->region?->localized_name ?? __('Без региона')]) }}</span>
                             </div>
 
-                            <div class="text-4xl font-extrabold text-indigo-600">
-                                ${{ number_format($listing->price, 0, '.', ' ') }}
+                            @php
+                                $vehicleDetail = $listing->vehicleDetail;
+                                $buyNowPrice = $vehicleDetail?->buy_now_price;
+                                $buyNowCurrency = $vehicleDetail?->buy_now_currency ?: $listing->currency;
+                                $operationalStatus = $vehicleDetail?->operational_status;
+                                $isBuyNowAvailable = $buyNowPrice !== null;
+                                $displayPrice = $isBuyNowAvailable ? $buyNowPrice : $listing->price;
+                                $displayCurrency = $isBuyNowAvailable ? $buyNowCurrency : $listing->currency;
+                                $currentBidPrice = $vehicleDetail?->current_bid_price;
+                                $currentBidCurrency = $vehicleDetail?->current_bid_currency ?: $displayCurrency;
+                                $currentBidFetchedAt = $vehicleDetail?->current_bid_fetched_at;
+                            @endphp
+
+                            <div class="flex flex-col gap-1">
+                                @if($isBuyNowAvailable)
+                                    <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('Купить сейчас') }}</span>
+                                @endif
+                                <span class="text-4xl font-extrabold text-indigo-600 leading-tight">
+                                    @if($displayPrice !== null)
+                                        {{ number_format($displayPrice, 0, '.', ' ') }} {{ $displayCurrency }}
+                                    @else
+                                        {{ __('Цена уточняется') }}
+                                    @endif
+                                </span>
                             </div>
+                            @if($isBuyNowAvailable)
+                                <div class="mt-3 inline-flex flex-wrap items-baseline gap-3 rounded-xl bg-amber-50 px-4 py-3 text-amber-800">
+                                    <span class="text-xs font-semibold uppercase tracking-wide">{{ __('Купить сейчас') }}</span>
+                                    <span class="text-2xl font-bold">
+                                        {{ number_format($buyNowPrice, 0, '.', ' ') }} {{ $buyNowCurrency }}
+                                    </span>
+                                </div>
+                            @endif
+                            @if($currentBidPrice !== null)
+                                <div class="mt-3 inline-flex flex-wrap items-baseline gap-3 rounded-xl bg-indigo-50 px-4 py-3 text-indigo-900">
+                                    <span class="text-xs font-semibold uppercase tracking-wide">{{ __('Текущая ставка') }}</span>
+                                    <span class="text-2xl font-bold">
+                                        {{ number_format($currentBidPrice, 0, '.', ' ') }} {{ $currentBidCurrency }}
+                                    </span>
+                                    @if($currentBidFetchedAt)
+                                        <span class="text-xs text-indigo-600">
+                                            {{ __('обновлено :date', ['date' => $currentBidFetchedAt->timezone(config('app.timezone'))->format('d.m.Y H:i')]) }}
+                                        </span>
+                                    @endif
+                                </div>
+                            @endif
+                            @if($operationalStatus)
+                                <div class="mt-2 text-base font-semibold text-emerald-700">
+                                    {{ __('Состояние:') }} {{ $operationalStatus }}
+                                </div>
+                            @endif
 
                             <div class="prose max-w-none">
                                 <h2 class="text-xl font-bold">{{ __('Описание') }}</h2>
@@ -194,12 +252,32 @@
                                     $mileageText = $vehicle->mileage !== null
                                         ? number_format($vehicle->mileage, 0, '.', ' ') . ' ' . __('км')
                                         : '—';
-                                    $auctionEndsAtText = $vehicle->auction_ends_at
-                                        ? $vehicle->auction_ends_at->timezone(config('app.timezone'))->format('d.m.Y H:i')
+                                    $auctionEndsAt = $vehicle->auction_ends_at
+                                        ? $vehicle->auction_ends_at->timezone(config('app.timezone'))
                                         : null;
+                                    $auctionEndsAtText = $auctionEndsAt?->format('d.m.Y H:i');
+                                    $auctionEndsAtIso = $auctionEndsAt?->toIso8601String();
                                 @endphp
                                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
                                     <h2 class="text-2xl font-bold mb-4 text-blue-900">{{ __('Характеристики автомобиля') }}</h2>
+                                    @if($auctionEndsAtIso)
+                                        <div class="bg-white border border-dashed border-blue-200 rounded-lg p-4 mb-5"
+                                             data-countdown
+                                             data-expires="{{ $auctionEndsAtIso }}"
+                                             data-prefix="{{ __('До конца') }}"
+                                             data-expired-text="{{ __('Аукцион завершён') }}"
+                                             data-day-label="{{ __('д') }}">
+                                            <div class="text-xs text-blue-800 fw-semibold text-uppercase mb-1">
+                                                {{ __('Аукцион завершается') }}
+                                            </div>
+                                            <div class="text-2xl fw-bold text-blue-900" data-countdown-text>{{ __('Загрузка…') }}</div>
+                                            @if($auctionEndsAtText)
+                                                <div class="text-sm text-muted mt-1">
+                                                    {{ __('Ожидаемая дата: :date (:tz)', ['date' => $auctionEndsAtText, 'tz' => config('app.timezone')]) }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         @if($vehicle->make)
                                             <div class="flex justify-between border-b pb-2">
@@ -261,20 +339,45 @@
                                         @endif
                                     </div>
 
-                                    @if($vehicle->is_from_auction && $vehicle->source_auction_url)
-                                        <div class="mt-6 pt-4 border-t border-blue-300">
-                                            <a href="{{ $vehicle->source_auction_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition">
-                                                <i class="fa-solid fa-arrow-up-right-from-square me-2"></i>
-                                                {{ __('Посмотреть оригинальное объявление на аукционе') }}
-                                            </a>
-                                            <p class="mt-2 text-sm text-blue-700">
-                                                {{ __('Это объявление было создано на основе лота с аукциона') }}
-                                            </p>
-                                        </div>
-                                    @endif
                                 </div>
                             @endif
+                        </div>
 
+                        <aside class="seller-card lg:row-span-2">
+                            <div class="seller-card__header">
+                                <img src="{{ $sellerAvatar }}" alt="{{ $seller->name ?? __('Продавец') }}" class="seller-card__avatar">
+                                <div>
+                                    <p class="seller-card__title">{{ $seller->name ?? __('Продавец') }}</p>
+                                    @if($sellerJoined)
+                                        <p class="seller-card__muted">{{ __('На сервисе с :date', ['date' => $sellerJoined]) }}</p>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="seller-card__section">
+                                <p class="seller-card__label">{{ __('Номер телефона') }}</p>
+                                @if($sellerPhone && $sellerPhoneVerified)
+                                    <div class="seller-card__phone">
+                                        <a href="tel:{{ $telHref }}" id="sellerPhoneValue">{{ $sellerPhone }}</a>
+                                        <button type="button" class="seller-card__copy" data-copy-target="#sellerPhoneValue">
+                                            <i class="fa-solid fa-copy"></i> {{ __('Скопировать') }}
+                                        </button>
+                                    </div>
+                                    <p class="seller-card__muted">{{ __('Номер подтверждён через SMS') }}</p>
+                                @else
+                                    <p class="seller-card__muted">{{ __('Телефон не указан') }}</p>
+                                @endif
+                            </div>
+
+                            <div class="seller-card__actions">
+                                <a href="#contactSeller" class="btn btn-brand-gradient w-100">
+                                    <i class="fa-solid fa-message me-2"></i>
+                                    {{ __('Написать продавцу') }}
+                                </a>
+                            </div>
+                        </aside>
+
+                        <div class="space-y-8">
                             @if($listing->customFieldValues->isNotEmpty())
                                 <div>
                                     <h4 class="text-xl font-bold mb-4">{{ __('Характеристики') }}</h4>
@@ -389,7 +492,7 @@
                                                 </div>
                                                 <div class="p-3">
                                                     <h4 class="font-semibold text-gray-900 line-clamp-1">{{ $item->title }}</h4>
-                                                    <p class="text-xs text-gray-500 mb-2">{{ $item->region->name ?? __('Без региона') }}</p>
+                                                    <p class="text-xs text-gray-500 mb-2">{{ $item->region?->localized_name ?? __('Без региона') }}</p>
                                                     <p class="text-indigo-600 font-bold text-sm">{{ number_format($item->price, 0, '.', ' ') }} {{ $item->currency }}</p>
                                                 </div>
                                             </a>
@@ -398,40 +501,6 @@
                                 </div>
                             @endif
                         </div>
-
-                        <aside class="seller-card">
-                            <div class="seller-card__header">
-                                <img src="{{ $sellerAvatar }}" alt="{{ $seller->name ?? __('Продавец') }}" class="seller-card__avatar">
-                                <div>
-                                    <p class="seller-card__title">{{ $seller->name ?? __('Продавец') }}</p>
-                                    @if($sellerJoined)
-                                        <p class="seller-card__muted">{{ __('На сервисе с :date', ['date' => $sellerJoined]) }}</p>
-                                    @endif
-                                </div>
-                            </div>
-
-                            <div class="seller-card__section">
-                                <p class="seller-card__label">{{ __('Номер телефона') }}</p>
-                                @if($sellerPhone && $sellerPhoneVerified)
-                                    <div class="seller-card__phone">
-                                        <a href="tel:{{ $telHref }}" id="sellerPhoneValue">{{ $sellerPhone }}</a>
-                                        <button type="button" class="seller-card__copy" data-copy-target="#sellerPhoneValue">
-                                            <i class="fa-solid fa-copy"></i> {{ __('Скопировать') }}
-                                        </button>
-                                    </div>
-                                    <p class="seller-card__muted">{{ __('Номер подтверждён через SMS') }}</p>
-                                @else
-                                    <p class="seller-card__muted">{{ __('Телефон не указан') }}</p>
-                                @endif
-                            </div>
-
-                            <div class="seller-card__actions">
-                                <a href="#contactSeller" class="btn btn-brand-gradient w-100">
-                                    <i class="fa-solid fa-message me-2"></i>
-                                    {{ __('Написать продавцу') }}
-                                </a>
-                            </div>
-                        </aside>
                     </div>
 
                 </div>

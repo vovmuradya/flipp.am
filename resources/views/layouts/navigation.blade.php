@@ -11,16 +11,6 @@
                 'href' => route('home', ['only_auctions' => 1]),
                 'active' => request()->routeIs('home') && request('only_auctions'),
             ],
-            [
-                'label' => __('Запчасти'),
-                'href' => '#',
-                'active' => request()->routeIs('parts.*'),
-            ],
-            [
-                'label' => __('Шины'),
-                'href' => '#',
-                'active' => request()->routeIs('tires.*'),
-            ],
         ];
 
         $supportedLocales = config('app.supported_locales', []);
@@ -37,8 +27,8 @@
     @endphp
     <div class="container-fluid">
         <a class="navbar-brand" href="{{ route('home') }}">
-            <span class="brand-logo">
-                <i class="fa-solid fa-car-side"></i>
+            <span class="brand-logo" role="presentation">
+                <img src="{{ asset('images/logo.png') }}" alt="" class="brand-logo__img">
             </span>
             <span class="brand-text">idrom.am</span>
         </a>
@@ -107,8 +97,8 @@
         </div>
 
         <div class="collapse navbar-collapse flex-lg-grow-1" id="idromNavbar">
-            <div class="nav-center d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-center gap-3 w-100">
-                <ul class="navbar-nav nav-center__links flex-column flex-lg-row align-items-lg-center justify-content-lg-center gap-2 gap-lg-3 mb-0">
+            <div class="nav-center d-flex flex-column flex-lg-row align-items-lg-center gap-3 w-100">
+                <ul class="navbar-nav nav-center__links flex-column flex-lg-row align-items-lg-center gap-2 gap-lg-3 mb-0">
                     @foreach ($mainNavLinks as $link)
                         <li class="nav-item">
                             <a class="nav-link {{ $link['active'] ? 'active' : '' }}" href="{{ $link['href'] }}">{{ $link['label'] }}</a>
@@ -116,20 +106,27 @@
                     @endforeach
                 </ul>
 
-                <form action="{{ route('search.index') }}" method="GET" class="nav-search d-none d-lg-flex align-items-center">
-                    <i class="fa-solid fa-magnifying-glass nav-search__icon"></i>
-                    <input
-                        type="search"
-                        name="q"
-                        value="{{ request('q') }}"
-                        class="form-control nav-search__input"
-                        placeholder="{{ __('Поиск по объявлениям…') }}"
-                    >
+                <form action="{{ route('search.index') }}" method="GET" class="nav-search d-none d-lg-block">
+                    <div class="nav-search__wrapper">
+                        <span class="nav-search__icon">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input
+                            type="search"
+                            name="q"
+                            value="{{ request('q') }}"
+                            class="form-control nav-search__input"
+                            placeholder="{{ __('Поиск по объявлениям…') }}"
+                        >
+                        <button type="submit" class="nav-search__submit" aria-label="{{ __('Найти') }}">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
                 </form>
 
-                <div class="action-toolbar d-none d-lg-flex align-items-center gap-2 ms-auto ms-lg-4">
-                    <a href="{{ route('listings.create-choice') }}" class="btn btn-post">{{ __('Подать объявление') }}</a>
+                <a href="{{ route('listings.create-choice') }}" class="btn btn-post nav-center__cta d-none d-lg-inline-flex">{{ __('Подать объявление') }}</a>
 
+                <div class="action-toolbar d-none d-lg-flex align-items-center gap-2 ms-lg-auto">
                     @auth
                         <div class="dropdown-hover ms-3">
                             <span class="icon-button" title="{{ __('Профиль') }}"><i class="fa-solid fa-user"></i></span>

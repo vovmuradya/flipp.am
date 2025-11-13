@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Services\CopartCookieManager;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class UpdateCopartCookiesCommand extends Command
@@ -38,8 +40,9 @@ class UpdateCopartCookiesCommand extends Command
             return self::FAILURE;
         }
 
-        // Обновляем конфиг текущего рантайма, чтобы новое значение использовалось сразу.
+        // Обновляем конфиг и кеш, чтобы новое значение использовалось сразу.
         config(['services.copart.cookies' => $cookies]);
+        Cache::put(CopartCookieManager::CACHE_KEY, $cookies, now()->addHours(6));
 
         $this->info('COPART_COOKIES успешно обновлена.');
         $this->line('Не забудьте перезапустить очередь / Horizon, если они используются.');

@@ -8,24 +8,49 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Cookie\CookieJar;
 use Symfony\Component\Process\Process;
-
+use App\Services\CopartCookieManager;
 class AuctionParserService
 {
+    private ?string $copartCookieString = null;
+    private ?array $copartCookieArray = null;
+    private bool $copartBlocked = false;
+    private bool $copartBlockedDuringLastParse = false;
+
+    public function __construct(
+        private readonly CopartCookieManager $copartCookieManager,
+    ) {}
+
+    public function clearCacheForUrl(string $url): void
+    {
+        $trimmed = trim($url);
+        if ($trimmed === '') {
+            return;
+        }
+
+        foreach ([true, false] as $flag) {
+            $key = 'auction_parser:' . md5(($flag ? '1' : '0') . '|' . $trimmed);
+            Cache::forget($key);
+        }
+    }
+
     public function parseFromUrl(string $url, bool $aggressive = true): ?array
     {
         $url = trim($url);
         $url = preg_replace('/\s+/', '', $url);
 
+        $this->copartBlockedDuringLastParse = false;
+
         $domain = parse_url($url, PHP_URL_HOST);
 
         if (str_contains($domain, 'copart.com')) {
-            $cacheKey = 'auction_parser:' . md5(($aggressive ? '1' : '0') . '|' . $url);
+            $aggressiveMode = filter_var(config('services.copart.aggressive', $aggressive), FILTER_VALIDATE_BOOLEAN);
+            $cacheKey = 'auction_parser:' . md5(($aggressiveMode ? '1' : '0') . '|' . $url);
 
             if (Cache::has($cacheKey)) {
                 return Cache::get($cacheKey);
             }
 
-            $result = $this->parseCopart($url, $aggressive);
+            $result = $this->parseCopart($url, $aggressiveMode);
 
             if ($result !== null) {
                 Cache::put($cacheKey, $result, now()->addMinutes(10));
@@ -54,19 +79,17 @@ class AuctionParserService
      */
     private function getParsedCopartCookies(): array
     {
-        static $cache = null;
-
-        if ($cache !== null) {
-            return $cache;
+        if ($this->copartCookieArray !== null) {
+            return $this->copartCookieArray;
         }
 
-        $cache = [];
         $cookieString = $this->getCopartCookieString();
-
         if ($cookieString === '') {
-            return $cache;
+            $this->copartCookieArray = [];
+            return $this->copartCookieArray;
         }
 
+        $cookies = [];
         $cookiePairs = array_filter(array_map('trim', explode(';', $cookieString)));
 
         foreach ($cookiePairs as $pair) {
@@ -86,17 +109,42 @@ class AuctionParserService
                 continue;
             }
 
-            $cache[$name] = $value;
+            $cookies[$name] = $value;
         }
 
-        return $cache;
+        $this->copartCookieArray = $cookies;
+
+        return $this->copartCookieArray;
     }
 
     private function getCopartCookieString(): string
     {
-        $cookieString = config('services.copart.cookies') ?? env('COPART_COOKIES');
+        if ($this->copartCookieString !== null) {
+            return $this->copartCookieString;
+        }
 
-        return is_string($cookieString) ? trim($cookieString) : '';
+        $cookieString = $this->copartCookieManager->getCookieHeader();
+        if (is_string($cookieString) && trim($cookieString) !== '') {
+            $this->copartCookieString = trim($cookieString);
+            return $this->copartCookieString;
+        }
+
+        $this->copartCookieString = '';
+
+        return $this->copartCookieString;
+    }
+
+    private function refreshCopartCookies(): ?string
+    {
+        $cookieString = $this->copartCookieManager->refreshCookies();
+        if (! is_string($cookieString) || trim($cookieString) === '') {
+            return null;
+        }
+
+        $this->copartCookieString = trim($cookieString);
+        $this->copartCookieArray = null;
+
+        return $this->copartCookieString;
     }
 
     private function getCopartCookieHeader(): ?string
@@ -104,6 +152,28 @@ class AuctionParserService
         $cookieString = $this->getCopartCookieString();
 
         return $cookieString !== '' ? $cookieString : null;
+    }
+
+    public function wasCopartBlocked(): bool
+    {
+        return $this->copartBlockedDuringLastParse;
+    }
+
+    private function markCopartBlocked(): void
+    {
+        $this->copartBlocked = true;
+        $this->copartBlockedDuringLastParse = true;
+    }
+
+    private function flagCopartBlockFromBody(?string $body): void
+    {
+        if (! is_string($body) || $body === '') {
+            return;
+        }
+
+        if (stripos($body, '_Incapsula_Resource') !== false || stripos($body, 'Incapsula incident ID') !== false) {
+            $this->markCopartBlocked();
+        }
     }
 
     private function copartConfigValue(string $key, string $default): string
@@ -188,25 +258,43 @@ class AuctionParserService
                 ->withOptions($options)
                 ->get($url);
 
+            $body = $response->body();
+            $this->flagCopartBlockFromBody($body);
+
+            $status = $response->status();
+
+            if (in_array($status, [401, 403, 429], true)) {
+                Log::warning('⚠️ Copart HTTP auth/blocked status', [
+                    'url' => $url,
+                    'status' => $status,
+                ]);
+                $this->markCopartBlocked();
+                return null;
+            }
+
             if ($response->successful()) {
-                $payload = $response->json();
+                $payload = json_decode($body, true);
                 if (is_array($payload)) {
                     return $payload;
                 }
 
                 Log::warning('⚠️ Copart JSON parse failed (HTTP)', [
                     'url' => $url,
-                    'body_snippet' => substr($response->body(), 0, 200),
+                    'body_snippet' => substr($body ?? '', 0, 200),
                 ]);
             } else {
                 Log::warning('⚠️ Copart HTTP status', [
                     'url' => $url,
                     'status' => $response->status(),
-                    'body_snippet' => substr($response->body(), 0, 200),
+                    'body_snippet' => substr($body ?? '', 0, 200),
                 ]);
             }
         } catch (\Throwable $e) {
             Log::warning('⚠️ Copart HTTP error: ' . $e->getMessage(), ['url' => $url]);
+        }
+
+        if ($this->copartBlocked) {
+            return null;
         }
 
         return $this->requestCopartJsonViaCurl($url, $headers);
@@ -217,6 +305,10 @@ class AuctionParserService
      */
     private function requestCopartJsonViaCurl(string $url, array $headers): ?array
     {
+        if ($this->copartBlocked) {
+            return null;
+        }
+
         $command = $this->buildCurlCommand($url, $headers);
         $process = new Process($command);
         $process->setTimeout(25);
@@ -231,6 +323,7 @@ class AuctionParserService
         }
 
         $body = trim($process->getOutput());
+        $this->flagCopartBlockFromBody($body);
         if ($body === '') {
             return null;
         }
@@ -261,8 +354,22 @@ class AuctionParserService
                 ->withOptions($options)
                 ->get($url);
 
+            $body = $response->body();
+            $this->flagCopartBlockFromBody($body);
+
+            $status = $response->status();
+
+            if (in_array($status, [401, 403, 429], true)) {
+                Log::warning('⚠️ Copart HTTP body blocked status', [
+                    'url' => $url,
+                    'status' => $status,
+                ]);
+                $this->markCopartBlocked();
+                return null;
+            }
+
             if ($response->successful()) {
-                return $response->body();
+                return $body;
             }
 
             Log::warning('⚠️ Copart HTTP body status', [
@@ -273,6 +380,10 @@ class AuctionParserService
             Log::warning('⚠️ Copart HTTP body error: ' . $e->getMessage(), ['url' => $url]);
         }
 
+        if ($this->copartBlocked) {
+            return null;
+        }
+
         return $this->requestCopartBodyViaCurl($url, $headers);
     }
 
@@ -281,6 +392,10 @@ class AuctionParserService
      */
     private function requestCopartBodyViaCurl(string $url, array $headers): ?string
     {
+        if ($this->copartBlocked) {
+            return null;
+        }
+
         $command = $this->buildCurlCommand($url, $headers);
         $process = new Process($command);
         $process->setTimeout(25);
@@ -295,6 +410,7 @@ class AuctionParserService
         }
 
         $body = $process->getOutput();
+        $this->flagCopartBlockFromBody($body);
 
         return $body !== '' ? $body : null;
     }
@@ -333,7 +449,48 @@ class AuctionParserService
 
     private function parseCopart(string $url, bool $aggressive = true): ?array
     {
+        $attempt = 0;
+        $result = null;
+
+        while ($attempt < 2) {
+            $this->copartBlocked = false;
+            $result = $this->parseCopartAttempt($url, $aggressive);
+
+            $retryReason = $this->shouldForceRetry($result);
+            if ($retryReason === null) {
+                return $result;
+            }
+
+            Log::info('🔁 Copart retry scheduled', [
+                'reason' => $retryReason,
+                'attempt' => $attempt + 1,
+                'aggressive' => $aggressive,
+            ]);
+
+            if ($attempt === 0) {
+                $attempt++;
+                $aggressive = true;
+
+                $refreshed = $this->refreshCopartCookies();
+                if ($refreshed) {
+                    Log::info('🔁 Copart cookies refreshed, retrying parse');
+                } else {
+                    Log::warning('⚠️ Copart cookie refresh unavailable, retrying with existing session');
+                }
+
+                continue;
+            }
+
+            break;
+        }
+
+        return $result;
+    }
+
+    private function parseCopartAttempt(string $url, bool $aggressive = true): ?array
+    {
         try {
+            $lotHtml = null;
             Log::info('🔍 Parsing Copart URL: ' . $url);
             preg_match('/\/lot\/(\d+)/', $url, $lotMatches);
             $lotId = $lotMatches[1] ?? null;
@@ -378,11 +535,16 @@ class AuctionParserService
             $apiUrl = "https://www.copart.com/public/data/lotdetails/solr/{$lotId}";
             Log::info('📡 Fetching vehicle data from API: ' . $apiUrl);
             $apiData = $this->requestCopartJson($apiUrl, $headers, $cookieJar);
+            $details = $apiData['data']['lotDetails'] ?? [];
 
             $auctionEndAt = null;
 
-            if (isset($apiData['data']['lotDetails'])) {
-                $details = $apiData['data']['lotDetails'];
+            if ($this->copartBlocked) {
+                Log::warning('❌ Copart blocked while fetching lot meta, aborting attempt');
+                return null;
+            }
+
+            if (!empty($details)) {
                 $make = $details['mkn'] ?? null;
                 $model = $details['lm'] ?? null;
                 $year = $details['lcy'] ?? null;
@@ -397,6 +559,38 @@ class AuctionParserService
                 Log::warning('⚠️ Vehicle API returned no data after retries');
             }
 
+            $buyNowPrice = $this->extractCopartBuyNowPrice($details);
+            $buyNowCurrency = $this->extractCopartBuyNowCurrency($details);
+            $operationalStatus = $this->extractCopartOperationalStatus($details);
+            $currentBidPrice = $this->extractCopartCurrentBid($details);
+            $currentBidCurrency = $this->extractCopartCurrentBidCurrency($details) ?? $buyNowCurrency;
+
+            if ($aggressive && ($buyNowPrice === null || $operationalStatus === null || $currentBidPrice === null)) {
+                $lotHtml = $this->fetchCopartLotHtml($url, $cookieJar);
+
+                if ($lotHtml) {
+                    if ($buyNowPrice === null) {
+                        [$htmlBuyNowPrice, $htmlBuyNowCurrency] = $this->extractCopartBuyNowFromHtml($lotHtml);
+                        if ($htmlBuyNowPrice !== null) {
+                            $buyNowPrice = $htmlBuyNowPrice;
+                            $buyNowCurrency ??= $htmlBuyNowCurrency;
+                        }
+                    }
+
+                    if ($operationalStatus === null) {
+                        $operationalStatus = $this->extractOperationalStatusFromHtml($lotHtml);
+                    }
+
+                    if ($currentBidPrice === null) {
+                        [$htmlCurrentBid, $htmlCurrentBidCurrency] = $this->extractCopartCurrentBidFromHtml($lotHtml);
+                        if ($htmlCurrentBid !== null) {
+                            $currentBidPrice = $htmlCurrentBid;
+                            $currentBidCurrency ??= $htmlCurrentBidCurrency;
+                        }
+                    }
+                }
+            }
+
             // GET PHOTOS FROM API
             $imageApiUrl = "https://www.copart.com/public/data/lotdetails/solr/lotImages/{$lotId}";
             try {
@@ -408,6 +602,11 @@ class AuctionParserService
                 $imgHeaders['Accept'] = 'application/json, text/plain, */*';
 
                 $imgData = $this->requestCopartJson($imageApiUrl, $imgHeaders, $cookieJar);
+
+                if ($this->copartBlocked) {
+                    Log::warning('❌ Copart blocked while fetching image metadata');
+                    return null;
+                }
 
                 $imagesArray = [];
                 $imageUrls = [];
@@ -483,7 +682,7 @@ class AuctionParserService
 
             if ($aggressive && empty($imagesArray)) {
                 Log::info('🔄 Alternate endpoints failed, trying HTML scraping fallback');
-                $imagesArray = $this->scrapeImagesFromHtml($url, $lotId, $cookieJar);
+                $imagesArray = $this->scrapeImagesFromHtml($url, $lotId, $cookieJar, $lotHtml);
             }
 
             if ($aggressive && empty($imagesArray)) {
@@ -574,6 +773,11 @@ class AuctionParserService
                 'fuel_type' => 'gasoline',
                 'engine_displacement_cc' => $engineCc,
                 'body_type' => 'SUV',
+                'buy_now_price' => $buyNowPrice,
+                'buy_now_currency' => $buyNowPrice !== null ? ($buyNowCurrency ?? 'USD') : null,
+                'current_bid_price' => $currentBidPrice,
+                'current_bid_currency' => $currentBidPrice !== null ? ($currentBidCurrency ?? $buyNowCurrency ?? 'USD') : null,
+                'operational_status' => $operationalStatus,
                 'photos' => array_values($photos),
                 'source_auction_url' => $url,
                 'auction_ends_at' => $auctionEndAt ? $auctionEndAt->toIso8601String() : null,
@@ -585,6 +789,44 @@ class AuctionParserService
             Log::error('❌ Copart error: ' . $e->getMessage());
             return null;
         }
+    }
+
+    private function shouldForceRetry(?array $result): ?string
+    {
+        if ($result === null) {
+            return 'empty-result';
+        }
+
+        if ($this->copartBlocked) {
+            return 'copart-blocked';
+        }
+
+        $photos = $result['photos'] ?? [];
+        $photoCount = is_array($photos) ? count($photos) : 0;
+
+        if ($photoCount === 0) {
+            return 'no-photos';
+        }
+
+        if ($photoCount < $this->minCopartPhotos()) {
+            return 'insufficient-photos';
+        }
+
+        if (empty($result['engine_displacement_cc'])) {
+            return 'missing-engine';
+        }
+
+        $color = (string) ($result['exterior_color'] ?? '');
+        if ($color === '' || strcasecmp($color, 'Неизвестно') === 0) {
+            return 'missing-color';
+        }
+
+        return null;
+    }
+
+    private function minCopartPhotos(): int
+    {
+        return max(1, (int) config('services.copart.min_photos', 8));
     }
 
     private function parseIAAI(string $url): ?array
@@ -802,6 +1044,385 @@ class AuctionParserService
         // Parse engine size in cc (e.g., "1500cc")
         elseif (preg_match('/(\d{3,4})\s*cc/i', $engineStr, $ccM)) {
             return (int) $ccM[1];
+        }
+
+        return null;
+    }
+
+    private function extractCopartBuyNowPrice(array $details): ?float
+    {
+        $value = $this->searchNestedByKeyFragments($details, ['buy', 'now'], true);
+
+        if ($value === null) {
+            $value = $this->searchNestedByKeyFragments($details, ['buy', 'today'], true);
+        }
+
+        return $value;
+    }
+
+    private function extractCopartBuyNowCurrency(array $details): ?string
+    {
+        $fragmentsList = [
+            ['buy', 'now', 'curr'],
+            ['buy', 'now', 'currency'],
+            ['currency'],
+            ['curr'],
+            ['cu'],
+        ];
+
+        foreach ($fragmentsList as $fragments) {
+            $candidate = $this->searchNestedByKeyFragments($details, $fragments);
+            $currency = $this->sanitizeCurrencyCode($candidate);
+            if ($currency !== null) {
+                return $currency;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractCopartCurrentBid(array $details): ?float
+    {
+        $fragmentsList = [
+            ['current', 'bid'],
+            ['curr', 'bid'],
+            ['high', 'bid'],
+            ['bid', 'amount'],
+            ['bid', 'value'],
+        ];
+
+        foreach ($fragmentsList as $fragments) {
+            $candidate = $this->searchNestedByKeyFragments($details, $fragments, true);
+            if ($candidate !== null) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractCopartCurrentBidCurrency(array $details): ?string
+    {
+        $fragmentsList = [
+            ['current', 'bid', 'curr'],
+            ['current', 'bid', 'currency'],
+            ['high', 'bid', 'curr'],
+            ['bid', 'currency'],
+        ];
+
+        foreach ($fragmentsList as $fragments) {
+            $candidate = $this->searchNestedByKeyFragments($details, $fragments);
+            $currency = $this->sanitizeCurrencyCode($candidate);
+            if ($currency !== null) {
+                return $currency;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractCopartOperationalStatus(array $details): ?string
+    {
+        foreach ($this->collectStringLeaves($details) as $value) {
+            $status = $this->normalizeOperationalStatus($value);
+            if ($status !== null) {
+                return $status;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{0:?float,1:?string}
+     */
+    private function extractCopartBuyNowFromHtml(?string $html): array
+    {
+        if (!$html) {
+            return [null, null];
+        }
+
+        $patterns = [
+            '/data-uname="lotdetailbuybid"[^>]*>\s*([^<]+)/i',
+            '/Buy\s+(?:It\s+)?Now[^0-9$€£A-Z]*([\$€£])?\s*([\d.,]+)/i',
+            '/Buy\s+(?:It\s+)?Now\s+Price[^0-9$€£A-Z]*([\$€£])?\s*([\d.,]+)/i',
+            '/Buy\s+Now\s+Price[^0-9$€£A-Z]*([\$€£])?\s*([\d.,]+)/i',
+            '/data-uname="lotdetailbuyitnowprice"[^>]*>\s*([^<]+)/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $html, $matches)) {
+                $rawValue = $matches[count($matches) - 1] ?? null;
+                $price = $this->parseMoneyValue($rawValue);
+
+                if ($price !== null) {
+                    $symbol = $matches[1] ?? null;
+                    $currency = $this->currencyFromSymbol($symbol) ?? $this->detectCurrencyCodeFromContext($matches[0] ?? null);
+
+                    return [$price, $currency];
+                }
+            }
+        }
+
+        if (preg_match('/"buy(?:It)?Now(?:Price|Amount|Bid)"\s*:\s*"?(?<price>[\d.,]+)/i', $html, $matches)) {
+            $price = $this->parseMoneyValue($matches['price'] ?? null);
+            if ($price !== null) {
+                $currency = null;
+                if (preg_match('/"buy(?:It)?Now(?:Currency|Curr|CurrCode)"\s*:\s*"(?<curr>[A-Z]{3,5})"/i', $html, $currMatch)) {
+                    $currency = strtoupper(trim($currMatch['curr']));
+                }
+
+                return [$price, $currency];
+            }
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * @return array{0:?float,1:?string}
+     */
+    private function extractCopartCurrentBidFromHtml(?string $html): array
+    {
+        if (!$html) {
+            return [null, null];
+        }
+
+        $patterns = [
+            '/data-uname="lotdetailcurrentbid"[^>]*>\s*([^<]+)/i',
+            '/Current\s+Bid[^0-9$€£A-Z]*([\$€£])?\s*([\d.,]+)/i',
+            '/Bid\s+Status[^0-9$€£A-Z]*([\$€£])?\s*([\d.,]+)/i',
+            '/data-uname="lotdetailbidamount"[^>]*>\s*([^<]+)/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $html, $matches)) {
+                $rawValue = $matches[count($matches) - 1] ?? null;
+                $price = $this->parseMoneyValue($rawValue);
+
+                if ($price !== null) {
+                    $symbol = $matches[1] ?? null;
+                    $currency = $this->currencyFromSymbol($symbol) ?? $this->detectCurrencyCodeFromContext($matches[0] ?? null);
+
+                    return [$price, $currency];
+                }
+            }
+        }
+
+        if (preg_match('/"currentBid(?:Amount|Price|Value|Bid)"\s*:\s*"?(?<price>[\d.,]+)/i', $html, $matches)) {
+            $price = $this->parseMoneyValue($matches['price'] ?? null);
+            if ($price !== null) {
+                $currency = null;
+                if (preg_match('/"currentBid(?:Currency|Curr|CurrCode)"\s*:\s*"(?<curr>[A-Z]{3,5})"/i', $html, $currMatch)) {
+                    $currency = strtoupper(trim($currMatch['curr']));
+                }
+
+                return [$price, $currency];
+            }
+        }
+
+        return [null, null];
+    }
+
+    private function sanitizeCurrencyCode(mixed $value): ?string
+    {
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                $currency = $this->sanitizeCurrencyCode($item);
+                if ($currency !== null) {
+                    return $currency;
+                }
+            }
+            return null;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $normalized = strtoupper(trim($value));
+
+        return preg_match('/^[A-Z]{3,5}$/', $normalized) ? $normalized : null;
+    }
+
+    private function extractOperationalStatusFromHtml(?string $html): ?string
+    {
+        if (!$html) {
+            return null;
+        }
+
+        $patterns = [
+            '/data-uname="lotdetailrunanddrive"[^>]*>\s*([^<]+)/i',
+            '/data-uname="lotdetailoperationalstatus"[^>]*>\s*([^<]+)/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $html, $matches) && isset($matches[1])) {
+                $status = $this->normalizeOperationalStatus($matches[1]);
+                if ($status !== null) {
+                    return $status;
+                }
+            }
+        }
+
+        return $this->normalizeOperationalStatus(strip_tags($html));
+    }
+
+    private function searchNestedByKeyFragments(array $data, array $fragments, bool $numericOnly = false): mixed
+    {
+        foreach ($data as $key => $value) {
+            if (is_string($key)) {
+                $lowerKey = strtolower($key);
+                $matches = true;
+
+                foreach ($fragments as $fragment) {
+                    if (!str_contains($lowerKey, strtolower($fragment))) {
+                        $matches = false;
+                        break;
+                    }
+                }
+
+                if ($matches) {
+                    if ($numericOnly) {
+                        $numeric = $this->extractFirstNumericLeaf($value);
+                        if ($numeric !== null) {
+                            return $numeric;
+                        }
+                        continue;
+                    }
+
+                    if (is_string($value)) {
+                        return trim($value);
+                    }
+
+                    if (is_numeric($value)) {
+                        return (string) $value;
+                    }
+
+                    return null;
+                }
+            }
+
+            if (is_array($value)) {
+                $found = $this->searchNestedByKeyFragments($value, $fragments, $numericOnly);
+                if ($found !== null) {
+                    return $found;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function extractFirstNumericLeaf(mixed $value): ?float
+    {
+        if (is_array($value)) {
+            foreach ($value as $child) {
+                $numeric = $this->extractFirstNumericLeaf($child);
+                if ($numeric !== null) {
+                    return $numeric;
+                }
+            }
+
+            return null;
+        }
+
+        return $this->parseMoneyValue($value);
+    }
+
+    private function collectStringLeaves(array $data): array
+    {
+        $bucket = [];
+        foreach ($data as $value) {
+            if (is_array($value)) {
+                $bucket = array_merge($bucket, $this->collectStringLeaves($value));
+            } elseif (is_string($value)) {
+                $bucket[] = $value;
+            }
+        }
+
+        return $bucket;
+    }
+
+    private function normalizeOperationalStatus(?string $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($value));
+        if ($normalized === '') {
+            return null;
+        }
+
+        $dictionary = [
+            'run and drive' => 'Run and Drive',
+            'run & drive' => 'Run and Drive',
+            'engine start program' => 'Engine Start Program',
+            'enhanced vehicles' => 'Enhanced Vehicle',
+            'enhanced vehicle' => 'Enhanced Vehicle',
+            'stationary' => 'Stationary',
+            'won\'t start' => "Won't Start",
+            'does not start' => 'Does Not Start',
+            'doesn\'t start' => "Doesn't Start",
+            'no start' => 'No Start',
+        ];
+
+        foreach ($dictionary as $needle => $label) {
+            if (str_contains($normalized, $needle)) {
+                return $label;
+            }
+        }
+
+        return null;
+    }
+
+    private function parseMoneyValue(mixed $value): ?float
+    {
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $sanitized = preg_replace('/[^0-9.,-]/', '', $value);
+        if ($sanitized === '') {
+            return null;
+        }
+
+        $normalized = str_replace(',', '', $sanitized);
+
+        return is_numeric($normalized) ? (float) $normalized : null;
+    }
+
+    private function currencyFromSymbol(?string $symbol): ?string
+    {
+        return match ($symbol) {
+            '$' => 'USD',
+            '€' => 'EUR',
+            '£' => 'GBP',
+            default => null,
+        };
+    }
+
+    private function detectCurrencyCodeFromContext(?string $context): ?string
+    {
+        if (!is_string($context)) {
+            return null;
+        }
+
+        if (stripos($context, 'usd') !== false) {
+            return 'USD';
+        }
+
+        if (stripos($context, 'eur') !== false) {
+            return 'EUR';
+        }
+
+        if (stripos($context, 'gbp') !== false) {
+            return 'GBP';
         }
 
         return null;
@@ -1516,6 +2137,14 @@ private function normalizeText(?string $value): ?string
             $url .= '.jpg';
         }
 
+        $path = parse_url($url, PHP_URL_PATH) ?? '';
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
+        if ($extension !== '' && ! in_array($extension, $allowedExtensions, true)) {
+            return null;
+        }
+
         return $url;
     }
 
@@ -1569,7 +2198,32 @@ private function normalizeText(?string $value): ?string
         return $results;
     }
 
-    private function scrapeImagesFromHtml(string $url, string $lotId, ?CookieJar $cookieJar = null): array
+    private function fetchCopartLotHtml(string $url, ?CookieJar $cookieJar = null): ?string
+    {
+        if (!$cookieJar) {
+            $cookieJar = CookieJar::fromArray([], '.copart.com');
+        }
+
+        $headers = [
+            'User-Agent' => $this->copartUserAgent(),
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language' => 'en-US,en;q=0.5',
+            'Accept-Encoding' => 'gzip, deflate',
+            'DNT' => '1',
+            'Connection' => 'keep-alive',
+            'Upgrade-Insecure-Requests' => '1',
+            'Referer' => $this->copartRefererFallback(),
+            'Origin' => $this->copartOrigin(),
+        ];
+
+        if ($cookieHeader = $this->getCopartCookieHeader()) {
+            $headers['Cookie'] = $cookieHeader;
+        }
+
+        return $this->requestCopartBody($url, $headers, $cookieJar);
+    }
+
+    private function scrapeImagesFromHtml(string $url, string $lotId, ?CookieJar $cookieJar = null, ?string $preFetchedHtml = null): array
     {
         $imagesArray = [];
 
@@ -1580,23 +2234,7 @@ private function normalizeText(?string $value): ?string
         try {
             Log::info('🔄 Attempting HTML scraping for lot: ' . $lotId);
 
-            // Fetch the HTML content of the auction page
-            $headers = [
-                'User-Agent' => $this->copartUserAgent(),
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language' => 'en-US,en;q=0.5',
-                'Accept-Encoding' => 'gzip, deflate',
-                'DNT' => '1',
-                'Connection' => 'keep-alive',
-                'Upgrade-Insecure-Requests' => '1',
-                'Referer' => $this->copartRefererFallback(),
-                'Origin' => $this->copartOrigin(),
-            ];
-            if ($cookieHeader = $this->getCopartCookieHeader()) {
-                $headers['Cookie'] = $cookieHeader;
-            }
-
-            $html = $this->requestCopartBody($url, $headers, $cookieJar);
+            $html = $preFetchedHtml ?? $this->fetchCopartLotHtml($url, $cookieJar);
             if ($html === null) {
                 Log::warning('⚠️ Failed to fetch HTML body for scraping');
                 return [];

@@ -6,10 +6,12 @@ use App\Models\Listing;
 use App\Models\Category;
 use App\Models\Region;
 use App\Http\Requests\ListingRequest;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
@@ -20,7 +22,7 @@ use App\Services\AuctionParserService;
 use App\Support\VehicleCategoryResolver;
 use App\Support\VehicleAttributeOptions;
 use App\Models\CarBrand;
-
+use App\Support\SearchQueryHelper;
 class ListingController extends Controller
 {
     private const ALLOWED_AUCTION_DOMAINS = [
@@ -44,136 +46,125 @@ class ListingController extends Controller
         $query = Listing::query()
             ->with(['category', 'region', 'user', 'media']);
 
-        // Применяем фильтр только если указан конкретный тип
         if ($onlyAuctions) {
             $query->fromAuction()->active();
         } elseif ($onlyRegular) {
             $query->regular()->active();
         } else {
-            // По умолчанию показываем ВСЕ активные объявления (и обычные, и аукционные)
             $query->active();
         }
 
         $query->latest();
 
-        // Фильтрация по категории
+        // ======= 🔍 Умный поиск через Meilisearch с откатом ======= //
+        if ($request->filled('q')) {
+            $term = trim($request->input('q'));
+            $ids = [];
+            $searchFailed = false;
+
+            try {
+                $ids = Listing::search($term)->get()->pluck('id')->toArray();
+            } catch (\Throwable $e) {
+                $searchFailed = true;
+                Log::warning('Scout search failed, using DB fallback', [
+                    'term' => $term,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            if ($searchFailed) {
+                $this->applySearchFallback($query, $term);
+            } elseif (!empty($ids)) {
+                $query->whereIn('id', $ids)
+                    ->orderByRaw("FIELD(id, " . implode(',', $ids) . ")");
+            } else {
+                $this->applySearchFallback($query, $term);
+            }
+        }
+
+        // ===== Фильтры ===== //
         if ($request->has('category')) {
             $query->where('category_id', $request->category);
         }
 
-        // Фильтрация по региону
         if ($request->has('region')) {
             $query->where('region_id', $request->region);
         }
 
-        // Фильтрация по цене
         if ($request->filled('price_from') && is_numeric($request->price_from)) {
             $query->where('price', '>=', (float) $request->price_from);
         }
+
         if ($request->filled('price_to') && is_numeric($request->price_to)) {
             $query->where('price', '<=', (float) $request->price_to);
         }
+
         if ($request->filled('currency')) {
-            $currency = strtoupper($request->input('currency'));
-            $query->where('currency', $currency);
+            $query->where('currency', strtoupper($request->currency));
         }
 
-        // Поиск по тексту
-        if ($request->filled('q')) {
-            $term = trim($request->input('q'));
-            $query->where(function ($nested) use ($term) {
-                $nested->where('title', 'like', "%{$term}%")
-                    ->orWhere('description', 'like', "%{$term}%");
+        // ===== фильтры по vehicleDetail ===== //
+        $query->when($request->filled('brand'), function ($q) use ($request) {
+            $q->whereHas('vehicleDetail', function ($q2) use ($request) {
+                $q2->whereRaw('LOWER(make) = ?', [mb_strtolower($request->brand)]);
             });
-        }
+        });
 
-        // Фильтры для автомобилей (только для объявлений с деталями ТС)
-        if ($request->filled('brand')) {
-            $brandTerm = trim(mb_strtolower($request->input('brand')));
-            $query->whereHas('vehicleDetail', function ($q) use ($brandTerm) {
-                $q->whereRaw('LOWER(make) = ?', [$brandTerm]);
+        $query->when($request->filled('model'), function ($q) use ($request) {
+            $q->whereHas('vehicleDetail', function ($q2) use ($request) {
+                $q2->whereRaw('LOWER(model) = ?', [mb_strtolower($request->model)]);
             });
+        });
+
+        if ($request->filled('year_from') && is_numeric($request->year_from)) {
+            $yearFrom = max(1900, min((int)$request->year_from, date('Y') + 1));
+            $query->whereHas('vehicleDetail', fn($q) => $q->where('year', '>=', $yearFrom));
         }
 
-        if ($request->filled('model')) {
-            $modelTerm = trim(mb_strtolower($request->input('model')));
-            $query->whereHas('vehicleDetail', function ($q) use ($modelTerm) {
-                $q->whereRaw('LOWER(model) = ?', [$modelTerm]);
-            });
+        if ($request->filled('year_to') && is_numeric($request->year_to)) {
+            $yearTo = max(1900, min((int)$request->year_to, date('Y') + 1));
+            $query->whereHas('vehicleDetail', fn($q) => $q->where('year', '<=', $yearTo));
         }
 
-        if ($request->filled('year_from') && is_numeric($request->input('year_from'))) {
-            $yearFrom = max(1900, min((int) $request->input('year_from'), date('Y') + 1));
-            $query->whereHas('vehicleDetail', function ($q) use ($yearFrom) {
-                $q->where('year', '>=', $yearFrom);
-            });
+        foreach (['body_type', 'transmission', 'fuel_type'] as $field) {
+            if ($request->filled($field)) {
+                $query->whereHas('vehicleDetail', fn($q) => $q->where($field, $request->$field));
+            }
         }
 
-        if ($request->filled('year_to') && is_numeric($request->input('year_to'))) {
-            $yearTo = max(1900, min((int) $request->input('year_to'), date('Y') + 1));
-            $query->whereHas('vehicleDetail', function ($q) use ($yearTo) {
-                $q->where('year', '<=', $yearTo);
-            });
+        if ($request->filled('engine_from') && is_numeric($request->engine_from)) {
+            $query->whereHas('vehicleDetail', fn($q) =>
+            $q->where('engine_displacement_cc', '>=', (int)$request->engine_from));
         }
 
-        if ($request->filled('body_type')) {
-            $query->whereHas('vehicleDetail', function ($q) use ($request) {
-                $q->where('body_type', $request->input('body_type'));
-            });
+        if ($request->filled('engine_to') && is_numeric($request->engine_to)) {
+            $query->whereHas('vehicleDetail', fn($q) =>
+            $q->where('engine_displacement_cc', '<=', (int)$request->engine_to));
         }
 
-        if ($request->filled('transmission')) {
-            $query->whereHas('vehicleDetail', function ($q) use ($request) {
-                $q->where('transmission', $request->input('transmission'));
-            });
-        }
+        // ✅ Пагинация
+        $listings = $query->paginate(20)->withQueryString();
 
-        if ($request->filled('fuel_type')) {
-            $query->whereHas('vehicleDetail', function ($q) use ($request) {
-                $q->where('fuel_type', $request->input('fuel_type'));
-            });
-        }
-
-        if ($request->filled('engine_from') && is_numeric($request->input('engine_from'))) {
-            $query->whereHas('vehicleDetail', function ($q) use ($request) {
-                $q->where('engine_displacement_cc', '>=', (int) $request->input('engine_from'));
-            });
-        }
-
-        if ($request->filled('engine_to') && is_numeric($request->input('engine_to'))) {
-            $query->whereHas('vehicleDetail', function ($q) use ($request) {
-                $q->where('engine_displacement_cc', '<=', (int) $request->input('engine_to'));
-            });
-        }
-
-        if ($onlyRegular || $onlyAuctions) {
-            $listings = $query->paginate(20)->withQueryString();
-        } else {
-            $listings = $query->limit(40)->get();
-        }
-
-        $featuredListings = collect();
-
-        if (!$onlyRegular && !$onlyAuctions) {
-            $featuredListings = Listing::query()
+        // ✅ Кеш Featured
+        $featuredListings = Cache::remember('featured_listings', 60, function () {
+            return Listing::query()
                 ->with(['vehicleDetail', 'media'])
                 ->active()
                 ->latest()
                 ->take(12)
                 ->get();
-        }
+        });
 
-        // Получаем категории и регионы для фильтров
+        // ✅ Кеш справочников
         $categories = Cache::remember('flipp-cache-categories_tree', 3600, function () {
             return Category::tree()->get()->toTree()->map(function ($category) {
-                // Здесь оставляем is_string, т.к. это код из index, и он, вероятно, работает.
-                if (is_string($category->name) && ($decoded = json_decode($category->name, true)) !== null) {
+                if (is_string($category->name) && ($decoded = json_decode($category->name, true))) {
                     $category->name = $decoded[app()->getLocale()] ?? $decoded['en'] ?? 'Unnamed';
                 }
 
                 if ($category->children->isNotEmpty()) {
                     $category->children->transform(function ($child) {
-                        if (is_string($child->name) && ($decoded = json_decode($child->name, true)) !== null) {
+                        if (is_string($child->name) && ($decoded = json_decode($child->name, true))) {
                             $child->name = $decoded[app()->getLocale()] ?? $decoded['en'] ?? 'Unnamed';
                         }
                         return $child;
@@ -184,9 +175,7 @@ class ListingController extends Controller
             });
         });
 
-        $regions = Cache::remember('regions_list', 3600, function () {
-            return Region::all();
-        });
+        $regions = Cache::remember('regions_list', 3600, fn() => Region::all());
 
         $brands = ($onlyRegular || $onlyAuctions)
             ? CarBrand::query()
@@ -194,16 +183,7 @@ class ListingController extends Controller
                 ->get(['id', 'name_ru', 'name_en'])
             : collect();
 
-        $currentOrigin = $originFilter;
-        if (!$currentOrigin) {
-            if ($onlyRegular) {
-                $currentOrigin = 'regular';
-            } elseif ($onlyAuctions) {
-                $currentOrigin = 'abroad';
-            } else {
-                $currentOrigin = 'regular';
-            }
-        }
+        $currentOrigin = $originFilter ?: ($onlyRegular ? 'regular' : ($onlyAuctions ? 'abroad' : 'regular'));
 
         return view('listings.index', compact(
             'listings',
@@ -216,6 +196,7 @@ class ListingController extends Controller
             'currentOrigin'
         ));
     }
+
 
     /**
      * Отображени�� списка аукционных объявлений
@@ -239,6 +220,10 @@ class ListingController extends Controller
 
     public function create(Request $request)
     {
+        if ($redirect = $this->ensurePhoneVerified()) {
+            return $redirect;
+        }
+
         $defaultVehicleCategoryId = VehicleCategoryResolver::resolve();
 
         // ИСПРАВЛЕНО: не используем несуществующий scope active()
@@ -249,15 +234,23 @@ class ListingController extends Controller
         }
         $regions = Region::all();
 
-        // Получаем данные с аукциона из session или из параметра запроса
+        // Получаем данные с аукциона строго при ?from_auction=1
+        $fromAuctionFlow = $request->boolean('from_auction');
         $auctionData = null;
-        if ($request->has('from_auction')) {
-            if (session()->has('auction_vehicle_data')) {
-                $auctionData = session('auction_vehicle_data');
-            }
+
+        if ($fromAuctionFlow && session()->has('auction_vehicle_data')) {
+            $auctionData = session('auction_vehicle_data');
+        } elseif (!$fromAuctionFlow && session()->has('auction_vehicle_data')) {
+            session()->forget('auction_vehicle_data');
         }
 
-        return view('listings.create', compact('categories', 'regions', 'auctionData', 'defaultVehicleCategoryId'));
+        return view('listings.create', compact(
+            'categories',
+            'regions',
+            'auctionData',
+            'defaultVehicleCategoryId',
+            'fromAuctionFlow'
+        ));
     }
 
     /**
@@ -265,6 +258,10 @@ class ListingController extends Controller
      */
     public function createChoice()
     {
+        if ($redirect = $this->ensurePhoneVerified()) {
+            return $redirect;
+        }
+
         return view('listings.create-choice');
     }
 
@@ -273,6 +270,10 @@ class ListingController extends Controller
      */
     public function createFromAuction()
     {
+        if ($redirect = $this->ensurePhoneVerified()) {
+            return $redirect;
+        }
+
         return view('listings.create-from-auction');
     }
 
@@ -281,6 +282,10 @@ class ListingController extends Controller
      */
     public function saveAuctionData(Request $request)
     {
+        if ($redirect = $this->ensurePhoneVerified()) {
+            return $redirect;
+        }
+
         $request->validate([
             'auction_data' => 'required|json'
         ]);
@@ -296,6 +301,10 @@ class ListingController extends Controller
 
     public function importAuctionListing(Request $request, AuctionParserService $service)
     {
+        if ($redirect = $this->ensurePhoneVerified()) {
+            return $redirect;
+        }
+
         $validated = $request->validate([
             'auction_url' => 'required|url',
         ]);
@@ -314,6 +323,12 @@ class ListingController extends Controller
             set_time_limit(15);
 
             $parsed = $service->parseFromUrl($url, aggressive: (bool) config('services.copart.aggressive', false));
+
+        if (!$parsed && $service->wasCopartBlocked()) {
+            return back()
+                ->withInput()
+                ->with('auction_error', 'Copart заблокировал загрузку данных. Обновите переменную COPART_COOKIES (или запустите node scraper/fetch-copart-cookies.cjs) и попробуйте снова.');
+        }
 
         if (!$parsed) {
             $parsed = $this->fallbackAuctionData($url);
@@ -338,6 +353,9 @@ class ListingController extends Controller
                 'photos' => array_values(array_filter($parsed['photos'] ?? [], fn ($u) => is_string($u) && strlen($u) > 5)),
                 'source_auction_url' => $parsed['source_auction_url'] ?? $url,
                 'auction_ends_at' => $parsed['auction_ends_at'] ?? null,
+                'buy_now_price' => isset($parsed['buy_now_price']) && $parsed['buy_now_price'] !== '' ? (float) $parsed['buy_now_price'] : null,
+                'buy_now_currency' => $parsed['buy_now_currency'] ?? null,
+                'operational_status' => $parsed['operational_status'] ?? null,
             ];
 
             $titleParts = [];
@@ -385,7 +403,7 @@ class ListingController extends Controller
             $payload = [
                 'title' => $title,
                 'description' => implode("\n", $descriptionLines),
-                'price' => null,
+                'price' => $vehicle['buy_now_price'] ?? null,
                 'category_id' => $categoryId,
                 'auction_url' => $url,
                 'vehicle' => $vehicle,
@@ -506,6 +524,10 @@ class ListingController extends Controller
 
     public function store(ListingRequest $request)
     {
+        if ($redirect = $this->ensurePhoneVerified()) {
+            return $redirect;
+        }
+
         try {
             DB::beginTransaction();
 
@@ -527,6 +549,7 @@ class ListingController extends Controller
                 'slug' => $slug,
                 'description' => $request->description,
                 'price' => $request->price,
+                'currency' => strtoupper($request->input('currency', 'USD')),
                 'category_id' => $request->category_id,
                 'region_id' => ($request->filled('region_id') && is_numeric($request->input('region_id')))
                     ? (int)$request->input('region_id')
@@ -566,6 +589,42 @@ class ListingController extends Controller
                     $vehicleData['exterior_color'] = $colorLabel;
                 }
 
+                $buyNowPrice = isset($vehicleData['buy_now_price']) && is_numeric($vehicleData['buy_now_price'])
+                    ? (float) $vehicleData['buy_now_price']
+                    : null;
+                if ($buyNowPrice !== null && $buyNowPrice <= 0) {
+                    $buyNowPrice = null;
+                }
+
+                $buyNowCurrency = $vehicleData['buy_now_currency'] ?? null;
+                if (!is_string($buyNowCurrency) || !preg_match('/^[A-Z]{3,5}$/', strtoupper($buyNowCurrency))) {
+                    $buyNowCurrency = null;
+                } else {
+                    $buyNowCurrency = strtoupper($buyNowCurrency);
+                }
+
+                if ($buyNowPrice === null) {
+                    $buyNowCurrency = null;
+                }
+
+                $currentBidPrice = isset($vehicleData['current_bid_price']) && is_numeric($vehicleData['current_bid_price'])
+                    ? (float) $vehicleData['current_bid_price']
+                    : null;
+                if ($currentBidPrice !== null && $currentBidPrice <= 0) {
+                    $currentBidPrice = null;
+                }
+
+                $currentBidCurrency = $vehicleData['current_bid_currency'] ?? null;
+                if (!is_string($currentBidCurrency) || !preg_match('/^[A-Z]{3,5}$/', strtoupper($currentBidCurrency))) {
+                    $currentBidCurrency = null;
+                } else {
+                    $currentBidCurrency = strtoupper($currentBidCurrency);
+                }
+
+                if ($currentBidPrice === null) {
+                    $currentBidCurrency = null;
+                }
+
                 $auctionEndsAtInput = $vehicleData['auction_ends_at'] ?? null;
                 $auctionEndsAt = $auctionEndsAtInput ? Carbon::parse($auctionEndsAtInput) : null;
 
@@ -582,6 +641,11 @@ class ListingController extends Controller
                     'is_from_auction' => $vehicleData['is_from_auction'] ?? $isFromAuction,
                     'source_auction_url' => $vehicleData['source_auction_url'] ?? null,
                     'auction_ends_at' => $auctionEndsAt,
+                    'buy_now_price' => $buyNowPrice,
+                    'buy_now_currency' => $buyNowCurrency,
+                    'current_bid_price' => $currentBidPrice,
+                    'current_bid_currency' => $currentBidCurrency,
+                    'current_bid_fetched_at' => $currentBidPrice ? now() : null,
                 ]);
             }
 
@@ -595,25 +659,35 @@ class ListingController extends Controller
                 }
             }
 
-        // ✅ Фото с аукциона — отправляем в очередь (если настроена асинхронная очередь)
-        if ($request->has('auction_photos')) {
-            $photoUrls = array_values(array_filter((array) $request->auction_photos));
-            if (!empty($photoUrls)) {
-                if ($detail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($detail->preview_image_url)) {
-                    $detail->preview_image_url = $photoUrls[0];
-                    $detail->save();
-                }
+            // ✅ Фото с аукциона — отправляем в очередь (если настроена асинхронная очередь)
+            if ($request->has('auction_photos')) {
+                $photoUrls = collect((array) $request->auction_photos)
+                    ->filter(function ($url) {
+                        if (!is_string($url)) {
+                            return false;
+                        }
 
-                if (config('queue.default') !== 'sync') {
-                    ImportAuctionPhotos::dispatchAfterResponse($listing->id, $photoUrls);
-                } else {
-                    Log::info('⚠️ ImportAuctionPhotos skipped (queue driver sync)', [
-                        'listing_id' => $listing->id,
-                        'count' => count($photoUrls),
-                    ]);
+                        $decoded = urldecode($url);
+
+                        return !str_contains($decoded, 'placeholder.com')
+                            && !str_contains($decoded, 'No+Image');
+                    })
+                    ->values()
+                    ->all();
+
+                if (!empty($photoUrls)) {
+                    if ($detail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($detail->preview_image_url)) {
+                        $detail->preview_image_url = $photoUrls[0];
+                        $detail->save();
+                    }
+
+                    if (config('queue.default') === 'sync') {
+                        ImportAuctionPhotos::dispatchSync($listing->id, $photoUrls);
+                    } else {
+                        ImportAuctionPhotos::dispatch($listing->id, $photoUrls);
+                    }
                 }
             }
-        }
 
             DB::commit();
 
@@ -654,6 +728,145 @@ class ListingController extends Controller
                 ->withInput()
                 ->withErrors(['error' => 'Ошибка: ' . $e->getMessage()]);
         }
+    }
+    public function search(Request $request)
+    {
+        $q = trim($request->input('q'));
+
+        if (empty($q)) {
+            return redirect()->route('listings.index');
+        }
+
+        try {
+            $results = \App\Models\Listing::search($q)->take(50)->get();
+
+            if ($results->isEmpty()) {
+                $results = $this->applySearchFallback(
+                    Listing::query()->with(['category', 'region', 'media', 'vehicleDetail']),
+                    $q
+                )
+                    ->latest()
+                    ->take(50)
+                    ->get();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Scout quick search failed, using fallback', [
+                'term' => $q,
+                'error' => $e->getMessage(),
+            ]);
+
+            $results = $this->applySearchFallback(
+                Listing::query()->with(['category', 'region', 'media', 'vehicleDetail']),
+                $q
+            )
+                ->latest()
+                ->take(50)
+                ->get();
+        }
+
+        return view('listings.index', [
+            'listings' => $results,
+            'q' => $q,
+        ]);
+    }
+    private function ensurePhoneVerified(): ?RedirectResponse
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            abort(403);
+        }
+
+        if (empty($user->phone) || empty($user->phone_verified_at)) {
+            $message = __('Добавьте и подтвердите номер телефона, чтобы публиковать объявления.');
+
+            return redirect()
+                ->route('profile.edit')
+                ->with('error', $message);
+        }
+
+        return null;
+    }
+
+    private function applySearchFallback(Builder $query, string $term): Builder
+    {
+        $variants = $this->expandSearchVariants($term);
+        if (empty($variants)) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $outer) use ($variants) {
+            foreach ($variants as $variant) {
+                $likeTerm = $this->buildSearchLike($variant);
+
+                $outer->orWhere(function (Builder $subQuery) use ($likeTerm) {
+                    $subQuery->whereRaw('LOWER(title) LIKE ?', [$likeTerm])
+                        ->orWhereRaw('LOWER(description) LIKE ?', [$likeTerm])
+                        ->orWhereHas('vehicleDetail', function (Builder $vehicleQuery) use ($likeTerm) {
+                            $vehicleQuery
+                                ->whereRaw('LOWER(make) LIKE ?', [$likeTerm])
+                                ->orWhereRaw('LOWER(model) LIKE ?', [$likeTerm]);
+                        });
+                });
+            }
+        });
+    }
+
+    private function buildSearchLike(string $term): string
+    {
+        $normalized = mb_strtolower(trim($term));
+
+        if ($normalized === '') {
+            return '%';
+        }
+
+        $normalized = preg_replace('/\s+/u', ' ', $normalized) ?? $normalized;
+        $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $normalized);
+        $pattern = preg_replace('/\s+/u', '%', $escaped) ?? $escaped;
+
+        return '%' . $pattern . '%';
+    }
+
+    private function expandSearchVariants(string $term): array
+    {
+        $variants = SearchQueryHelper::variants($term);
+        if (empty($variants)) {
+            $variants = [trim($term)];
+        }
+
+        $normalizedTerm = SearchQueryHelper::normalizeToken($term);
+        if ($normalizedTerm === '') {
+            return array_values(array_filter(array_unique($variants)));
+        }
+
+        $brandDictionary = Cache::remember('search_brand_dictionary', 3600, function () {
+            return CarBrand::query()
+                ->select(['name_en', 'name_ru'])
+                ->get()
+                ->flatMap(function ($brand) {
+                    return array_filter([
+                        $brand->name_en,
+                        $brand->name_ru,
+                    ]);
+                })
+                ->unique()
+                ->values()
+                ->all();
+        });
+
+        foreach ($brandDictionary as $brandName) {
+            $normalizedBrand = SearchQueryHelper::normalizeToken($brandName);
+            if ($normalizedBrand === '') {
+                continue;
+            }
+
+            $distance = levenshtein($normalizedBrand, $normalizedTerm);
+            if ($normalizedBrand === $normalizedTerm || $distance <= 1) {
+                $variants[] = $brandName;
+            }
+        }
+
+        return array_values(array_filter(array_unique($variants)));
     }
 
 

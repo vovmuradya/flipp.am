@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CopartCookieManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -9,6 +10,11 @@ use Symfony\Component\Process\Process;
 
 class ProxyController extends Controller
 {
+    public function __construct(
+        private readonly CopartCookieManager $copartCookieManager,
+    ) {
+    }
+
     /**
      * Прокси для изображений с аукционов (ограниченный список хостов).
      * Пример: /proxy/image?u=https%3A%2F%2Fcs.copart.com%2Fpath%2Fimg.jpg&r=https%3A%2F%2Fwww.copart.com%2Flot%2F123456
@@ -444,9 +450,16 @@ class ProxyController extends Controller
 
     private function getCopartCookieHeader(): ?string
     {
-        $cookieString = config('services.copart.cookies');
-        $cookieString = is_string($cookieString) ? trim($cookieString) : '';
+        $cookieString = $this->copartCookieManager->getCookieHeader();
+        if (is_string($cookieString) && trim($cookieString) !== '') {
+            return trim($cookieString);
+        }
 
-        return $cookieString !== '' ? $cookieString : null;
+        $refreshed = $this->copartCookieManager->refreshCookies();
+        if (is_string($refreshed) && trim($refreshed) !== '') {
+            return trim($refreshed);
+        }
+
+        return null;
     }
 }

@@ -46,6 +46,8 @@ return [
         'user_agent' => env('COPART_USER_AGENT', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
         'referer' => env('COPART_REFERER', 'https://www.copart.com/'),
         'origin' => env('COPART_ORIGIN', 'https://www.copart.com'),
+        'aggressive' => env('COPART_AGGRESSIVE', true),
+        'min_photos' => env('COPART_MIN_PHOTOS', 8),
     ],
 
     'google' => [

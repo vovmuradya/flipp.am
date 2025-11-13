@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class AuctionListingController extends Controller
 {
@@ -60,7 +61,7 @@ class AuctionListingController extends Controller
             ]);
 
             $vehicleData = $auctionData['vehicle'];
-            $listing->vehicleDetail()->create([
+            $vehicleDetail = $listing->vehicleDetail()->create([
                 'make' => $vehicleData['make'] ?? null,
                 'model' => $vehicleData['model'] ?? null,
                 'year' => $vehicleData['year'] ?? null,
@@ -72,6 +73,10 @@ class AuctionListingController extends Controller
                 'exterior_color' => $vehicleData['exterior_color'] ?? null,
                 'is_from_auction' => true,
                 'source_auction_url' => $auctionData['auction_url'] ?? null,
+                'buy_now_price' => $vehicleData['buy_now_price'] ?? null,
+                'buy_now_currency' => $vehicleData['buy_now_currency'] ?? null,
+                'operational_status' => $vehicleData['operational_status'] ?? null,
+                'auction_ends_at' => $vehicleData['auction_ends_at'] ?? null,
             ]);
 
             $photoSources = [];
@@ -84,30 +89,31 @@ class AuctionListingController extends Controller
 
             $resolvedUrls = [];
             foreach ($photoSources as $photo) {
-                $photoUrl = null;
-                if (is_string($photo)) {
-                    $photoUrl = trim($photo);
-                } elseif (is_array($photo)) {
-                    foreach (['url', 'full', 'large', 'src', 'path'] as $key) {
-                        if (!empty($photo[$key]) && is_string($photo[$key])) {
-                            $photoUrl = trim($photo[$key]);
-                            break;
-                        }
-                    }
-                }
-
-                if (empty($photoUrl) || !filter_var($photoUrl, FILTER_VALIDATE_URL)) {
+                $resolvedUrl = $this->normalizePhotoUrl($photo);
+                if (!$resolvedUrl) {
                     continue;
                 }
 
-                $resolvedUrls[$photoUrl] = true;
+                $resolvedUrls[$resolvedUrl] = true;
             }
 
-            foreach (array_keys($resolvedUrls) as $photoUrl) {
+            $photoUrls = array_keys($resolvedUrls);
+
+            if (!empty($photoUrls) && isset($vehicleDetail) && Schema::hasColumn('vehicle_details', 'preview_image_url')) {
+                if (empty($vehicleDetail->preview_image_url)) {
+                    $vehicleDetail->preview_image_url = $photoUrls[0];
+                    $vehicleDetail->save();
+                }
+            }
+
+            foreach ($photoUrls as $photoUrl) {
                 try {
                     $listing->addMediaFromUrl($photoUrl)->toMediaCollection('images');
                 } catch (\Exception $e) {
-                    Log::error('Failed to add media from URL: ' . $e->getMessage());
+                    Log::error('Failed to add media from URL: ' . $e->getMessage(), [
+                        'url' => $photoUrl,
+                        'listing_id' => $listing->id,
+                    ]);
                 }
             }
 
@@ -164,5 +170,52 @@ class AuctionListingController extends Controller
         $this->authorize('delete', $auctionListing);
         $auctionListing->delete();
         return redirect()->route('dashboard.my-auctions')->with('success', 'Аукционное объявление успешно удалено.');
+    }
+
+    private function normalizePhotoUrl(mixed $photo): ?string
+    {
+        $photoUrl = null;
+
+        if (is_string($photo)) {
+            $photoUrl = trim($photo);
+        } elseif (is_array($photo)) {
+            foreach (['url', 'full', 'large', 'src', 'path'] as $key) {
+                if (!empty($photo[$key]) && is_string($photo[$key])) {
+                    $photoUrl = trim($photo[$key]);
+                    break;
+                }
+            }
+        }
+
+        if (empty($photoUrl)) {
+            return null;
+        }
+
+        if ($this->isPlaceholderPhoto($photoUrl)) {
+            return null;
+        }
+
+        if (str_starts_with($photoUrl, '//')) {
+            $photoUrl = 'https:' . $photoUrl;
+        } elseif (str_starts_with($photoUrl, '/')) {
+            $baseUrl = rtrim(config('app.url') ?? url('/'), '/');
+            $photoUrl = $baseUrl . $photoUrl;
+        }
+
+        if (!preg_match('#^https?://#i', $photoUrl)) {
+            return null;
+        }
+
+        return filter_var($photoUrl, FILTER_VALIDATE_URL) ? $photoUrl : null;
+    }
+
+    private function isPlaceholderPhoto(string $url): bool
+    {
+        $lower = strtolower($url);
+
+        return str_contains($lower, 'placeholder')
+            || str_contains($lower, 'no+image')
+            || str_contains($lower, 'no%20image')
+            || str_contains($lower, 'no_image');
     }
 }

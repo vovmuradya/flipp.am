@@ -4,6 +4,26 @@
     <section class="brand-section">
         <div class="brand-container">
             <div class="brand-surface p-0 overflow-hidden">
+                @php
+                    $isAuctionFlow = (bool) ($fromAuctionFlow ?? request()->boolean('from_auction'));
+                    $auctionEndsAtIso = null;
+                    $auctionEndsAtDisplay = null;
+
+                    if (!empty($auctionData)) {
+                        $rawEndsAt = data_get($auctionData, 'auction_ends_at') ?? data_get($auctionData, 'vehicle.auction_ends_at');
+                        if (!empty($rawEndsAt)) {
+                            try {
+                                $auctionEndsAtCarbon = \Illuminate\Support\Carbon::parse($rawEndsAt)
+                                    ->timezone(config('app.timezone'));
+                                $auctionEndsAtIso = $auctionEndsAtCarbon->toIso8601String();
+                                $auctionEndsAtDisplay = $auctionEndsAtCarbon->translatedFormat('d F Y H:i');
+                            } catch (\Throwable $e) {
+                                $auctionEndsAtIso = null;
+                                $auctionEndsAtDisplay = null;
+                            }
+                        }
+                    }
+                @endphp
                 <div class="brand-form__header {{ $auctionData ? 'brand-form__header--auction' : '' }}">
                     <h1 class="text-2xl font-bold mb-1">
                         {{ $auctionData ? __('🚗 Создать объявление с аукциона') : __('Создать объявление') }}
@@ -15,8 +35,50 @@
                     @endif
                 </div>
 
+                @if($auctionData && $auctionEndsAtIso)
+                    <div class="alert alert-warning mb-0 rounded-0 border-top auction-countdown-banner"
+                         role="alert"
+                         data-countdown
+                         data-expires="{{ $auctionEndsAtIso }}"
+                         data-prefix="{{ __('Осталось') }}"
+                         data-expired-text="{{ __('Аукцион завершён') }}"
+                         data-day-label="{{ __('д') }}">
+                        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+                            <div>
+                                <div class="fw-semibold text-uppercase small text-muted mb-1">
+                                    {{ __('Аукцион завершается') }}
+                                </div>
+                                <div class="fs-5 fw-semibold" data-countdown-text>{{ __('Загрузка…') }}</div>
+                                @if($auctionEndsAtDisplay)
+                                    <div class="small text-muted mt-1">
+                                        {{ __('Ожидаемая дата: :date (:tz)', ['date' => $auctionEndsAtDisplay, 'tz' => config('app.timezone')]) }}
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 align-items-center countdown-units" data-countdown-units>
+                                <div class="text-center px-3 py-2 bg-white rounded-3 shadow-sm border border-warning-subtle">
+                                    <div class="fs-4 fw-bold" data-countdown-unit="days">00</div>
+                                    <div class="text-uppercase small text-muted">{{ __('дни') }}</div>
+                                </div>
+                                <div class="text-center px-3 py-2 bg-white rounded-3 shadow-sm border border-warning-subtle">
+                                    <div class="fs-4 fw-bold" data-countdown-unit="hours">00</div>
+                                    <div class="text-uppercase small text-muted">{{ __('часы') }}</div>
+                                </div>
+                                <div class="text-center px-3 py-2 bg-white rounded-3 shadow-sm border border-warning-subtle">
+                                    <div class="fs-4 fw-bold" data-countdown-unit="minutes">00</div>
+                                    <div class="text-uppercase small text-muted">{{ __('минуты') }}</div>
+                                </div>
+                                <div class="text-center px-3 py-2 bg-white rounded-3 shadow-sm border border-warning-subtle">
+                                    <div class="fs-4 fw-bold" data-countdown-unit="seconds">00</div>
+                                    <div class="text-uppercase small text-muted">{{ __('секунды') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="p-6">
-                    @if(request()->has('from_auction') && !$auctionData)
+                    @if($isAuctionFlow && !$auctionData)
                         <div class="brand-surface mb-4" style="background: rgba(244,140,37,0.08); border-radius: 14px;">
                             <h2 class="text-lg font-semibold mb-3">{{ __('🔗 Введите ссылку на аукцион') }}</h2>
                             <form id="auctionUrlForm" class="d-flex gap-2 flex-wrap" method="POST" action="{{ route('listings.import-auction') }}">
@@ -228,20 +290,18 @@
                         $mainImageDefault = ($finalPhotos[0] ?? $placeholderUrl);
 
                         $allCategories = collect($categories ?? []);
-                        $vehicleCategoryIds = $allCategories->whereIn('slug', ['cars', 'motorcycles', 'trucks'])->pluck('id')->values()->all();
-                        $partsCategoryIds = $allCategories->where('slug', 'auto-parts')->pluck('id')->values()->all();
-                        $tiresCategoryIds = $allCategories->where('slug', 'tires')->pluck('id')->values()->all();
+                        $vehicleCategoryIds = $allCategories
+                            ->whereIn('slug', ['cars', 'motorcycles', 'trucks'])
+                            ->pluck('id')
+                            ->values()
+                            ->all();
 
                         $typeCategoryMap = [
                             'vehicle' => $vehicleCategoryIds,
-                            'parts' => $partsCategoryIds,
-                            'tires' => $tiresCategoryIds,
                         ];
 
                         $sectionCards = [
                             'vehicle' => ['title' => __('Автомобили'), 'icon' => '🚗'],
-                            'parts' => ['title' => __('Запчасти'), 'icon' => '🛠️'],
-                            'tires' => ['title' => __('Шины'), 'icon' => '🛞'],
                         ];
 
                         $initialType = $ad ? 'vehicle' : (old('section') ?? old('listing_type') ?? 'vehicle');
@@ -289,7 +349,34 @@
                             'brand_id' => old('vehicle.brand_id', $adV['brand_id'] ?? null),
                             'model_id' => old('vehicle.model_id', $adV['model_id'] ?? null),
                             'generation_id' => old('vehicle.generation_id', $adV['generation_id'] ?? null),
+                            'buy_now_price' => old('vehicle.buy_now_price', $adV['buy_now_price'] ?? $ad['buy_now_price'] ?? ''),
+                            'buy_now_currency' => old('vehicle.buy_now_currency', $adV['buy_now_currency'] ?? $ad['buy_now_currency'] ?? ''),
+                            'current_bid_price' => old('vehicle.current_bid_price', $adV['current_bid_price'] ?? $ad['current_bid_price'] ?? ''),
+                            'current_bid_currency' => old('vehicle.current_bid_currency', $adV['current_bid_currency'] ?? $ad['current_bid_currency'] ?? ''),
                         ];
+
+                        $copartBuyNowPriceRaw = $vehiclePrefill['buy_now_price'];
+                        $copartHasBuyNow = is_numeric($copartBuyNowPriceRaw) && (float) $copartBuyNowPriceRaw > 0;
+                        $copartBuyNowPriceValue = $copartHasBuyNow ? (float) $copartBuyNowPriceRaw : null;
+                        $copartBuyNowCurrency = strtoupper($vehiclePrefill['buy_now_currency'] ?: 'USD');
+
+                        $copartCurrentBidRaw = $vehiclePrefill['current_bid_price'];
+                        $copartHasCurrentBid = is_numeric($copartCurrentBidRaw) && (float) $copartCurrentBidRaw > 0;
+                        $copartCurrentBidValue = $copartHasCurrentBid ? (float) $copartCurrentBidRaw : null;
+                        $copartCurrentBidCurrency = strtoupper($vehiclePrefill['current_bid_currency'] ?: $copartBuyNowCurrency);
+
+                        $defaultPrice = $ad['price'] ?? ($copartHasBuyNow ? $copartBuyNowPriceValue : null);
+                        $priceInputValue = old('price', $defaultPrice);
+
+                        $currencyOptions = [
+                            'USD' => 'USD $',
+                            'AMD' => '֏ AMD',
+                            'RUB' => '₽ RUB',
+                        ];
+                        $currencyValue = strtoupper(old('currency', $ad['currency'] ?? ($copartHasBuyNow ? $copartBuyNowCurrency : 'USD')));
+                        if (!array_key_exists($currencyValue, $currencyOptions)) {
+                            $currencyValue = 'USD';
+                        }
 
                         $titleValue = old('title', $ad['title'] ?? '');
                         $descriptionValue = old('description', $ad['description'] ?? '');
@@ -410,6 +497,10 @@
                                             'brand_id' => $vehiclePrefill['brand_id'] ?? '',
                                             'model_id' => $vehiclePrefill['model_id'] ?? '',
                                             'generation_id' => $vehiclePrefill['generation_id'] ?? '',
+                                            'buy_now_price' => $vehiclePrefill['buy_now_price'] ?? '',
+                                            'buy_now_currency' => $vehiclePrefill['buy_now_currency'] ?? '',
+                                            'current_bid_price' => $vehiclePrefill['current_bid_price'] ?? '',
+                                            'current_bid_currency' => $vehiclePrefill['current_bid_currency'] ?? '',
                                         ];
                                         $displayExteriorColor = $auctionVehicleValues['exterior_color_display'] ?? '';
                                         if ($displayExteriorColor === '' && $auctionVehicleValues['exterior_color'] !== '') {
@@ -476,8 +567,20 @@
                                             <label class="form-label">{{ __('Цвет кузова') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['exterior_color'] }}</p>
                                         </div>
+                                        @php
+                                            $hasPreviewBuyNow = isset($auctionVehicleValues['buy_now_price']) && is_numeric($auctionVehicleValues['buy_now_price']) && (float) $auctionVehicleValues['buy_now_price'] > 0;
+                                        @endphp
+                                        @if($hasPreviewBuyNow)
+                                            <div class="col-12">
+                                                <label class="form-label">{{ __('Купить сейчас (Copart)') }}</label>
+                                                <p class="form-control-plaintext bg-warning-subtle px-3 py-2 rounded border border-warning text-warning fw-semibold">
+                                                    {{ number_format((float) $auctionVehicleValues['buy_now_price'], 0, '.', ' ') }}
+                                                    {{ $auctionVehicleValues['buy_now_currency'] ?: 'USD' }}
+                                                </p>
+                                            </div>
+                                        @endif
                                     </div>
-                                    @foreach(['make','model','year','mileage','body_type','transmission','fuel_type','engine_displacement_cc','exterior_color','brand_id','model_id','generation_id'] as $fieldName)
+                                    @foreach(['make','model','year','mileage','body_type','transmission','fuel_type','engine_displacement_cc','exterior_color','brand_id','model_id','generation_id','buy_now_price','buy_now_currency','current_bid_price','current_bid_currency'] as $fieldName)
                                         @if(array_key_exists($fieldName, $auctionVehicleValues))
                                             <input type="hidden" name="vehicle[{{ $fieldName }}]" value="{{ $auctionVehicleValues[$fieldName] }}">
                                         @endif
@@ -688,23 +791,63 @@
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">{{ __('Цена (AMD)') }} <span class="text-danger">*</span></label>
-                            <input type="number" name="price" min="0" value="{{ old('price', $ad['price'] ?? '') }}" class="form-control" required>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-6">
+                                    <label class="form-label">{{ __('Цена') }} <span class="text-danger">*</span></label>
+                                    <input type="number"
+                                           name="price"
+                                           min="0"
+                                           step="1"
+                                           value="{{ $priceInputValue !== null ? $priceInputValue : '' }}"
+                                           class="form-control"
+                                           required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">{{ __('Валюта') }}</label>
+                                    <select name="currency" class="form-select">
+                                        @foreach($currencyOptions as $code => $label)
+                                            <option value="{{ $code }}" @selected($currencyValue === $code)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
                         </div>
+                        @if($copartHasBuyNow)
+                            <div class="mb-4">
+                                <div class="alert alert-warning bg-amber-50 border-amber-200 text-amber-800 mb-0 rounded-3 d-flex flex-column gap-1">
+                                    <span class="text-uppercase small fw-semibold">{{ __('Цена «Buy Now» на Copart') }}</span>
+                                    <span class="fs-4 fw-bold">
+                                        {{ number_format($copartBuyNowPriceValue, 0, '.', ' ') }} {{ $copartBuyNowCurrency }}
+                                    </span>
+                                    <small class="text-muted">
+                                        {{ __('Мы автоматически сохраним эту цену в карточке авто (раздел «Купить сейчас»).') }}
+                                    </small>
+                                </div>
+                            </div>
+                        @endif
+                        @if($copartHasCurrentBid)
+                            <div class="mb-4">
+                                <div class="alert alert-info bg-indigo-50 border border-indigo-200 text-indigo-900 mb-0 rounded-3 d-flex flex-column gap-1">
+                                    <span class="text-uppercase small fw-semibold">{{ __('Текущая ставка на Copart') }}</span>
+                                    <span class="fs-5 fw-bold">
+                                        {{ number_format($copartCurrentBidValue, 0, '.', ' ') }} {{ $copartCurrentBidCurrency }}
+                                    </span>
+                                    <small class="text-muted">
+                                        {{ __('Показатель меняется на Copart; мы обновляем его ежедневно автоматически.') }}
+                                    </small>
+                                </div>
+                            </div>
+                        @endif
 
                     @if(! $ad)
-                        <div>
-                            <label class="form-label">{{ __('Регион') }} <span class="text-danger">*</span></label>
-                            <select name="region_id" id="region_id" class="form-select" required>
-                                <option value="">{{ __('Выберите регион') }}</option>
-                                @foreach($regions as $region)
-                                    <option value="{{ $region->id }}" {{ old('region_id') == $region->id ? 'selected' : '' }}>{{ $region->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('region_id')
-                            <p class="text-danger small mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
+                        @include('listings.partials.region-dropdown', [
+                            'regions' => $regions,
+                            'selectedRegion' => old('region_id'),
+                            'fieldId' => 'region_id',
+                            'fieldName' => 'region_id',
+                            'label' => __('Регион'),
+                            'required' => true,
+                        ])
 
                         <div>
                             <label class="form-label">{{ __('Изображения') }}</label>
@@ -724,6 +867,18 @@
             </div>
         </div>
     </section>
+
+@push('styles')
+    <style>
+        .auction-countdown-banner .countdown-units > div {
+            min-width: 96px;
+        }
+
+        .auction-countdown-banner[data-countdown-state="expired"] .countdown-units {
+            opacity: 0.4;
+        }
+    </style>
+@endpush
 
 @include('listings.partials.vehicle-form-script')
 @endsection
