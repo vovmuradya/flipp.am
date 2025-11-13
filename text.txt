@@ -1,0 +1,102 @@
+ cd /home/vov/flipp-am — войди в проект.
+  - ./vendor/bin/sail up -d — поднять Docker‑контейнеры (включая PHP, MySQL, Redis, Meilisearch и т.д.).
+  - ./vendor/bin/sail artisan migrate --force — если были новые миграции.
+  - ./vendor/bin/sail artisan scout:import "App\Models\Listing" — при первом запуске или после изменений в индексации, чтобы перепостроить Meilisearch.
+  - ./vendor/bin/sail npm run dev (или build) — если нужны актуальные фронтенд‑ассеты.
+
+
+server password tatevS1000@1000
+
+
+
+
+1. Система обновлена
+
+Ubuntu 22.04 полностью обновлена:
+
+apt update
+
+apt upgrade
+
+последние security-патчи
+
+✅ 2. Установлены базовые инструменты
+
+Мы поставили:
+
+curl
+
+wget
+
+git
+
+unzip
+
+ufw
+
+software-properties-common
+
+Это всё нужно для установки пакетов, работы Laravel и CI/CD.
+
+✅ 3. Firewall (UFW) включён
+
+Безопасность:
+
+открыт только SSH
+
+сервер защищён от внешних портов
+
+готов для Nginx (мы откроем порты позже)
+
+✅ 4. Node.js 20 LTS установлен (идеальная версия)
+
+Ты получил:
+
+node -v = 20.19.5
+npm -v = 10.8.2
+
+
+Это последняя стабильная версия — идеально для:
+
+Puppeteer
+
+Vite
+
+Laravel Mix
+
+любых Node пакетов
+
+✅ 5. Установлены все Chromium-зависимости
+
+Это обязательно для Puppeteer.
+
+Поставлены:
+
+libnss3
+
+libgtk-3
+
+x11 utils
+
+libgbm
+
+libasound2
+
+fonts-liberation
+
+xdg-utils
+
+Теперь Puppeteer будет работать без ошибок на 100%, без режима sandbox.
+
+✅ 6. Docker установлен
+docker -v
+Docker version 27.x
+
+
+Работает отлично.
+
+✅ 7. Docker Compose установлен
+Docker Compose version v2.40.3
+
+
+Это важно для Laravel Sail, MySQL, Redis, Meilisearch и всех контейнеров.
