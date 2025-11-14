@@ -7,6 +7,12 @@
 
 server password tatevS1000@1000
 
+craper/fetch-copart-cookies.cjs
+
+
+php artisan copart:update-cookies
+cooki update
+
 
 
 ЧТО ДЕЛАТЬ КОГДА ХОЧЕШЬ ИЗМЕНИТЬ КОД?

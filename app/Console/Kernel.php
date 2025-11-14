@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\AuctionFetchCommand::class,
         \App\Console\Commands\RefreshCopartCookies::class,
         \App\Console\Commands\RefreshCopartCurrentBids::class,
+        \App\Console\Commands\BackfillAuctionPhotos::class,
     ];
 
     /**
@@ -33,6 +34,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt('04:00')
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/copart-bids.log'));
+
+        $schedule->command('auctions:backfill-photos --limit=20')
+            ->everyTenMinutes()
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/auction-backfill.log'));
     }
 
     /**
