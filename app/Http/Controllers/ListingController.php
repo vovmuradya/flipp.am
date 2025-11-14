@@ -691,19 +691,19 @@ class ListingController extends Controller
                     ->values()
                     ->all();
 
-                if (!empty($photoUrls)) {
-                    if ($detail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($detail->preview_image_url)) {
-                        $detail->preview_image_url = $photoUrls[0];
-                        $detail->save();
-                    }
+                    if (!empty($photoUrls)) {
+                        if ($detail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($detail->preview_image_url)) {
+                            $detail->preview_image_url = $photoUrls[0];
+                            $detail->save();
+                        }
 
-                    if (config('queue.default') === 'sync') {
-                        ImportAuctionPhotos::dispatchSync($listing->id, $photoUrls);
-                    } else {
-                        ImportAuctionPhotos::dispatch($listing->id, $photoUrls);
+                        if (config('queue.default') === 'sync') {
+                            ImportAuctionPhotos::dispatchSync($listing->id, $photoUrls);
+                        } else {
+                            ImportAuctionPhotos::dispatch($listing->id, $photoUrls);
+                        }
                     }
                 }
-            }
 
             DB::commit();
 
