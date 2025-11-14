@@ -4,10 +4,12 @@
   - ./vendor/bin/sail artisan scout:import "App\Models\Listing" — при первом запуске или после изменений в индексации, чтобы перепостроить Meilisearch.
   - ./vendor/bin/sail npm run dev (или build) — если нужны актуальные фронтенд‑ассеты.
 
-
 server password tatevS1000@1000
 
 craper/fetch-copart-cookies.cjs
+
+git pull
+git rev-parse HEAD
 
 
 php artisan copart:update-cookies
