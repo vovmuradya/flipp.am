@@ -7,7 +7,15 @@ window.Alpine = Alpine;
 
 Alpine.start();
 
-document.addEventListener('DOMContentLoaded', () => {
+const onDocumentReady = (callback) => {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', callback, { once: true });
+    } else {
+        callback();
+    }
+};
+
+onDocumentReady(() => {
     const sliders = document.querySelectorAll('[data-slider]');
 
     const MIN_CARD_WIDTH_DESKTOP = 160;
@@ -409,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-document.addEventListener('DOMContentLoaded', () => {
+onDocumentReady(() => {
     const phoneForm = document.querySelector('[data-phone-form]');
 
     if (!phoneForm) {
@@ -638,7 +646,7 @@ const initOffcanvasGestures = () => {
     });
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+onDocumentReady(() => {
     initCardMediaPreview();
     initOffcanvasGestures();
 });
