@@ -1048,10 +1048,7 @@ class ListingController extends Controller
                 if (config('queue.default') !== 'sync') {
                     ImportAuctionPhotos::dispatchAfterResponse($listing->id, $photoUrls);
                 } else {
-                    Log::info('⚠️ ImportAuctionPhotos skipped on update (queue driver sync)', [
-                        'listing_id' => $listing->id,
-                        'count' => count($photoUrls),
-                    ]);
+                    ImportAuctionPhotos::dispatchSync($listing->id, $photoUrls);
                 }
             }
         }
