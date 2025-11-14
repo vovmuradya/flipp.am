@@ -16,6 +16,9 @@
         gtag('config', 'G-5VBKSM39JN');
     </script>
 
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9290639823583418" crossorigin="anonymous"></script>
+
     <!-- App icons -->
     <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
     <link rel="alternate icon" href="{{ asset('images/logo.png') }}">

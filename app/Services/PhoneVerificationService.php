@@ -6,11 +6,17 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 class PhoneVerificationService
 {
     private const CACHE_PREFIX = 'phone_verify_';
     private const TTL_MINUTES = 10;
+
+    public function __construct(
+        private readonly MessaggioOtpClient $messaggioOtp,
+    ) {
+    }
 
     public function sendCode(string $phone): void
     {
@@ -27,7 +33,18 @@ class PhoneVerificationService
             now()->addMinutes(self::TTL_MINUTES)
         );
 
-        Log::info("SMS verification code for {$normalized}: {$code}");
+        try {
+            $this->messaggioOtp->send($normalized, (string) $code);
+        } catch (Throwable $exception) {
+            Log::error('Failed to deliver OTP via Messaggio', [
+                'phone' => $normalized,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        if (app()->environment('local', 'testing')) {
+            Log::info("SMS verification code for {$normalized}: {$code}");
+        }
     }
 
     public function verify(string $phone, string $code): bool

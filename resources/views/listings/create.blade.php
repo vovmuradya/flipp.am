@@ -858,10 +858,30 @@
                             'required' => true,
                         ])
 
-                        <div>
+                        @php
+                            $imagesError = $errors->has('images') || $errors->has('images.*');
+                        @endphp
+                        <div class="{{ $imagesError ? 'mb-4 error-field-container' : 'mb-4' }}" @if($imagesError) data-error-scroll="images" @endif>
                             <label class="form-label">{{ __('Изображения') }}</label>
-                            <input type="file" id="images" name="images[]" multiple accept="image/*" class="form-control">
-                            <small class="text-muted">{{ __('PNG, JPG, WEBP до 5MB') }}</small>
+                            <input
+                                type="file"
+                                id="images"
+                                name="images[]"
+                                multiple
+                                accept="image/*"
+                                class="form-control {{ $imagesError ? 'is-invalid error-field' : '' }}"
+                            >
+                            <small class="text-muted d-block">{{ __('PNG, JPG, WEBP до 5MB') }}</small>
+                            @error('images')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                            @if($errors->has('images.*'))
+                                @foreach($errors->get('images.*') as $imageMessages)
+                                    @foreach((array) $imageMessages as $imageMessage)
+                                        <div class="invalid-feedback d-block">{{ $imageMessage }}</div>
+                                    @endforeach
+                                @endforeach
+                            @endif
                         </div>
                     @endif
 
@@ -886,8 +906,45 @@
         .auction-countdown-banner[data-countdown-state="expired"] .countdown-units {
             opacity: 0.4;
         }
+
+        .error-field {
+            border-color: #f87171 !important;
+            box-shadow: 0 0 0 0.15rem rgba(248, 113, 113, 0.25);
+        }
+
+        .error-field-flash {
+            animation: errorPulse 1.2s ease-out;
+        }
+
+        @keyframes errorPulse {
+            0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.55); }
+            70% { box-shadow: 0 0 0 12px rgba(248, 113, 113, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
+        }
     </style>
 @endpush
 
 @include('listings.partials.vehicle-form-script')
+
+@if ($errors->any())
+    @push('scripts')
+        <script>
+            window.addEventListener('load', () => {
+                const errorContainer = document.querySelector('[data-error-scroll]') || document.querySelector('.is-invalid') || document.querySelector('.text-danger');
+                if (!errorContainer) {
+                    return;
+                }
+
+                const focusTarget = errorContainer.querySelector('input, select, textarea, .error-field') || errorContainer;
+                const rect = errorContainer.getBoundingClientRect();
+                const offset = Math.max(rect.top + window.scrollY - 140, 0);
+                window.scrollTo({ top: offset, behavior: 'smooth' });
+
+                if (focusTarget instanceof HTMLElement) {
+                    focusTarget.classList.add('error-field-flash');
+                }
+            });
+        </script>
+    @endpush
+@endif
 @endsection

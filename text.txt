@@ -15,10 +15,15 @@ craper/fetch-copart-cookies.cjs
 git pull
 git rev-parse HEAD
 
+tail -n 100 storage/logs/laravel.log
 
 php artisan copart:update-cookies
 cooki update
 
+
+php artisan cache:clear
+  php artisan config:clear
+  php artisan view:clear
 
 
 ЧТО ДЕЛАТЬ КОГДА ХОЧЕШЬ ИЗМЕНИТЬ КОД?
