@@ -9,6 +9,8 @@ use Symfony\Component\Process\Process;
 class CopartCookieManager
 {
     public const CACHE_KEY = 'copart.dynamic_cookies';
+    private const MIN_COOKIE_PAIRS = 8;
+    private const MAX_ATTEMPTS = 3;
 
     /**
      * Возвращает строку Cookie из .env или из кэша автоматического обновления.
@@ -39,35 +41,55 @@ class CopartCookieManager
             return null;
         }
 
-        $process = new Process(['node', $script], base_path(), null, null, 120);
-        $process->run();
+        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
+            $process = new Process(['node', $script], base_path(), null, null, 120);
+            $process->run();
 
-        if (! $process->isSuccessful()) {
-            Log::warning('CopartCookieManager: fetch script failed', [
-                'error' => trim($process->getErrorOutput()) ?: trim($process->getOutput()),
-            ]);
-            return null;
+            if (! $process->isSuccessful()) {
+                Log::warning('CopartCookieManager: fetch script failed', [
+                    'attempt' => $attempt,
+                    'error' => trim($process->getErrorOutput()) ?: trim($process->getOutput()),
+                ]);
+                continue;
+            }
+
+            $output = trim($process->getOutput());
+            if ($output === '') {
+                Log::warning('CopartCookieManager: fetch script returned empty output', ['attempt' => $attempt]);
+                continue;
+            }
+
+            $decoded = json_decode($output, true);
+            if (! is_array($decoded) || empty($decoded['cookies']) || ! is_string($decoded['cookies'])) {
+                Log::warning('CopartCookieManager: invalid fetch output', [
+                    'attempt' => $attempt,
+                    'output' => $output,
+                ]);
+                continue;
+            }
+
+            $cookieString = trim($decoded['cookies']);
+            if ($cookieString === '') {
+                continue;
+            }
+
+            $pairCount = (int) ($decoded['count'] ?? 0);
+            if ($pairCount < self::MIN_COOKIE_PAIRS && $attempt < self::MAX_ATTEMPTS) {
+                Log::info('CopartCookieManager: cookie count low, retrying', [
+                    'attempt' => $attempt,
+                    'pairs' => $pairCount,
+                ]);
+                usleep(400000);
+                continue;
+            }
+
+            Cache::put(self::CACHE_KEY, $cookieString, now()->addHours(6));
+
+            return $cookieString;
         }
 
-        $output = trim($process->getOutput());
-        if ($output === '') {
-            Log::warning('CopartCookieManager: fetch script returned empty output');
-            return null;
-        }
+        Log::warning('CopartCookieManager: unable to fetch cookies after retries');
 
-        $decoded = json_decode($output, true);
-        if (! is_array($decoded) || empty($decoded['cookies']) || ! is_string($decoded['cookies'])) {
-            Log::warning('CopartCookieManager: invalid fetch output', ['output' => $output]);
-            return null;
-        }
-
-        $cookieString = trim($decoded['cookies']);
-        if ($cookieString === '') {
-            return null;
-        }
-
-        Cache::put(self::CACHE_KEY, $cookieString, now()->addHours(6));
-
-        return $cookieString;
+        return null;
     }
 }

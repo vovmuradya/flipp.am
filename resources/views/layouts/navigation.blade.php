@@ -72,6 +72,14 @@
                 </form>
             </div>
 
+            <a
+                href="{{ route('listings.create-choice') }}"
+                class="mobile-icon-button mobile-add-button"
+                aria-label="{{ __('Подать объявление') }}"
+            >
+                <i class="fa-solid fa-plus"></i>
+            </a>
+
             <button
                 class="icon-button mobile-icon-button"
                 type="button"
@@ -191,7 +199,7 @@
         </div>
     </div>
 
-    <div class="offcanvas offcanvas-start mobile-offcanvas" tabindex="-1" id="mobileUserPanel" aria-labelledby="mobileUserPanelLabel">
+    <div class="offcanvas offcanvas-end mobile-offcanvas" tabindex="-1" id="mobileUserPanel" aria-labelledby="mobileUserPanelLabel">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="mobileUserPanelLabel">
                 @auth

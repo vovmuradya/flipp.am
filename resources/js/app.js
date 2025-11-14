@@ -524,3 +524,121 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+const initCardMediaPreview = () => {
+    const mediaBlocks = document.querySelectorAll('.brand-listing-card__media[data-photo-sources]');
+
+    mediaBlocks.forEach((media) => {
+        let sources = [];
+        try {
+            sources = JSON.parse(media.getAttribute('data-photo-sources') || '[]');
+        } catch (error) {
+            sources = [];
+        }
+
+        sources = Array.isArray(sources) ? sources.filter((src) => typeof src === 'string' && src.length > 0) : [];
+        if (sources.length < 2) {
+            return;
+        }
+
+        const img = media.querySelector('img');
+        if (!img) {
+            return;
+        }
+
+        img.dataset.currentIndex = '0';
+
+        const setImageByIndex = (index) => {
+            const normalized = Math.max(0, Math.min(sources.length - 1, index));
+            if (img.dataset.currentIndex === String(normalized)) {
+                return;
+            }
+            img.dataset.currentIndex = String(normalized);
+            img.src = sources[normalized];
+        };
+
+        const computeIndexFromClientX = (clientX) => {
+            const rect = media.getBoundingClientRect();
+            const relative = (clientX - rect.left) / rect.width;
+            const clamped = Math.max(0, Math.min(0.999, relative));
+            return Math.floor(clamped * sources.length);
+        };
+
+        media.addEventListener('mousemove', (event) => {
+            if (event.buttons > 0) {
+                return;
+            }
+            const targetIndex = computeIndexFromClientX(event.clientX);
+            setImageByIndex(targetIndex);
+        });
+
+        media.addEventListener('touchmove', (event) => {
+            const touch = event.touches[0];
+            if (!touch) {
+                return;
+            }
+            const targetIndex = computeIndexFromClientX(touch.clientX);
+            setImageByIndex(targetIndex);
+        }, { passive: true });
+
+        const resetPreview = () => setImageByIndex(0);
+        media.addEventListener('mouseleave', resetPreview);
+        media.addEventListener('touchend', resetPreview);
+        media.addEventListener('touchcancel', resetPreview);
+    });
+};
+
+const initOffcanvasGestures = () => {
+    const canvases = document.querySelectorAll('.mobile-offcanvas');
+
+    canvases.forEach((canvas) => {
+        const isEnd = canvas.classList.contains('offcanvas-end');
+        const isStart = canvas.classList.contains('offcanvas-start');
+        if (!isEnd && !isStart) {
+            return;
+        }
+
+        let startX = null;
+        const threshold = 60;
+
+        canvas.addEventListener('touchstart', (event) => {
+            const touch = event.touches[0];
+            if (!touch) {
+                return;
+            }
+            startX = touch.clientX;
+        }, { passive: true });
+
+        canvas.addEventListener('touchmove', (event) => {
+            if (startX === null) {
+                return;
+            }
+            const touch = event.touches[0];
+            if (!touch) {
+                return;
+            }
+            const deltaX = touch.clientX - startX;
+            const shouldClose = (isEnd && deltaX > threshold) || (isStart && deltaX < -threshold);
+
+            if (shouldClose) {
+                const instance = window.bootstrap ? window.bootstrap.Offcanvas.getInstance(canvas) : null;
+                if (instance) {
+                    instance.hide();
+                }
+                startX = null;
+            }
+        }, { passive: true });
+
+        const reset = () => {
+            startX = null;
+        };
+
+        canvas.addEventListener('touchend', reset);
+        canvas.addEventListener('touchcancel', reset);
+    });
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    initCardMediaPreview();
+    initOffcanvasGestures();
+});

@@ -626,7 +626,23 @@ class ListingController extends Controller
                 }
 
                 $auctionEndsAtInput = $vehicleData['auction_ends_at'] ?? null;
-                $auctionEndsAt = $auctionEndsAtInput ? Carbon::parse($auctionEndsAtInput) : null;
+                $auctionEndsAt = null;
+
+                if ($auctionEndsAtInput) {
+                    try {
+                        $auctionEndsAt = Carbon::parse($auctionEndsAtInput);
+                    } catch (\Throwable $e) {
+                        Log::warning('Unable to parse auction end date', [
+                            'value' => $auctionEndsAtInput,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                $shouldAutoExpire = ($vehicleData['is_from_auction'] ?? $isFromAuction) ? true : false;
+                if ($shouldAutoExpire && $auctionEndsAt === null) {
+                    $auctionEndsAt = Carbon::now()->addDays((int) config('services.copart.default_lot_ttl_days', 30));
+                }
 
                 $detail = $listing->vehicleDetail()->create([
                     'make' => $safeMake,

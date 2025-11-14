@@ -11,6 +11,9 @@ use Symfony\Component\Process\Process;
 
 class RefreshCopartCookies extends Command
 {
+    private const MIN_COOKIE_PAIRS = 8;
+    private const MAX_ATTEMPTS = 3;
+
     /**
      * The name and signature of the console command.
      *
@@ -35,35 +38,60 @@ class RefreshCopartCookies extends Command
             return self::FAILURE;
         }
 
-        $process = new Process(
-            ['node', $script],
-            base_path(),
-            [
-                'COPART_USER_AGENT' => config('services.copart.user_agent'),
-            ],
-            null,
-            60
-        );
+        $cookies = null;
+        $pairs = 0;
 
-        try {
-            $process->mustRun();
-        } catch (ProcessFailedException $exception) {
-            $this->error('Failed to fetch cookies: '.$exception->getMessage());
+        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
+            $process = new Process(
+                ['node', $script],
+                base_path(),
+                [
+                    'COPART_USER_AGENT' => config('services.copart.user_agent'),
+                ],
+                null,
+                60
+            );
 
-            return self::FAILURE;
+            try {
+                $process->mustRun();
+            } catch (ProcessFailedException $exception) {
+                $this->error('Failed to fetch cookies: '.$exception->getMessage());
+                if ($attempt === self::MAX_ATTEMPTS) {
+                    return self::FAILURE;
+                }
+                usleep(400000);
+                continue;
+            }
+
+            $output = trim($process->getOutput());
+            $payload = json_decode($output, true);
+
+            if (! is_array($payload) || empty($payload['cookies'])) {
+                $this->warn('Fetcher returned empty payload (attempt '.$attempt.').');
+                if ($attempt === self::MAX_ATTEMPTS) {
+                    $this->error('Fetcher script did not return cookies. Raw output: '.$output);
+                    return self::FAILURE;
+                }
+                usleep(400000);
+                continue;
+            }
+
+            $cookies = $payload['cookies'];
+            $pairs = (int) ($payload['count'] ?? 0);
+
+            if ($pairs < self::MIN_COOKIE_PAIRS && $attempt < self::MAX_ATTEMPTS) {
+                $this->warn(sprintf('Received only %d cookie pairs, retrying...', $pairs));
+                usleep(400000);
+                continue;
+            }
+
+            break;
         }
 
-        $output = trim($process->getOutput());
-        $payload = json_decode($output, true);
-
-        if (! is_array($payload) || empty($payload['cookies'])) {
-            $this->error('Fetcher script did not return cookies. Raw output: '.$output);
-
+        if (! is_string($cookies) || trim($cookies) === '') {
+            $this->error('Unable to obtain cookie string from Copart.');
             return self::FAILURE;
         }
-
-        $cookies = $payload['cookies'];
-        $pairs = (int) ($payload['count'] ?? 0);
 
         if (! $this->writeEnvValue('COPART_COOKIES', $cookies)) {
             $this->error('Unable to persist COPART_COOKIES to the .env file.');
