@@ -25,7 +25,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('copart:refresh-cookies --silent')
-            ->everySixHours()
+            ->everyFifteenMinutes()
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/copart-cookies.log'));
 

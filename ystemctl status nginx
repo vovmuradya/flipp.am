@@ -1,0 +1,15 @@
+[0;1;31m×[0m apache2.service - The Apache HTTP Server
+     Loaded: loaded (/lib/systemd/system/apache2.service; enabled; vendor preset: enabled)
+     Active: [0;1;31mfailed[0m (Result: exit-code) since Thu 2025-11-13 14:02:28 UTC; 1h 19min ago
+       Docs: https://httpd.apache.org/docs/2.4/
+        CPU: 21ms
+
+Nov 13 14:02:28 server.idrom.am systemd[1]: Starting The Apache HTTP Server...
+Nov 13 14:02:28 server.idrom.am apachectl[157213]: [Thu Nov 13 14:02:28.676377 2025] [ssl:warn] [pid 157213:tid 157213] AH02532: SSLProtocol: Protocol 'all' overrides already set parameter(s). Check if a +/- prefix is missing.
+Nov 13 14:02:28 server.idrom.am apachectl[157213]: AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using server.idrom.am. Set the 'ServerName' directive globally to suppress this message
+Nov 13 14:02:28 server.idrom.am apachectl[157213]: (98)Address already in use: AH00072: make_sock: could not bind to address 185.227.110.47:8080
+Nov 13 14:02:28 server.idrom.am apachectl[157213]: no listening sockets available, shutting down
+Nov 13 14:02:28 server.idrom.am apachectl[157213]: AH00015: Unable to open logs
+Nov 13 14:02:28 server.idrom.am systemd[1]: [0;1;39m[0;1;31m[0;1;39mapache2.service: Control process exited, code=exited, status=1/FAILURE[0m
+Nov 13 14:02:28 server.idrom.am systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mapache2.service: Failed with result 'exit-code'.[0m
+Nov 13 14:02:28 server.idrom.am systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start The Apache HTTP Server.[0m

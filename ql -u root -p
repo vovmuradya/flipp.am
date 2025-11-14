@@ -1,0 +1,20 @@
+○ mariadb.service - MariaDB 11.4.9 database server
+     Loaded: loaded (/lib/systemd/system/mariadb.service; enabled; vendor preset: enabled)
+    Drop-In: /etc/systemd/system/mariadb.service.d
+             └─migrated-from-my.cnf-settings.conf
+     Active: inactive (dead) since Thu 2025-11-13 14:13:47 UTC; 42min ago
+       Docs: man:mariadbd(8)
+             https://mariadb.com/kb/en/library/systemd/
+   Main PID: 153472 (code=exited, status=0/SUCCESS)
+     Status: "MariaDB server is down"
+        CPU: 4.796s
+
+Nov 13 14:01:53 server.idrom.am systemd[1]: Starting MariaDB 11.4.9 database server...
+Nov 13 14:01:57 server.idrom.am systemd[1]: Started MariaDB 11.4.9 database server.
+Nov 13 14:01:57 server.idrom.am /etc/mysql/debian-start[153489]: Upgrading MariaDB tables if necessary.
+Nov 13 14:01:57 server.idrom.am /etc/mysql/debian-start[153507]: Checking for insecure root accounts.
+Nov 13 14:01:57 server.idrom.am debian-start[153511]: ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: NO)
+Nov 13 14:13:47 server.idrom.am systemd[1]: Stopping MariaDB 11.4.9 database server...
+Nov 13 14:13:47 server.idrom.am systemd[1]: mariadb.service: Deactivated successfully.
+Nov 13 14:13:47 server.idrom.am systemd[1]: Stopped MariaDB 11.4.9 database server.
+Nov 13 14:13:47 server.idrom.am systemd[1]: mariadb.service: Consumed 4.796s CPU time.
