@@ -79,11 +79,11 @@ return [
     |
     */
 
-    'locale' => 'ru',
+'locale' => 'hy',
 
-    'fallback_locale' => 'en',
+'fallback_locale' => 'ru',
 
-    'faker_locale' => 'ru_RU',
+'faker_locale' => 'hy_AM',
 
     'supported_locales' => ['hy', 'ru', 'en'],
 

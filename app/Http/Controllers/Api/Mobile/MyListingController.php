@@ -342,6 +342,11 @@ class MyListingController extends Controller
             ]);
         }
 
+        if (Schema::hasColumn('listings', 'auction_photo_urls')) {
+            $listing->auction_photo_urls = $photoUrls;
+            $listing->save();
+        }
+
         if (config('queue.default') === 'sync') {
             ImportAuctionPhotos::dispatchSync($listing->id, $photoUrls);
             return;

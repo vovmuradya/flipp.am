@@ -25,7 +25,7 @@
             ->all();
         $currentLocale = app()->getLocale();
     @endphp
-    <div class="container-fluid">
+    <div class="container-fluid align-items-center">
         <a class="navbar-brand" href="{{ route('home') }}">
             <span class="brand-logo" role="presentation">
                 <img src="{{ asset('images/logo.png') }}" alt="" class="brand-logo__img">
@@ -33,7 +33,7 @@
             <span class="brand-text">idrom.am</span>
         </a>
 
-        <div class="mobile-action-buttons d-lg-none ms-auto">
+        <div class="mobile-action-buttons d-lg-none">
             <div
                 class="mobile-search-inline"
                 x-data="{ open: false }"
@@ -79,17 +79,6 @@
             >
                 <i class="fa-solid fa-plus"></i>
             </a>
-
-            <button
-                class="icon-button mobile-icon-button"
-                type="button"
-                data-bs-toggle="offcanvas"
-                data-bs-target="#mobileUserPanel"
-                aria-controls="mobileUserPanel"
-                aria-label="{{ __('Меню пользователя') }}"
-            >
-                <i class="fa-solid fa-user"></i>
-            </button>
 
             <button
                 class="navbar-toggler mobile-icon-button border-0"

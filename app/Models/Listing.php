@@ -33,6 +33,7 @@ class Listing extends Model implements HasMedia
         'last_bumped_at',
         'language',
         'is_from_auction',  // Новое поле для разделения обычных и аукционных объявлений
+        'auction_photo_urls',
     ];
 
     protected function casts(): array
@@ -40,6 +41,7 @@ class Listing extends Model implements HasMedia
         return [
             'promoted_until' => 'datetime',
             'last_bumped_at' => 'datetime',
+            'auction_photo_urls' => 'array',
         ];
     }
 

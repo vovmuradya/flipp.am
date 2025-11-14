@@ -15,6 +15,7 @@ class AuctionParserService
     private ?array $copartCookieArray = null;
     private bool $copartBlocked = false;
     private bool $copartBlockedDuringLastParse = false;
+    private bool $copartCookiesRefreshed = false;
 
     public function __construct(
         private readonly CopartCookieManager $copartCookieManager,
@@ -39,6 +40,8 @@ class AuctionParserService
         $url = preg_replace('/\s+/', '', $url);
 
         $this->copartBlockedDuringLastParse = false;
+        $this->copartBlocked = false;
+        $this->copartCookiesRefreshed = false;
 
         $domain = parse_url($url, PHP_URL_HOST);
 
@@ -163,6 +166,14 @@ class AuctionParserService
     {
         $this->copartBlocked = true;
         $this->copartBlockedDuringLastParse = true;
+
+        if (! $this->copartCookiesRefreshed) {
+            $this->copartCookiesRefreshed = true;
+            $refreshed = $this->refreshCopartCookies();
+            if ($refreshed) {
+                Log::info('Copart cookies refreshed after block');
+            }
+        }
     }
 
     private function flagCopartBlockFromBody(?string $body): void

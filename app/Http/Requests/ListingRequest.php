@@ -45,9 +45,9 @@ class ListingRequest extends FormRequest
 
         if ($this->input('listing_type') === 'vehicle') {
             $vehicleRules = [
-                'vehicle.make' => ['required_unless:vehicle.is_from_auction,1', 'nullable', 'string', 'max:100'],
-                'vehicle.model' => ['required_unless:vehicle.is_from_auction,1', 'nullable', 'string', 'max:100'],
-                'vehicle.year' => ['required_unless:vehicle.is_from_auction,1', 'nullable', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
+                'vehicle.make' => ['required', 'string', 'max:100'],
+                'vehicle.model' => ['required', 'string', 'max:100'],
+                'vehicle.year' => ['nullable', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
                 'vehicle.mileage' => ['nullable', 'integer', 'min:0'],
                 'vehicle.body_type' => ['nullable', 'string', 'max:50'],
                 'vehicle.transmission' => ['nullable', 'in:automatic,manual,cvt,semi-automatic'],
@@ -80,9 +80,8 @@ class ListingRequest extends FormRequest
             'price.min' => 'Цена не может быть отрицательной',
             'category_id.required' => 'Выберите категорию',
 
-            'vehicle.make.required_unless' => 'Марка обязательна (кроме объявлений с аукциона).',
-            'vehicle.model.required_unless' => 'Модель обязательна (кроме объявлений с аукциона).',
-            'vehicle.year.required_unless' => 'Год обязателен (кроме объявлений с аукциона).',
+            'vehicle.make.required' => 'Марка обязательна.',
+            'vehicle.model.required' => 'Модель обязательна.',
         ];
     }
 }

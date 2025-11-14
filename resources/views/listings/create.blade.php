@@ -367,6 +367,9 @@
 
                         $defaultPrice = $ad['price'] ?? ($copartHasBuyNow ? $copartBuyNowPriceValue : null);
                         $priceInputValue = old('price', $defaultPrice);
+                        if ($priceInputValue !== null && (float) $priceInputValue <= 0) {
+                            $priceInputValue = null;
+                        }
 
                         $currencyOptions = [
                             'USD' => 'USD $',
@@ -397,6 +400,12 @@
                             'years' => $yearOptions,
                             'engineOptions' => $engineDisplacementOptions,
                             'initialTitle' => $titleValue,
+                            'messages' => [
+                                'brand_required' => __('Выберите марку из списка.'),
+                                'model_required' => __('Выберите модель из списка.'),
+                                'year_required' => __('Выберите год выпуска.'),
+                                'year_invalid' => __('Выберите год из списка.'),
+                            ],
                         ];
                     @endphp
 

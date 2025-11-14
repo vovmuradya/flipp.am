@@ -327,7 +327,7 @@ class ListingController extends Controller
         if (!$parsed && $service->wasCopartBlocked()) {
             return back()
                 ->withInput()
-                ->with('auction_error', 'Copart заблокировал загрузку данных. Обновите переменную COPART_COOKIES (или запустите node scraper/fetch-copart-cookies.cjs) и попробуйте снова.');
+                ->with('auction_error', 'Copart временно ограничил выдачу. Подождите пару секунд и попробуйте снова — мы уже обновляем cookies автоматически.');
         }
 
         if (!$parsed) {
@@ -372,25 +372,25 @@ class ListingController extends Controller
             $title = trim(implode(' ', $titleParts));
 
             $descriptionLines = [
-                'Автомобиль с аукциона',
+                'Ավտոմեքենա աճուրդից',
                 '',
-                'Характеристики:',
-                '• Марка: ' . ($vehicle['make'] ?? 'Не указано'),
-                '• Модель: ' . ($vehicle['model'] ?? 'Не указано'),
-                '• Год: ' . ($vehicle['year'] ?? 'Не указан'),
+                'Հատկություններ․',
+                '• Մակնիշ․ ' . ($vehicle['make'] ?? 'չսահմանված'),
+                '• Մոդել․ ' . ($vehicle['model'] ?? 'չսահմանված'),
+                '• Տարեթիվ․ ' . ($vehicle['year'] ?? 'չսահմանված'),
             ];
 
             if (!empty($vehicle['mileage'])) {
-                $descriptionLines[] = '• Пробег: ' . number_format($vehicle['mileage'], 0, '.', ' ') . ' км';
+                $descriptionLines[] = '• Վազք․ ' . number_format($vehicle['mileage'], 0, '.', ' ') . ' կմ';
             }
 
             if (!empty($vehicle['exterior_color'])) {
                 $colorText = VehicleAttributeOptions::colorLabel($vehicle['exterior_color']) ?? $vehicle['exterior_color'];
-                $descriptionLines[] = '• Цвет: ' . $colorText;
+                $descriptionLines[] = '• Գույն․ ' . $colorText;
             }
 
             if (!empty($vehicle['engine_displacement_cc'])) {
-                $descriptionLines[] = '• Объем двигателя: ' . number_format((int) $vehicle['engine_displacement_cc'], 0, '.', ' ') . ' куб. см';
+                $descriptionLines[] = '• Շարժիչ․ ' . number_format((int) $vehicle['engine_displacement_cc'], 0, '.', ' ') . ' խոր. սմ';
             }
 
             $categoryId = VehicleCategoryResolver::resolve();
@@ -675,35 +675,30 @@ class ListingController extends Controller
                 }
             }
 
-            // ✅ Фото с аукциона — отправляем в очередь (если настроена асинхронная очередь)
-            if ($request->has('auction_photos')) {
-                $photoUrls = collect((array) $request->auction_photos)
-                    ->filter(function ($url) {
-                        if (!is_string($url)) {
-                            return false;
-                        }
+            // ✅ Фото с аукциона — берём из формы или из сохранённых данных парсера
+            $rawAuctionPhotos = $request->has('auction_photos')
+                ? (array) $request->auction_photos
+                : (array) session('auction_vehicle_data.photos', []);
 
-                        $decoded = urldecode($url);
+            $photoUrls = $this->filterAuctionPhotoUrls($rawAuctionPhotos);
 
-                        return !str_contains($decoded, 'placeholder.com')
-                            && !str_contains($decoded, 'No+Image');
-                    })
-                    ->values()
-                    ->all();
-
-                    if (!empty($photoUrls)) {
-                        if ($detail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($detail->preview_image_url)) {
-                            $detail->preview_image_url = $photoUrls[0];
-                            $detail->save();
-                        }
-
-                        if (config('queue.default') === 'sync') {
-                            ImportAuctionPhotos::dispatchSync($listing->id, $photoUrls);
-                        } else {
-                            ImportAuctionPhotos::dispatch($listing->id, $photoUrls);
-                        }
-                    }
+            if (!empty($photoUrls)) {
+                if ($detail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($detail->preview_image_url)) {
+                    $detail->preview_image_url = $photoUrls[0];
+                    $detail->save();
                 }
+
+                if (Schema::hasColumn('listings', 'auction_photo_urls')) {
+                    $listing->auction_photo_urls = $photoUrls;
+                    $listing->save();
+                }
+
+                if (config('queue.default') === 'sync') {
+                    ImportAuctionPhotos::dispatchSync($listing->id, $photoUrls);
+                } else {
+                    ImportAuctionPhotos::dispatch($listing->id, $photoUrls);
+                }
+            }
 
             DB::commit();
 
@@ -1037,12 +1032,18 @@ class ListingController extends Controller
 
         // ✅ Фото с аукциона — в очередь, если она асинхронная
         if ($request->has('auction_photos')) {
-            $photoUrls = array_values(array_filter((array) $request->auction_photos));
+            $photoUrls = $this->filterAuctionPhotoUrls((array) $request->auction_photos);
+
             if (!empty($photoUrls)) {
                 if ($listing->vehicleDetail && Schema::hasColumn('vehicle_details', 'preview_image_url') && empty($listing->vehicleDetail->preview_image_url)) {
                     $listing->vehicleDetail->update([
                         'preview_image_url' => $photoUrls[0],
                     ]);
+                }
+
+                if (Schema::hasColumn('listings', 'auction_photo_urls')) {
+                    $listing->auction_photo_urls = $photoUrls;
+                    $listing->save();
                 }
 
                 if (config('queue.default') !== 'sync') {
@@ -1117,5 +1118,28 @@ class ListingController extends Controller
         }
 
         return filter_var($realUrl, FILTER_VALIDATE_URL) ? $realUrl : null;
+    }
+
+    /**
+     * @param array $sources
+     * @return array<string>
+     */
+    private function filterAuctionPhotoUrls(array $sources): array
+    {
+        return collect($sources)
+            ->filter(function ($url) {
+                if (!is_string($url)) {
+                    return false;
+                }
+
+                $decoded = urldecode($url);
+
+                return !str_contains($decoded, 'placeholder.com')
+                    && !str_contains($decoded, 'No+Image');
+            })
+            ->map(fn ($url) => trim($url))
+            ->filter()
+            ->values()
+            ->all();
     }
 }

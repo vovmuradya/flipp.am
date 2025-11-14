@@ -56,10 +56,10 @@
                             }
                         }
 
-                        if (!empty($listing->auction_photos)) {
-                            $rawPhotos = is_array($listing->auction_photos)
-                                ? $listing->auction_photos
-                                : json_decode($listing->auction_photos, true);
+                        if (!empty($listing->auction_photo_urls)) {
+                            $rawPhotos = is_array($listing->auction_photo_urls)
+                                ? $listing->auction_photo_urls
+                                : json_decode($listing->auction_photo_urls, true);
                             if (is_array($rawPhotos)) {
                                 foreach ($rawPhotos as $photo) {
                                     if (!empty($photo)) {

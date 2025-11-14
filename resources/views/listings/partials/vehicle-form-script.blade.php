@@ -9,6 +9,7 @@
                     categoryMap: config.categoryMap || {},
                     isAuction: Boolean(config.isAuction),
                     locale: config.locale || 'ru',
+                    messages: config.messages || {},
                     apiEndpoints: config.api || {},
                     colorOptions: config.colors || {},
                     yearOptions: Array.isArray(config.years) ? config.years.map(year => String(year)) : [],
@@ -85,15 +86,23 @@
                     handleSubmit(event) {
                         this.clearClientErrors();
 
-                        if (this.listingType === 'vehicle' && !this.isAuction) {
+                        if (this.listingType === 'vehicle') {
                             this.syncBrandFromName();
                             this.syncModelFromName();
                             this.updateAutoTitle(true);
 
+                            if (!this.vehicle.brandId && !this.vehicle.make) {
+                                this.formErrors.brand = this.messages.brand_required || 'Выберите марку из списка.';
+                            }
+
+                            if (!this.vehicle.modelId && !this.vehicle.model) {
+                                this.formErrors.model = this.messages.model_required || 'Выберите модель из списка.';
+                            }
+
                             if (!this.vehicle.year) {
-                                this.formErrors.year = 'Выберите год выпуска.';
+                                this.formErrors.year = this.messages.year_required || 'Выберите год выпуска.';
                             } else if (this.yearOptions.length && !this.yearOptions.includes(String(this.vehicle.year))) {
-                                this.formErrors.year = 'Выберите год из списка.';
+                                this.formErrors.year = this.messages.year_invalid || 'Выберите год из списка.';
                             }
                         }
 
@@ -154,10 +163,8 @@
                         return option ? String(option.value) : null;
                     },
                     async initializeVehicleFormIfNeeded(force = false) {
-                        if (this.isAuction) {
-                            return;
-                        }
-                        if (!force && this.selectedType !== 'vehicle') {
+                        const shouldInitVehicle = this.isAuction || this.selectedType === 'vehicle';
+                        if (!force && !shouldInitVehicle) {
                             return;
                         }
                         await this.ensureBrandsLoaded();
@@ -175,7 +182,7 @@
                         }
                     },
                     async ensureBrandsLoaded() {
-                                        if (this.vehicle.loadingBrands || this.vehicle.brands.length > 0) {
+                        if (this.vehicle.loadingBrands || this.vehicle.brands.length > 0) {
                             return;
                         }
                         if (!this.apiEndpoints.brands) {

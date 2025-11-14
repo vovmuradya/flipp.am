@@ -67,6 +67,20 @@
 
     $photoSources = array_slice(array_values(array_filter(array_unique($photoSources))), 0, 12);
 
+    if (empty($photoSources) && !empty($listing->auction_photo_urls)) {
+        $urls = is_array($listing->auction_photo_urls)
+            ? $listing->auction_photo_urls
+            : json_decode($listing->auction_photo_urls, true);
+
+        if (is_array($urls)) {
+            foreach ($urls as $url) {
+                if (is_string($url) && trim($url) !== '') {
+                    $photoSources[] = trim($url);
+                }
+            }
+        }
+    }
+
     if (empty($photoSources) && $listing->vehicleDetail) {
         $previewUrl = $listing->vehicleDetail->preview_image_url
             ?? $listing->vehicleDetail->main_image_url

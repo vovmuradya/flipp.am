@@ -26,7 +26,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('copart:refresh-cookies --silent')
-            ->everyFifteenMinutes()
+            ->everyFiveMinutes()
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/copart-cookies.log'));
 
@@ -36,7 +36,7 @@ class Kernel extends ConsoleKernel
             ->appendOutputTo(storage_path('logs/copart-bids.log'));
 
         $schedule->command('auctions:backfill-photos --limit=20')
-            ->everyTenMinutes()
+            ->everyFiveMinutes()
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/auction-backfill.log'));
     }

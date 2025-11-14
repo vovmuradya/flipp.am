@@ -80,6 +80,12 @@
             'colors' => $colorOptions,
             'years' => $yearOptions,
             'initialTitle' => $titleValue,
+            'messages' => [
+                'brand_required' => __('Выберите марку из списка.'),
+                'model_required' => __('Выберите модель из списка.'),
+                'year_required' => __('Выберите год выпуска.'),
+                'year_invalid' => __('Выберите год из списка.'),
+            ],
         ];
 
         $existingMedia = $listing->getMedia('images');

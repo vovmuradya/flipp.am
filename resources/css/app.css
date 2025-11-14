@@ -515,22 +515,20 @@ a:hover {
 }
 
 .idrom-footer__logo {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
-    background: var(--brand-gradient);
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: transparent;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 24px;
     color: #fff;
-    box-shadow: 0 8px 24px rgba(227, 43, 43, 0.3);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .idrom-footer__logo:hover {
-    transform: scale(1.05);
-    box-shadow: 0 12px 32px rgba(227, 43, 43, 0.4);
+    transform: none;
+    box-shadow: none;
 }
 
 .idrom-footer__logo-img {
@@ -1047,15 +1045,10 @@ a:hover {
 }
 
 .listing-grid {
+    --listing-card-min-width: 260px;
     display: grid;
-    gap: 12px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-@media (min-width: 768px) {
-    .listing-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+    gap: clamp(12px, 2vw, 20px);
+    grid-template-columns: repeat(auto-fit, minmax(var(--listing-card-min-width), 1fr));
 }
 
 .vehicle-fullwidth__results {
@@ -1063,19 +1056,22 @@ a:hover {
 }
 
 .vehicle-fullwidth__results .listing-grid {
-    gap: 12px;
+    --listing-card-min-width: 240px;
+    gap: clamp(10px, 1.6vw, 18px);
+}
+
+.listing-grid--compact {
+    --listing-card-min-width: 220px;
+    gap: clamp(8px, 1.4vw, 16px);
 }
 
 @media (max-width: 575.98px) {
-    .listing-grid--compact,
-    .vehicle-fullwidth__results .listing-grid--compact {
-        gap: 6px;
-    }
-}
-
-@media (min-width: 1280px) {
     .listing-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        --listing-card-min-width: 220px;
+    }
+
+    .listing-grid--compact {
+        --listing-card-min-width: 200px;
     }
 }
 
@@ -1287,8 +1283,12 @@ a:hover {
     }
 
     .listing-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        --listing-card-min-width: 220px;
         gap: 16px;
+    }
+
+    .listing-grid--compact {
+        --listing-card-min-width: 200px;
     }
 
     .brand-listing-card {
@@ -2151,6 +2151,8 @@ body.locale-modal-open {
 
 .idrom-navbar .mobile-action-buttons {
     display: none;
+    gap: 12px;
+    align-items: center;
 }
 
 .idrom-navbar .mobile-action-buttons .icon-button {
@@ -2480,6 +2482,51 @@ body.locale-modal-open {
     margin: 0;
 }
 
+.mobile-search-inline {
+    display: flex;
+    align-items: center;
+}
+
+.mobile-search-inline__form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mobile-search-inline__field {
+    width: 14px;
+    height: 38px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    padding: 0;
+    overflow: hidden;
+    transition: width 0.25s ease, background 0.25s ease;
+    display: flex;
+    align-items: center;
+}
+
+.mobile-search-inline__field input {
+    border: none;
+    background: transparent;
+    width: 100%;
+    padding: 0 14px;
+    color: #111827;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.mobile-search-inline__form.is-open .mobile-search-inline__field {
+    width: 210px;
+    background: #ffffff;
+}
+
+.mobile-search-inline__form.is-open .mobile-search-inline__field input {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .mobile-locale-picker__button {
     border: 1px solid var(--brand-steel-gray);
     border-radius: 999px;
@@ -2563,23 +2610,25 @@ body.locale-modal-open {
 @media (max-width: 991.98px) {
     .idrom-navbar .mobile-action-buttons {
         display: flex;
+        gap: 12px;
     }
 
     .idrom-navbar .container-fluid {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 12px;
-        align-content: flex-start;
+        align-items: center;
+        justify-content: space-between;
     }
 
     .idrom-navbar .navbar-brand {
-        padding: 4px 12px;
-        gap: 8px;
+        padding: 4px 0;
+        gap: 10px;
     }
 
     .idrom-navbar .brand-logo {
-        width: 32px;
-        height: 32px;
-        font-size: 14px;
+        width: 44px;
+        height: 44px;
+        font-size: 16px;
     }
 
     .idrom-navbar .brand-text {

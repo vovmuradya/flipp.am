@@ -51,6 +51,15 @@
                                 $previewImage = $resolveMedia($listing->getFirstMedia('images'))
                                     ?: $resolveMedia($listing->getFirstMedia('auction_photos'));
 
+                                if (!$previewImage && !empty($listing->auction_photo_urls)) {
+                                    $previewImage = collect(is_array($listing->auction_photo_urls)
+                                        ? $listing->auction_photo_urls
+                                        : json_decode($listing->auction_photo_urls, true)
+                                    )
+                                        ->filter(fn ($url) => is_string($url) && trim($url) !== '')
+                                        ->first();
+                                }
+
                                 if (!$previewImage && $listing->vehicleDetail) {
                                     foreach ([
                                                  $listing->vehicleDetail->preview_image_url,

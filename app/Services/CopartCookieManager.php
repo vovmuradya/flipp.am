@@ -9,8 +9,10 @@ use Symfony\Component\Process\Process;
 class CopartCookieManager
 {
     public const CACHE_KEY = 'copart.dynamic_cookies';
-    private const MIN_COOKIE_PAIRS = 8;
-    private const MAX_ATTEMPTS = 3;
+    private const MIN_COOKIE_PAIRS = 7;
+    private const MAX_ATTEMPTS = 4;
+
+    private bool $browserChecked = false;
 
     /**
      * Возвращает строку Cookie из .env или из кэша автоматического обновления.
@@ -42,13 +44,19 @@ class CopartCookieManager
         }
 
         for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
-            $process = new Process(['node', $script], base_path(), null, null, 120);
+            $process = new Process(['node', $script], base_path(), null, null, 150);
             $process->run();
 
             if (! $process->isSuccessful()) {
+                $errorOutput = trim($process->getErrorOutput()) ?: trim($process->getOutput());
+
+                if ($this->shouldInstallBrowser($errorOutput)) {
+                    $this->installBrowserBinary();
+                }
+
                 Log::warning('CopartCookieManager: fetch script failed', [
                     'attempt' => $attempt,
-                    'error' => trim($process->getErrorOutput()) ?: trim($process->getOutput()),
+                    'error' => $errorOutput,
                 ]);
                 continue;
             }
@@ -90,6 +98,49 @@ class CopartCookieManager
 
         Log::warning('CopartCookieManager: unable to fetch cookies after retries');
 
-        return null;
+        return $this->getCookieHeader();
+    }
+
+    private function shouldInstallBrowser(?string $stderr): bool
+    {
+        if (!is_string($stderr) || $stderr === '') {
+            return false;
+        }
+
+        $needles = [
+            'Could not find Chrome',
+            'Could not find Chromium',
+            'browser fetcher',
+        ];
+
+        foreach ($needles as $needle) {
+            if (stripos($stderr, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function installBrowserBinary(): void
+    {
+        if ($this->browserChecked) {
+            return;
+        }
+
+        $this->browserChecked = true;
+
+        $workingDir = base_path('scraper');
+        $process = new Process(['npx', 'puppeteer', 'browsers', 'install', 'chrome'], $workingDir, null, null, 300);
+        $process->run();
+
+        if ($process->isSuccessful()) {
+            Log::info('CopartCookieManager: installed Puppeteer Chrome browser');
+            return;
+        }
+
+        Log::warning('CopartCookieManager: failed to install Puppeteer browser', [
+            'error' => trim($process->getErrorOutput()) ?: trim($process->getOutput()),
+        ]);
     }
 }

@@ -37,10 +37,34 @@
                             }
                         }
 
+                        $resolveMediaUrl = function ($media, $preferredConversion = 'medium') {
+                            if (!$media || !method_exists($media, 'getKey')) {
+                                return null;
+                            }
+
+                            $params = ['media' => $media->getKey()];
+                            if ($preferredConversion && method_exists($media, 'hasGeneratedConversion')
+                                && $media->hasGeneratedConversion($preferredConversion)) {
+                                $params['conversion'] = $preferredConversion;
+                            }
+
+                            try {
+                                return route('media.show', $params);
+                            } catch (\Throwable $e) {
+                                try {
+                                    return $preferredConversion
+                                        ? $media->getUrl($preferredConversion)
+                                        : $media->getUrl();
+                                } catch (\Throwable $_) {
+                                    return null;
+                                }
+                            }
+                        };
+
                         $fallbackImage = asset('images/no-image.jpg');
-                        $previewImage = $listing->getFirstMediaUrl('images', 'medium')
+                        $previewImage = $resolveMediaUrl($listing->getFirstMedia('images'))
+                            ?: $resolveMediaUrl($listing->getFirstMedia('auction_photos'))
                             ?: $listing->getFirstMediaUrl('images')
-                            ?: $listing->getFirstMediaUrl('auction_photos', 'medium')
                             ?: $listing->getFirstMediaUrl('auction_photos');
 
                         if (!$previewImage && $listing->image) {
@@ -67,6 +91,15 @@
                                     break;
                                 }
                             }
+                        }
+
+                        if (!$previewImage && !empty($listing->auction_photo_urls)) {
+                            $previewImage = collect(is_array($listing->auction_photo_urls)
+                                ? $listing->auction_photo_urls
+                                : json_decode($listing->auction_photo_urls, true)
+                            )
+                                ->filter(fn ($url) => is_string($url) && trim($url) !== '')
+                                ->first();
                         }
 
                         $previewImage = $previewImage ?: $fallbackImage;

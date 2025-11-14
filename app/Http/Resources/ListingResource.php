@@ -95,6 +95,20 @@ class ListingResource extends JsonResource
             ->values()
             ->all();
 
+        if (empty($urls) && !empty($this->auction_photo_urls)) {
+            $candidate = is_array($this->auction_photo_urls)
+                ? $this->auction_photo_urls
+                : json_decode($this->auction_photo_urls, true);
+
+            if (is_array($candidate)) {
+                foreach ($candidate as $url) {
+                    if (is_string($url) && trim($url) !== '') {
+                        $urls[] = trim($url);
+                    }
+                }
+            }
+        }
+
         if (empty($urls)) {
             $vehicle = $this->vehicleDetail;
             $preview = $vehicle?->preview_image_url ?? $vehicle?->main_image_url;
