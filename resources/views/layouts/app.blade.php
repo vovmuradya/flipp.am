@@ -7,6 +7,15 @@
 
     <title>{{ config('app.name', 'Laravel') }}</title>
 
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5VBKSM39JN"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-5VBKSM39JN');
+    </script>
+
     <!-- App icons -->
     <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
     <link rel="alternate icon" href="{{ asset('images/logo.png') }}">
