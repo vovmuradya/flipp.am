@@ -2,9 +2,13 @@
   - ./vendor/bin/sail up -d — поднять Docker‑контейнеры (включая PHP, MySQL, Redis, Meilisearch и т.д.).
   - ./vendor/bin/sail artisan migrate --force — если были новые миграции.
   - ./vendor/bin/sail artisan scout:import "App\Models\Listing" — при первом запуске или после изменений в индексации, чтобы перепостроить Meilisearch.
-  - ./vendor/bin/sail npm run dev (или build) — если нужны актуальные фронтенд‑ассеты.
+  - ./vendor/bin/sail npm run dev (или build) — если нужны актуальные фронтенд‑ассеты.]
 
+  mutq server
+
+ssh root@idrom.am
 server password tatevS1000@1000
+cd /home/admin/web/idrom.am/public_html
 
 craper/fetch-copart-cookies.cjs
 
