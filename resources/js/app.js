@@ -158,7 +158,65 @@ onDocumentReady(() => {
 
         const clampScroll = (value) => clamp(value, state.minBound, state.maxBound);
 
+        let momentumId = null;
+        let momentumLastTime = null;
+
+        const stopMomentumScroll = () => {
+            if (momentumId !== null) {
+                cancelAnimationFrame(momentumId);
+                momentumId = null;
+            }
+            momentumLastTime = null;
+        };
+
+        const startMomentumScroll = (initialVelocity) => {
+            const MIN_VELOCITY = 0.05; // px per ms (~50px/s)
+            if (!isFinite(initialVelocity) || Math.abs(initialVelocity) < MIN_VELOCITY) {
+                updateNavState();
+                return;
+            }
+
+            stopMomentumScroll();
+
+            const FRICTION = 0.0025; // higher = faster stop
+            const MAX_DURATION = 1200; // ms
+            let velocity = initialVelocity;
+            let elapsed = 0;
+
+            const stepMomentum = (timestamp) => {
+                if (momentumLastTime === null) {
+                    momentumLastTime = timestamp;
+                    momentumId = requestAnimationFrame(stepMomentum);
+                    return;
+                }
+
+                const dt = timestamp - momentumLastTime;
+                momentumLastTime = timestamp;
+                elapsed += dt;
+
+                const delta = velocity * dt;
+                const nextScroll = clampScroll(viewport.scrollLeft + delta);
+                viewport.scrollLeft = nextScroll;
+
+                const decel = FRICTION * dt * Math.sign(velocity || 1);
+                velocity -= decel;
+
+                const velocityMagnitude = Math.abs(velocity);
+                const reachedEdge = nextScroll === state.minBound || nextScroll === state.maxBound;
+                if (velocityMagnitude < MIN_VELOCITY || elapsed >= MAX_DURATION || reachedEdge) {
+                    stopMomentumScroll();
+                    updateNavState();
+                    return;
+                }
+
+                momentumId = requestAnimationFrame(stepMomentum);
+            };
+
+            momentumId = requestAnimationFrame(stepMomentum);
+        };
+
         const scrollByStep = (direction) => {
+            stopMomentumScroll();
             if (!state.step) {
                 measurePanels();
             }
@@ -205,8 +263,34 @@ onDocumentReady(() => {
         let dragStartScrollLeft = 0;
         let activePointerId = null;
         let dragMoved = false;
+        let pointerSamples = [];
 
-        const stopPointerDrag = () => {
+        const recordPointerSample = () => {
+            const now = performance.now();
+            pointerSamples.push({
+                time: now,
+                scrollLeft: viewport.scrollLeft,
+            });
+            if (pointerSamples.length > 5) {
+                pointerSamples.shift();
+            }
+        };
+
+        const computePointerVelocity = () => {
+            if (pointerSamples.length < 2) {
+                return 0;
+            }
+            const first = pointerSamples[0];
+            const last = pointerSamples[pointerSamples.length - 1];
+            const elapsed = last.time - first.time;
+            if (elapsed <= 0) {
+                return 0;
+            }
+
+            return (last.scrollLeft - first.scrollLeft) / elapsed;
+        };
+
+        const stopPointerDrag = ({ applyMomentum = false } = {}) => {
             if (!isPointerDragging) {
                 return;
             }
@@ -220,6 +304,8 @@ onDocumentReady(() => {
 
             activePointerId = null;
 
+            let momentumVelocity = 0;
+
             if (dragMoved) {
                 const suppressClick = (event) => {
                     event.stopPropagation();
@@ -227,10 +313,16 @@ onDocumentReady(() => {
                 };
 
                 viewport.addEventListener('click', suppressClick, { capture: true, once: true });
+                momentumVelocity = computePointerVelocity();
             }
 
             dragMoved = false;
+            pointerSamples = [];
             updateNavState();
+
+            if (applyMomentum && momentumVelocity) {
+                startMomentumScroll(momentumVelocity);
+            }
         };
 
         viewport.addEventListener('pointerdown', (event) => {
@@ -238,18 +330,22 @@ onDocumentReady(() => {
                 return;
             }
 
-            if (event.target.closest('a, button, input, textarea, select')) {
+            const interactiveTarget = event.target.closest('button, input, textarea, select, [data-slider-no-drag]');
+            if (interactiveTarget) {
                 stopPointerDrag();
                 return;
             }
 
             event.preventDefault();
+            stopMomentumScroll();
 
             isPointerDragging = true;
             dragStartX = event.clientX;
             dragStartScrollLeft = viewport.scrollLeft;
             activePointerId = event.pointerId;
             dragMoved = false;
+            pointerSamples = [];
+            recordPointerSample();
 
             viewport.setPointerCapture(event.pointerId);
             slider.classList.add('brand-slider--is-dragging');
@@ -271,11 +367,12 @@ onDocumentReady(() => {
 
             event.preventDefault();
             viewport.scrollLeft = clampScroll(dragStartScrollLeft - deltaX);
+            recordPointerSample();
         });
 
         viewport.addEventListener('pointerup', (event) => {
             if (event.pointerId === activePointerId) {
-                stopPointerDrag();
+                stopPointerDrag({ applyMomentum: dragMoved });
             }
         });
 

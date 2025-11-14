@@ -168,9 +168,9 @@
             <h4 class="brand-listing-card__title">{{ $listing->title }}</h4>
             <p class="brand-listing-card__meta">{{ $listing->region?->localized_name ?? __('Регион не указан') }}</p>
             <p class="brand-listing-card__price">
-                @if($isBuyNowPrimary)
-                    <span class="brand-listing-card__price-label">{{ __('Купить сейчас') }}</span>
-                @endif
+                <span class="brand-listing-card__price-label">
+                    {{ $isBuyNowPrimary ? __('Купить сейчас') : __('Цена') }}
+                </span>
                 <span class="brand-listing-card__price-value">
                     {{ $displayPrice !== null ? number_format($displayPrice, 0, '.', ' ') . ' ' . $displayCurrency : __('Цена уточняется') }}
                 </span>
