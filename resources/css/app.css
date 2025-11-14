@@ -533,6 +533,13 @@ a:hover {
     box-shadow: 0 12px 32px rgba(227, 43, 43, 0.4);
 }
 
+.idrom-footer__logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
 .idrom-footer__title {
     font-weight: 700;
     font-size: 26px;

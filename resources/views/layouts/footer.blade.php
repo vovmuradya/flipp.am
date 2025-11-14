@@ -7,7 +7,7 @@
                     <div class="idrom-footer__brand">
                         <div class="d-flex align-items-center gap-3 mb-3">
                             <span class="idrom-footer__logo" aria-hidden="true">
-                                <i class="fa-solid fa-car-side"></i>
+                                <img src="{{ asset('images/logo.png') }}" alt="idrom.am" class="idrom-footer__logo-img" loading="lazy">
                             </span>
                             <h3 class="idrom-footer__title mb-0">idrom.am</h3>
                         </div>
