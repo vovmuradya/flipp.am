@@ -384,7 +384,6 @@ class ListingController extends Controller
             abort(403);
         }
     }
-
     private function isAllowedAuctionUrl(string $url): bool
     {
         $host = parse_url($url, PHP_URL_HOST);
