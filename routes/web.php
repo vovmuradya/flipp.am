@@ -52,9 +52,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/listings/create/choose', [ListingController::class, 'createChoice'])->name('listings.create-choice');
     Route::get('/listings/create-from-auction', [ListingController::class, 'createFromAuction'])->name('listings.create-from-auction');
     Route::post('/listings/import-auction', [ListingController::class, 'importAuctionListing'])->name('listings.import-auction');
-    Route::get('/listings/import-progress/{auctionImport}', [ListingController::class, 'importProgress'])->name('listings.import-progress');
-    Route::get('/listings/import-status/{auctionImport}', [ListingController::class, 'importStatus'])->name('listings.import-status');
-    Route::post('/listings/import-consume/{auctionImport}', [ListingController::class, 'consumeAuctionImport'])->name('listings.import-consume');
 
     Route::resource('listings', ListingController::class)->only(['create', 'store', 'edit', 'update', 'destroy']);
 
