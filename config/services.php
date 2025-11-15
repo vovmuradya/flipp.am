@@ -62,15 +62,13 @@ return [
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
         'redirect' => env('FACEBOOK_REDIRECT_URI', env('APP_URL') . '/auth/facebook/callback'),
     ],
-
-    'messaggio' => [
-        'api_key' => env('MESSAGGIO_API_KEY'),
-        'sender' => env('MESSAGGIO_SENDER', env('APP_NAME', 'IDROM')),
-        'channel' => env('MESSAGGIO_CHANNEL', 'sms'),
-        'ttl' => (int) env('MESSAGGIO_TTL', 600),
-        'template' => env('MESSAGGIO_TEMPLATE', 'Ваш код подтверждения: :code'),
-        'send_url' => env('MESSAGGIO_OTP_URL') ?: rtrim(env('MESSAGGIO_BASE_URL', 'https://otp.messaggio.com/api'), '/') . '/otp/send',
-        'timeout' => (int) env('MESSAGGIO_TIMEOUT', 10),
-    ],
-
+'messaggio' => [
+    'api_key'  => env('MESSAGGIO_API_KEY'),
+    'sender'   => env('MESSAGGIO_SENDER', 'IDROM'),
+    'channel'  => env('MESSAGGIO_CHANNEL', 'sms'),
+    'ttl'      => (int) env('MESSAGGIO_TTL', 600),
+    'template' => env('MESSAGGIO_TEMPLATE', 'Ваш код подтверждения: :code'),
+    'send_url' => env('MESSAGGIO_OTP_URL', 'https://otp.messaggio.com/api/v1/otp/send'),
+    'timeout'  => (int) env('MESSAGGIO_TIMEOUT', 10),
+],
 ];
