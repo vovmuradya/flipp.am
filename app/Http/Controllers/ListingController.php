@@ -11,14 +11,16 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
 use App\Jobs\ImportAuctionPhotos; // добавлено
 use App\Jobs\ExpireAuctionListing;
+use App\Jobs\ProcessAuctionImport;
+use App\Models\AuctionImport;
 use Carbon\Carbon;
-use App\Services\AuctionParserService;
 use App\Support\VehicleCategoryResolver;
 use App\Support\VehicleAttributeOptions;
 use App\Models\CarBrand;
@@ -299,7 +301,7 @@ class ListingController extends Controller
         return redirect()->route('listings.create', ['from_auction' => 1]);
     }
 
-    public function importAuctionListing(Request $request, AuctionParserService $service)
+    public function importAuctionListing(Request $request)
     {
         if ($redirect = $this->ensurePhoneVerified()) {
             return $redirect;
@@ -309,9 +311,7 @@ class ListingController extends Controller
             'auction_url' => 'required|url',
         ]);
 
-        $url = $validated['auction_url'];
-
-        if (!$this->isAllowedAuctionUrl($url)) {
+        if (!$this->isAllowedAuctionUrl($validated['auction_url'])) {
             return back()
                 ->withInput()
                 ->withErrors([
@@ -319,188 +319,70 @@ class ListingController extends Controller
                 ]);
         }
 
-        try {
-            set_time_limit(15);
+        $import = AuctionImport::create([
+            'user_id' => $request->user()->id,
+            'url' => $validated['auction_url'],
+            'status' => AuctionImport::STATUS_PENDING,
+        ]);
 
-            $parsed = $service->parseFromUrl($url, aggressive: (bool) config('services.copart.aggressive', false));
+        ProcessAuctionImport::dispatch($import->id);
 
-        if (!$parsed && $service->wasCopartBlocked()) {
-            return back()
-                ->withInput()
-                ->with('auction_error', 'Copart временно ограничил выдачу. Подождите пару секунд и попробуйте снова — мы уже обновляем cookies автоматически.');
-        }
-
-        if (!$parsed) {
-            $parsed = $this->fallbackAuctionData($url);
-        }
-
-        if (!$parsed || empty($parsed['make']) || empty($parsed['model'])) {
-            return back()
-                ->withInput()
-                ->with('auction_error', 'Не удалось найти данные по этому лоту. Проверьте ссылку и попробуйте снова.');
-        }
-
-            $vehicle = [
-                'make' => $parsed['make'] ?? null,
-                'model' => $parsed['model'] ?? null,
-                'year' => isset($parsed['year']) && preg_match('/^(19|20)\d{2}$/', (string) $parsed['year']) ? (int) $parsed['year'] : null,
-                'mileage' => isset($parsed['mileage']) && is_numeric($parsed['mileage']) ? (int) $parsed['mileage'] : null,
-                'exterior_color' => $parsed['exterior_color'] ?? null,
-                'transmission' => $parsed['transmission'] ?? 'automatic',
-                'fuel_type' => $parsed['fuel_type'] ?? 'gasoline',
-                'engine_displacement_cc' => isset($parsed['engine_displacement_cc']) && is_numeric($parsed['engine_displacement_cc']) ? (int) $parsed['engine_displacement_cc'] : null,
-                'body_type' => $parsed['body_type'] ?? null,
-                'photos' => array_values(array_filter($parsed['photos'] ?? [], fn ($u) => is_string($u) && strlen($u) > 5)),
-                'source_auction_url' => $parsed['source_auction_url'] ?? $url,
-                'auction_ends_at' => $parsed['auction_ends_at'] ?? null,
-                'buy_now_price' => isset($parsed['buy_now_price']) && $parsed['buy_now_price'] !== '' ? (float) $parsed['buy_now_price'] : null,
-                'buy_now_currency' => $parsed['buy_now_currency'] ?? null,
-                'operational_status' => $parsed['operational_status'] ?? null,
-            ];
-
-            $titleParts = [];
-            if ($vehicle['year']) {
-                $titleParts[] = $vehicle['year'];
-            }
-            if ($vehicle['make']) {
-                $titleParts[] = $vehicle['make'];
-            }
-            if ($vehicle['model']) {
-                $titleParts[] = $vehicle['model'];
-            }
-
-            $title = trim(implode(' ', $titleParts));
-
-            $descriptionLines = [
-                'Ավտոմեքենա աճուրդից',
-                '',
-                'Հատկություններ․',
-                '• Մակնիշ․ ' . ($vehicle['make'] ?? 'չսահմանված'),
-                '• Մոդել․ ' . ($vehicle['model'] ?? 'չսահմանված'),
-                '• Տարեթիվ․ ' . ($vehicle['year'] ?? 'չսահմանված'),
-            ];
-
-            if (!empty($vehicle['mileage'])) {
-                $descriptionLines[] = '• Վազք․ ' . number_format($vehicle['mileage'], 0, '.', ' ') . ' կմ';
-            }
-
-            if (!empty($vehicle['exterior_color'])) {
-                $colorText = VehicleAttributeOptions::colorLabel($vehicle['exterior_color']) ?? $vehicle['exterior_color'];
-                $descriptionLines[] = '• Գույն․ ' . $colorText;
-            }
-
-            if (!empty($vehicle['engine_displacement_cc'])) {
-                $descriptionLines[] = '• Շարժիչ․ ' . number_format((int) $vehicle['engine_displacement_cc'], 0, '.', ' ') . ' խոր. սմ';
-            }
-
-            $categoryId = VehicleCategoryResolver::resolve();
-            if (!$categoryId) {
-                return back()
-                    ->withInput()
-                    ->with('auction_error', 'Категории для транспортных объявлений не настроены. Обратитесь к администратору.');
-            }
-
-            $payload = [
-                'title' => $title,
-                'description' => implode("\n", $descriptionLines),
-                'price' => $vehicle['buy_now_price'] ?? null,
-                'category_id' => $categoryId,
-                'auction_url' => $url,
-                'vehicle' => $vehicle,
-                'photos' => $vehicle['photos'],
-            ];
-
-            session(['auction_vehicle_data' => $payload]);
-
-            return redirect()->route('listings.create', ['from_auction' => 1]);
-        } catch (\Throwable $exception) {
-            report($exception);
-
-            return back()
-                ->withInput()
-                ->with('auction_error', 'Не удалось загрузить данные с аукциона. Попробуйте ещё раз или заполните форму вручную.');
-        }
+        return redirect()->route('listings.import-progress', $import);
     }
 
-    private function fallbackAuctionData(string $url): ?array
+    public function importProgress(AuctionImport $auctionImport)
     {
-        $path = parse_url($url, PHP_URL_PATH);
-        $slug = is_string($path) ? trim($path, '/') : '';
-
-        $lastSegment = null;
-        if ($slug !== '') {
-            $segments = explode('/', $slug);
-            $lastSegment = end($segments) ?: null;
+        if ($redirect = $this->ensurePhoneVerified()) {
+            return $redirect;
         }
 
-        $parts = $lastSegment ? array_filter(array_map('trim', explode('-', $lastSegment))) : [];
+        $this->authorizeAuctionImport($auctionImport);
 
-        $year = null;
-        $yearPos = null;
-        foreach ($parts as $index => $part) {
-            if (preg_match('/^(19|20)\d{2}$/', $part)) {
-                $year = (int) $part;
-                $yearPos = $index;
-                break;
-            }
+        return view('listings.import-progress', [
+            'import' => $auctionImport,
+        ]);
+    }
+
+    public function importStatus(AuctionImport $auctionImport): JsonResponse
+    {
+        $this->authorizeAuctionImport($auctionImport);
+
+        $status = $auctionImport->status === AuctionImport::STATUS_CONSUMED
+            ? AuctionImport::STATUS_SUCCESS
+            : $auctionImport->status;
+
+        return response()->json([
+            'status' => $status,
+            'error' => $auctionImport->error,
+        ]);
+    }
+
+    public function consumeAuctionImport(Request $request, AuctionImport $auctionImport): JsonResponse
+    {
+        $this->authorizeAuctionImport($auctionImport);
+
+        if ($auctionImport->status !== AuctionImport::STATUS_SUCCESS || empty($auctionImport->payload)) {
+            return response()->json([
+                'message' => 'Импорт ещё не завершён.',
+            ], 422);
         }
 
-        $makes = [
-            'acura','audi','bmw','buick','cadillac','chevrolet','chevy','chrysler','dodge','fiat','ford','gmc','honda','hyundai','infiniti','jaguar','jeep','kia','land','rover','lexus','lincoln','mazda','mercedes','benz','mini','mitsubishi','nissan','porsche','ram','subaru','tesla','toyota','volkswagen','vw','volvo','saab','hummer','pontiac','saturn','scion','suzuki','alfa','romeo','peugeot','renault'
-        ];
+        session(['auction_vehicle_data' => $auctionImport->payload]);
 
-        $make = null;
-        $modelTokens = [];
+        $auctionImport->update([
+            'status' => AuctionImport::STATUS_CONSUMED,
+        ]);
 
-        if ($yearPos !== null) {
-            $after = array_slice($parts, $yearPos + 1);
-            $stopWords = ['salvage','clean','title','rebuildable','certificate'];
-            $filtered = [];
-            foreach ($after as $token) {
-                $lower = strtolower($token);
-                if (in_array($lower, $stopWords, true)) {
-                    continue;
-                }
-                $filtered[] = $token;
-            }
+        return response()->json([
+            'redirect' => route('listings.create', ['from_auction' => 1]),
+        ]);
+    }
 
-            foreach ($filtered as $idx => $token) {
-                if (in_array(strtolower($token), $makes, true)) {
-                    $make = ucfirst(strtolower($token));
-                    $modelTokens = array_slice($filtered, $idx + 1);
-                    break;
-                }
-            }
-
-            if (!$make && !empty($filtered)) {
-                $make = ucfirst(strtolower($filtered[0]));
-                $modelTokens = array_slice($filtered, 1);
-            }
+    private function authorizeAuctionImport(AuctionImport $auctionImport): void
+    {
+        if ($auctionImport->user_id !== auth()->id()) {
+            abort(403);
         }
-
-        $make = $make ? ucfirst(strtolower($make)) : null;
-        $model = $modelTokens
-            ? ucfirst(implode(' ', array_map(fn ($value) => strtolower($value), $modelTokens)))
-            : null;
-
-        if (!$make || !$model) {
-            return null;
-        }
-
-        return [
-            'make' => $make,
-            'model' => $model,
-            'year' => $year,
-            'mileage' => null,
-            'exterior_color' => null,
-            'transmission' => 'automatic',
-            'fuel_type' => 'gasoline',
-            'engine_displacement_cc' => null,
-            'body_type' => null,
-            'photos' => [],
-            'source_auction_url' => $url,
-            'auction_ends_at' => null,
-        ];
     }
 
     private function isAllowedAuctionUrl(string $url): bool
