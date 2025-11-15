@@ -14,7 +14,7 @@ class PhoneVerificationService
     private const TTL_MINUTES = 10;
 
     public function __construct(
-        private readonly MessaggioOtpClient $messaggioOtp,
+        private readonly TwilioOtpClient $otp,
     ) {
     }
 
@@ -34,9 +34,9 @@ class PhoneVerificationService
         );
 
         try {
-            $this->messaggioOtp->send($normalized, (string) $code);
+            $this->otp->send($normalized, (string) $code);
         } catch (Throwable $exception) {
-            Log::error('Failed to deliver OTP via Messaggio', [
+            Log::error('Failed to deliver OTP via Twilio', [
                 'phone' => $normalized,
                 'error' => $exception->getMessage(),
             ]);
