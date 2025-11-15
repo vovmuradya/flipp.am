@@ -117,12 +117,12 @@ class ListingController extends Controller
         });
 
         if ($request->filled('year_from') && is_numeric($request->year_from)) {
-            $yearFrom = max(1900, min((int)$request->year_from, date('Y') + 1));
+            $yearFrom = max(1900, min((int)$request->year_from, (int)date('Y') + 1));
             $query->whereHas('vehicleDetail', fn($q) => $q->where('year', '>=', $yearFrom));
         }
 
         if ($request->filled('year_to') && is_numeric($request->year_to)) {
-            $yearTo = max(1900, min((int)$request->year_to, date('Y') + 1));
+            $yearTo = max(1900, min((int)$request->year_to, (int)date('Y') + 1));
             $query->whereHas('vehicleDetail', fn($q) => $q->where('year', '<=', $yearTo));
         }
 
