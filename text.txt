@@ -18,7 +18,7 @@ git rev-parse HEAD
 
 localum
 git add .
-git commit -m
+git commit -m "Full update"
 git push origin main
 
 serverum
