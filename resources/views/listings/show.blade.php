@@ -101,7 +101,7 @@
                                 <h1 class="text-3xl font-bold">{{ $listing->title }}</h1>
                                 <div class="mt-4 flex items-center flex-wrap gap-2">
                                     @auth
-                                        <form action="{{ route('listings.favorite.toggle', $listing) }}" method="POST">
+                                        <form action="{{ route('listings.favorite.toggle', $listing) }}" method="POST" data-favorite-toggle>
                                             @csrf
                                             <button type="submit" class="p-2 rounded-full border hover:bg-gray-100" aria-label="{{ __('Добавить/убрать из избранного') }}">
                                                 @if(auth()->user()->favorites->contains($listing))

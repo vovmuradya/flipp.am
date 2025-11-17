@@ -150,7 +150,7 @@
         @if($showFavorite)
             <div class="brand-listing-card__favorite">
                 @auth
-                    <form action="{{ route('listings.favorite.toggle', $listing) }}" method="POST">
+                    <form action="{{ route('listings.favorite.toggle', $listing) }}" method="POST" data-favorite-toggle>
                         @csrf
                         <button type="submit" aria-label="{{ __('Добавить в избранное') }}">
                             @if(auth()->user()->favorites->contains($listing))

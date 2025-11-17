@@ -78,7 +78,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::post('/listings/{listing}/messages', [MessageController::class, 'store'])->name('listings.messages.store');
-    Route::post('/listings/{listing}/favorite', [FavoriteController::class, 'toggle'])->name('listings.favorite.toggle');
+Route::post('/listings/{listing}/favorite', [FavoriteController::class, 'toggle'])->name('listings.favorite.toggle');
     Route::post('/listings/{listing}/reviews', [ReviewController::class, 'store'])->name('listings.reviews.store');
     Route::post('/listings/draft', [ListingController::class, 'storeDraft'])->name('listings.draft');
 

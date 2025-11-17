@@ -4,8 +4,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @php
+        $defaultTitle = __('idrom.am — Авто объявления и поиск автомобилей в Армении');
+        $metaTitle = trim($__env->yieldContent('meta_title')) ?: $defaultTitle;
+        $defaultDescription = __('idrom.am — платформа объявлений для продажи и покупки автомобилей, подбор лотов с аукционов и локальных дилеров.');
+        $metaDescription = trim($__env->yieldContent('meta_description')) ?: $defaultDescription;
+        $metaKeywords = trim($__env->yieldContent('meta_keywords')) ?: 'idrom, авто, объявления, покупка авто, аукционы, Армения';
+        $metaRobots = trim($__env->yieldContent('meta_robots')) ?: 'index,follow';
+        $metaCanonical = trim($__env->yieldContent('meta_canonical')) ?: url()->current();
+        $metaOgImage = trim($__env->yieldContent('meta_image')) ?: asset('logo-512.png');
+    @endphp
 
-    <title>{{ config('app.name', 'Laravel') }}</title>
+    <title>{{ $metaTitle }}</title>
+    <meta name="description" content="{{ $metaDescription }}">
+    <meta name="keywords" content="{{ $metaKeywords }}">
+    <meta name="robots" content="{{ $metaRobots }}">
+    <link rel="canonical" href="{{ $metaCanonical }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ asset('logo-512.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('logo-512.png') }}">
 
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-5VBKSM39JN"></script>
@@ -19,9 +35,42 @@
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9290639823583418" crossorigin="anonymous"></script>
 
-    <!-- App icons -->
-    <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
-    <link rel="alternate icon" href="{{ asset('images/logo.png') }}">
+    <!-- SEO Meta -->
+    <meta property="og:type" content="@yield('meta_og_type', 'website')">
+    <meta property="og:title" content="{{ $metaTitle }}">
+    <meta property="og:description" content="{{ $metaDescription }}">
+    <meta property="og:url" content="{{ $metaCanonical }}">
+    <meta property="og:site_name" content="{{ config('app.name', 'idrom.am') }}">
+    <meta property="og:image" content="{{ $metaOgImage }}">
+    <meta property="og:image:alt" content="{{ $metaTitle }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $metaTitle }}">
+    <meta name="twitter:description" content="{{ $metaDescription }}">
+    <meta name="twitter:image" content="{{ $metaOgImage }}">
+    <meta name="twitter:site" content="@idromam">
+    @stack('meta')
+    @php
+        $organizationLd = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Organization',
+            'name' => 'idrom.am',
+            'url' => config('app.url', url('/')),
+            'logo' => $metaOgImage,
+            'sameAs' => [
+                'https://www.facebook.com/idromam',
+                'https://t.me/idromam',
+            ],
+            'contactPoint' => [
+                '@type' => 'ContactPoint',
+                'email' => 'info@idrom.am',
+                'contactType' => 'Customer Support',
+                'areaServed' => 'AM'
+            ],
+        ];
+    @endphp
+    <script type="application/ld+json">
+        {!! json_encode($organizationLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+    </script>
 
     <!-- Styles -->
     @stack('styles')

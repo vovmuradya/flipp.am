@@ -1123,9 +1123,9 @@ a:hover {
     box-sizing: border-box;
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
-    margin-bottom: clamp(64px, 9vw, 140px);
-    padding-top: clamp(32px, 6vw, 80px);
-    padding-bottom: clamp(56px, 8vw, 130px);
+    margin-bottom: clamp(40px, 6vw, 90px);
+    padding-top: clamp(16px, 3vw, 40px);
+    padding-bottom: clamp(32px, 5vw, 80px);
     overflow: visible;
 }
 

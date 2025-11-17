@@ -7,6 +7,7 @@
   mutq server
 
 ssh root@idrom.am
+ssh root@185.227.110.47
 server password tatevS1000@1000
 cd /home/admin/web/idrom.am/public_html
 
@@ -17,7 +18,7 @@ git rev-parse HEAD
 
 localum
 git add .
-git commit -m "Switch OTP to Twilio"
+git commit -m
 git push origin main
 
 serverum
@@ -35,6 +36,13 @@ cooki update
 php artisan cache:clear
   php artisan config:clear
   php artisan view:clear
+
+erb 500 oshibkaya cuyc tali pul ic heto
+
+chown -R admin:admin storage
+chmod -R 775 storage
+chmod -R 775 bootstrap/cache
+
 
 
 ЧТО ДЕЛАТЬ КОГДА ХОЧЕШЬ ИЗМЕНИТЬ КОД?

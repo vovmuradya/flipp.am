@@ -24,7 +24,6 @@
                             <div class="brand-slider__panel">
                                 <x-listing.card
                                     :listing="$listing"
-                                    :badge="$isAuction ? __('Аукцион') : null"
                                     :expires="$expiresAt"
                                 />
                             </div>
