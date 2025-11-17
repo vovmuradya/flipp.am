@@ -14,7 +14,6 @@ use App\Http\Controllers\ProxyController; // Новый прокси-контр�
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\LocaleController;
-use App\Http\Controllers\Auth\PhoneVerificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,8 +26,6 @@ Route::get('/', [ListingController::class, 'index'])->name('home');
 Route::get('/search', [SearchController::class, 'index'])->name('search.index');
 Route::get('/listings', [ListingController::class, 'index'])->name('listings.index');
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
-Route::post('/auth/phone/send-code', [PhoneVerificationController::class, 'send'])->name('auth.phone.send-code');
-
 Route::prefix('auth')->name('auth.')->group(function () {
     Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect'])
         ->middleware('guest')

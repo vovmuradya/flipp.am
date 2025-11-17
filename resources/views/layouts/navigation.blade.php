@@ -24,6 +24,7 @@
             ])
             ->all();
         $currentLocale = app()->getLocale();
+        $favoriteCount = auth()->check() ? auth()->user()->favorites()->count() : 0;
     @endphp
     <div class="container-fluid align-items-center">
         <a class="navbar-brand" href="{{ route('home') }}">
@@ -78,6 +79,17 @@
                 aria-label="{{ __('Подать объявление') }}"
             >
                 <i class="fa-solid fa-plus"></i>
+            </a>
+
+            <a
+                href="{{ auth()->check() ? route('dashboard.favorites') : route('login') }}"
+                class="mobile-icon-button mobile-favorite-button"
+                aria-label="{{ __('Избранные') }}"
+            >
+                <i class="fa-solid fa-heart"></i>
+                <span class="mobile-favorite-button__badge">
+                    {{ $favoriteCount > 99 ? '99+' : $favoriteCount }}
+                </span>
             </a>
 
             <button
@@ -168,7 +180,13 @@
 
     <div class="offcanvas offcanvas-end mobile-offcanvas" tabindex="-1" id="mobileMainMenu" aria-labelledby="mobileMainMenuLabel">
         <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="mobileMainMenuLabel">{{ __('Разделы') }}</h5>
+            <h5 class="offcanvas-title" id="mobileMainMenuLabel">
+                @auth
+                    {{ auth()->user()->name ?? __('Меню') }}
+                @else
+                    {{ __('Меню') }}
+                @endauth
+            </h5>
             <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="{{ __('Закрыть') }}"></button>
         </div>
         <div class="offcanvas-body">
@@ -184,27 +202,6 @@
                         {{ $link['label'] }}
                     </a>
                 @endforeach
-            </div>
-        </div>
-    </div>
-
-    <div class="offcanvas offcanvas-end mobile-offcanvas" tabindex="-1" id="mobileUserPanel" aria-labelledby="mobileUserPanelLabel">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="mobileUserPanelLabel">
-                @auth
-                    {{ auth()->user()->name ?? __('Профиль') }}
-                @else
-                    {{ __('Аккаунт') }}
-                @endauth
-            </h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="{{ __('Закрыть') }}"></button>
-        </div>
-        <div class="offcanvas-body">
-            <div class="mobile-offcanvas__section">
-                <button type="button" class="mobile-offcanvas__link" data-open-locale-modal>
-                    <i class="fa-solid fa-globe"></i>
-                    {{ __('Сменить язык') }}
-                </button>
             </div>
             @auth
                 <div class="mobile-offcanvas__section">
@@ -234,6 +231,8 @@
                         <i class="fa-solid fa-gear"></i>
                         {{ __('Настройки') }}
                     </a>
+                </div>
+                <div class="mobile-offcanvas__section">
                     <a href="{{ url('/support') }}" class="mobile-offcanvas__link">
                         <i class="fa-solid fa-circle-question"></i>
                         {{ __('Помощь') }}

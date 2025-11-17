@@ -84,39 +84,14 @@
                         value="{{ old('phone') }}"
                         required
                         autocomplete="tel"
-                        placeholder="+374 00 00 00"
+                        placeholder="+374 77 123 456"
                         class="auth-input__control"
                     >
                 </div>
-                <div class="auth-form__actions mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="sendPhoneCode">
-                        {{ __('Получить код') }}
-                    </button>
-                    <small id="phoneCodeStatus" class="text-muted ms-2"></small>
-                </div>
+                <p class="auth-form__hint mt-2">
+                    {{ __('Указывайте армянский номер в формате +374 XX XXX XXX. Номер должен быть уникальным.') }}
+                </p>
                 @error('phone')
-                    <span class="auth-form__error">{{ $message }}</span>
-                @enderror
-            </div>
-
-            <div class="auth-form__field">
-                <label for="verification_code" class="auth-form__label">{{ __('Код подтверждения') }}</label>
-                <div class="auth-input">
-                    <span class="auth-input__icon"><i class="fa-solid fa-shield-keyhole"></i></span>
-                    <input
-                        id="verification_code"
-                        type="text"
-                        name="verification_code"
-                        value="{{ old('verification_code') }}"
-                        required
-                        inputmode="numeric"
-                        pattern="[0-9]*"
-                        maxlength="6"
-                        placeholder="123456"
-                        class="auth-input__control"
-                    >
-                </div>
-                @error('verification_code')
                     <span class="auth-form__error">{{ $message }}</span>
                 @enderror
             </div>
@@ -162,6 +137,9 @@
             <button type="submit" class="btn-brand-gradient btn-brand-full auth-form__submit">
                 {{ __('Зарегистрироваться') }}
             </button>
+            <p class="auth-form__hint text-center mt-2">
+                {{ __('Мы отправим письмо с подтверждением на указанный email. Проверьте почту, чтобы активировать аккаунт.') }}
+            </p>
         </form>
 
         <p class="auth-card__switch">
@@ -170,62 +148,4 @@
         </p>
     </section>
 
-    @push('scripts')
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const sendBtn = document.getElementById('sendPhoneCode');
-                const phoneInput = document.getElementById('phone');
-                const statusEl = document.getElementById('phoneCodeStatus');
-
-                if (!sendBtn || !phoneInput) {
-                    return;
-                }
-
-                const messages = {
-                    success: @json(__('Код отправлен. Пожалуйста, проверьте SMS.')),
-                    error: @json(__('Не удалось отправить код. Попробуйте ещё раз.')),
-                    empty: @json(__('Введите номер телефона.')),
-                };
-
-                sendBtn.addEventListener('click', async () => {
-                    const phone = phoneInput.value.trim();
-                    if (!phone) {
-                        statusEl.textContent = messages.empty;
-                        statusEl.classList.add('text-danger');
-                        return;
-                    }
-
-                    sendBtn.disabled = true;
-                    statusEl.textContent = '';
-
-                    try {
-                        const response = await fetch('{{ route('auth.phone.send-code') }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            },
-                            body: JSON.stringify({ phone }),
-                        });
-
-                        const data = await response.json();
-                        if (response.ok && data.success) {
-                            statusEl.textContent = data.message || messages.success;
-                            statusEl.classList.remove('text-danger');
-                            statusEl.classList.add('text-success');
-                        } else {
-                            throw new Error(data.message || messages.error);
-                        }
-                    } catch (error) {
-                        statusEl.textContent = error.message || messages.error;
-                        statusEl.classList.remove('text-success');
-                        statusEl.classList.add('text-danger');
-                    } finally {
-                        sendBtn.disabled = false;
-                    }
-                });
-            });
-        </script>
-    @endpush
 </x-guest-layout>

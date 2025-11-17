@@ -200,8 +200,8 @@ class MyListingController extends Controller
 
     private function ensurePhoneVerified(User $user): ?JsonResponse
     {
-        if (empty($user->phone) || empty($user->phone_verified_at)) {
-            return $this->error(__('Добавьте и подтвердите номер телефона, чтобы публиковать объявления.'), 422);
+        if (empty($user->phone)) {
+            return $this->error(__('Добавьте номер телефона, чтобы публиковать объявления.'), 422);
         }
 
         return null;

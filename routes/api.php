@@ -46,8 +46,6 @@ Route::prefix('mobile')
         Route::prefix('auth')->group(function () {
             Route::post('/phone/send-code', [MobileAuthController::class, 'sendVerificationCode'])
                 ->name('auth.phone.send-code');
-            Route::post('/email/send-code', [MobileAuthController::class, 'sendEmailVerificationCode'])
-                ->name('auth.email.send-code');
             Route::post('/register', [MobileAuthController::class, 'register'])->name('auth.register');
             Route::post('/login', [MobileAuthController::class, 'login'])->name('auth.login');
         });

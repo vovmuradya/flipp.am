@@ -304,7 +304,17 @@
 
                         <div class="d-flex justify-content-end gap-3">
                             <a href="{{ route('dashboard.my-listings') }}" class="btn btn-brand-outline">{{ __('Отмена') }}</a>
-                            <button type="submit" class="btn btn-brand-gradient">{{ __('Сохранить изменения') }}</button>
+                            <button type="submit"
+                                    class="btn btn-brand-gradient d-inline-flex align-items-center gap-2"
+                                    :disabled="isSubmitting">
+                                <span x-show="!isSubmitting">
+                                    {{ __('Сохранить изменения') }}
+                                </span>
+                                <span x-show="isSubmitting" class="d-inline-flex align-items-center gap-2" x-cloak>
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    {{ __('Сохраняем…') }}
+                                </span>
+                            </button>
                         </div>
                     </form>
                 </div>

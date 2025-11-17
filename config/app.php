@@ -79,9 +79,9 @@ return [
     |
     */
 
-'locale' => 'hy',
+'locale' => 'ru',
 
-'fallback_locale' => 'ru',
+'fallback_locale' => 'hy',
 
 'faker_locale' => 'hy_AM',
 

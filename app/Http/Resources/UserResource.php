@@ -28,7 +28,7 @@ class UserResource extends JsonResource
             'notification_settings' => $this->notification_settings,
             'created_at' => optional($this->created_at)->toIso8601String(),
             'updated_at' => optional($this->updated_at)->toIso8601String(),
-            'email_verified' => $this->email_verified_at !== null,
+            'email_verified' => true,
             'phone_verified' => $this->phone_verified_at !== null,
         ];
     }

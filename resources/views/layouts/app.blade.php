@@ -34,6 +34,25 @@
 <div class="min-h-screen">
     @include('layouts.navigation')
 
+    <div class="bg-amber-50 border-b border-amber-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 text-sm text-amber-900 flex items-start gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0 text-amber-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 3a1 1 0 00-.993.883L9 10v4a1 1 0 001.993.117L11 14v-4a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            <p class="leading-snug">
+                {!! __(
+                    'site_demo_notice',
+                    [
+                        'email' => sprintf(
+                            '<a href="mailto:%1$s" class="font-semibold underline text-amber-900 hover:text-amber-700">%1$s</a>',
+                            __('site_demo_notice_email')
+                        ),
+                    ]
+                ) !!}
+            </p>
+        </div>
+    </div>
+
     <!-- Page Heading -->
     @isset($header)
         <header class="bg-white dark:bg-gray-800 shadow">

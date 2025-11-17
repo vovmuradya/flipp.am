@@ -887,8 +887,16 @@
 
                         <div class="d-flex justify-content-end gap-3 pt-3">
                             <a href="{{ route('home') }}" class="btn-brand-outline">{{ __('Отмена') }}</a>
-                            <button type="submit" class="btn-brand-gradient" :disabled="!formVisible">
-                                {{ $ad ? __('🚀 Создать объявление с аукциона') : __('Создать объявление') }}
+                            <button type="submit"
+                                    class="btn-brand-gradient d-inline-flex align-items-center gap-2"
+                                    :disabled="!formVisible || isSubmitting">
+                                <span x-show="!isSubmitting">
+                                    {{ $ad ? __('🚀 Создать объявление с аукциона') : __('Создать объявление') }}
+                                </span>
+                                <span x-show="isSubmitting" class="d-inline-flex align-items-center gap-2" x-cloak>
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    {{ __('Публикуем…') }}
+                                </span>
                             </button>
                         </div>
                     </form>

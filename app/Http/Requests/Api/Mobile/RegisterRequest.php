@@ -19,7 +19,6 @@ class RegisterRequest extends FormRequest
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['required', 'string', 'min:6', 'max:20', 'unique:users,phone'],
             'verification_code' => ['required', 'digits:6'],
-            'email_verification_code' => ['required', 'digits:6'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ];
     }

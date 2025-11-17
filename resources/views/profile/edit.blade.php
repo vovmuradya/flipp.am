@@ -27,9 +27,9 @@
                     <p class="profile-page__hero-subtitle">{{ $user->email }}</p>
                 </div>
                 <div class="profile-pill-group">
-                    <span class="profile-pill {{ $user->phone_verified_at ? 'profile-pill--success' : 'profile-pill--muted' }}">
+                    <span class="profile-pill {{ $user->phone ? 'profile-pill--success' : 'profile-pill--muted' }}">
                         <i class="fa-solid fa-phone"></i>
-                        {{ $user->phone_verified_at ? __('Телефон подтверждён') : __('Телефон не подтверждён') }}
+                        {{ $user->phone ? __('Телефон указан') : __('Телефон не указан') }}
                     </span>
                     <span class="profile-pill profile-pill--muted">
                         <i class="fa-solid fa-circle-user"></i>
@@ -96,39 +96,17 @@
                         </div>
                     </form>
 
-                    <form id="send-verification" method="post" action="{{ route('verification.send') }}" class="d-none">
-                        @csrf
-                    </form>
-
-                    @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
-                        <div class="profile-alert profile-alert--warning mt-4">
-                            <i class="fa-solid fa-envelope"></i>
-                            <div>
-                                <p class="mb-1">{{ __('Почта не подтверждена. Письмо с ссылкой придёт в течение пары минут.') }}</p>
-                                <button form="send-verification" type="submit" class="btn-brand-outline btn-sm">
-                                    {{ __('Отправить ссылку ещё раз') }}
-                                </button>
-                                @if (session('status') === 'verification-link-sent')
-                                    <p class="profile-alert__note">{{ __('Новая ссылка подтверждения отправлена на почту.') }}</p>
-                                @endif
-                            </div>
-                        </div>
-                    @elseif (session('status') === 'verification-link-sent')
-                        <div class="profile-alert profile-alert--success mt-4">
-                            <i class="fa-solid fa-check"></i>
-                            <p class="mb-0">{{ __('Новая ссылка подтверждения отправлена на почту.') }}</p>
-                        </div>
-                    @endif
                 </div>
 
-                <div class="brand-surface profile-card" data-phone-verification>
+
+                <div class="brand-surface profile-card" data-phone-card>
                     <div class="profile-card__header">
                         <div>
                             <p class="profile-card__eyebrow">{{ __('Безопасность объявлений') }}</p>
-                            <h3 class="profile-card__title">{{ __('Подтверждение телефона') }}</h3>
+                            <h3 class="profile-card__title">{{ __('Номер телефона') }}</h3>
                         </div>
-                        <span class="profile-pill {{ $user->phone_verified_at ? 'profile-pill--success' : 'profile-pill--muted' }}">
-                            {{ $user->phone_verified_at ? __('Подтверждён') : __('Не подтверждён') }}
+                        <span class="profile-pill {{ $user->phone ? 'profile-pill--success' : 'profile-pill--muted' }}">
+                            {{ $user->phone ? __('Указан') : __('Не указан') }}
                         </span>
                     </div>
 
@@ -144,59 +122,34 @@
                         action="{{ route('profile.phone.verify') }}"
                         class="profile-form"
                         data-phone-form
-                        data-send-url="{{ route('auth.phone.send-code') }}"
-                        data-text-empty="{{ __('Введите номер телефона перед отправкой кода.') }}"
-                        data-text-sending="{{ __('Отправляем...') }}"
-                        data-text-success="{{ __('Код отправлен. Проверьте SMS.') }}"
-                        data-text-error="{{ __('Произошла ошибка. Попробуйте позже.') }}"
-                        data-cooldown-seconds="60"
-                        data-text-cooldown="{{ __('Повторная отправка через :seconds с', ['seconds' => ':seconds']) }}"
                     >
                         @csrf
 
                         <div class="profile-form__group">
                             <label for="profile_phone" class="brand-form-label">{{ __('Номер телефона') }}</label>
-                            <div class="profile-phone-field">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="brand-phone-prefix">+374</span>
                                 <input
                                     type="tel"
                                     id="profile_phone"
                                     name="phone"
-                                    value="{{ old('phone', $user->phone) }}"
-                                    class="brand-form-control"
-                                    placeholder="+374 00 000 000"
+                                    value="{{ old('phone', $user->phone ? substr($user->phone, 4) : '') }}"
+                                    class="brand-form-control flex-grow-1"
+                                    placeholder="77 123 456"
+                                    maxlength="8"
                                 >
-                                <button type="button" class="btn-brand-outline profile-phone-send" data-phone-send>
-                                    {{ __('Отправить код') }}
-                                </button>
                             </div>
-                            <p class="profile-form__hint" data-phone-status>
-                                {{ __('Мы отправим 6-значный код в SMS. Первые 10 минут код будет активен.') }}
+                            <p class="profile-form__hint">
+                                {{ __('Введите последние 8 цифр. Префикс +374 добавится автоматически.') }}
                             </p>
                             @if ($errors->phoneVerification->has('phone'))
                                 <p class="profile-form__error">{{ $errors->phoneVerification->first('phone') }}</p>
                             @endif
                         </div>
 
-                        <div class="profile-form__group">
-                            <label for="profile_phone_code" class="brand-form-label">{{ __('Код подтверждения') }}</label>
-                            <input
-                                type="text"
-                                id="profile_phone_code"
-                                name="verification_code"
-                                class="brand-form-control"
-                                maxlength="6"
-                                inputmode="numeric"
-                                pattern="[0-9]*"
-                                placeholder="123456"
-                            >
-                            @if ($errors->phoneVerification->has('verification_code'))
-                                <p class="profile-form__error">{{ $errors->phoneVerification->first('verification_code') }}</p>
-                            @endif
-                        </div>
-
                         <div class="profile-form__actions">
                             <button type="submit" class="btn-brand-gradient">
-                                {{ __('Подтвердить номер') }}
+                                {{ __('Сохранить номер') }}
                             </button>
                         </div>
                     </form>
@@ -319,3 +272,5 @@
         </div>
     </section>
 </x-app-layout>
+
+

@@ -787,8 +787,8 @@ class ListingController extends Controller
             abort(403);
         }
 
-        if (empty($user->phone) || empty($user->phone_verified_at)) {
-            $message = __('Добавьте и подтвердите номер телефона, чтобы публиковать объявления.');
+        if (empty($user->phone)) {
+            $message = __('Добавьте номер телефона в профиле, чтобы публиковать объявления.');
 
             return redirect()
                 ->route('profile.edit')

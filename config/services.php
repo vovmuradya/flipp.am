@@ -63,4 +63,10 @@ return [
         'redirect' => env('FACEBOOK_REDIRECT_URI', env('APP_URL') . '/auth/facebook/callback'),
     ],
 
+    'msgrush' => [
+        'base_url' => env('MSGRUSH_API_URL', 'https://msgrush-backend-258291301565.us-central1.run.app/api'),
+        'api_key' => env('MSGRUSH_API_KEY'),
+        'default_sender' => env('MSGRUSH_DEFAULT_SENDER', '0000'),
+    ],
+
 ];

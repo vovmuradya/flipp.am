@@ -136,8 +136,8 @@ onDocumentReady(() => {
             applyPeekSpacing();
 
             state.totalScroll = Math.max(0, track.scrollWidth - viewport.clientWidth);
-            state.minBound = Math.min(state.peek, state.totalScroll);
-            state.maxBound = Math.max(state.minBound, state.totalScroll - state.peek);
+            state.minBound = 0;
+            state.maxBound = state.totalScroll;
 
             updateNavState();
         };
@@ -156,7 +156,32 @@ onDocumentReady(() => {
             }
         };
 
-        const clampScroll = (value) => clamp(value, state.minBound, state.maxBound);
+        const realPanWidth = () => state.panelWidth + state.gap;
+
+        const normalizeLoopScroll = (value) => {
+            if (!panels.length) {
+                return value;
+            }
+            const totalWidth = track.scrollWidth;
+            if (totalWidth <= 0) {
+                return value;
+            }
+
+            const length = realPanWidth() * realPanels.length;
+            if (length <= 0) {
+                return value;
+            }
+
+            if (value < 0) {
+                return value + length;
+            }
+            if (value > length) {
+                return value - length;
+            }
+            return value;
+        };
+
+        const clampScroll = (value) => normalizeLoopScroll(value);
 
         let momentumId = null;
         let momentumLastTime = null;
@@ -170,7 +195,7 @@ onDocumentReady(() => {
         };
 
         const startMomentumScroll = (initialVelocity) => {
-            const MIN_VELOCITY = 0.05; // px per ms (~50px/s)
+            const MIN_VELOCITY = 0.02; // px per ms (~20px/s)
             if (!isFinite(initialVelocity) || Math.abs(initialVelocity) < MIN_VELOCITY) {
                 updateNavState();
                 return;
@@ -178,8 +203,8 @@ onDocumentReady(() => {
 
             stopMomentumScroll();
 
-            const FRICTION = 0.0025; // higher = faster stop
-            const MAX_DURATION = 1200; // ms
+            const FRICTION = 0.0012; // higher = faster stop
+            const MAX_DURATION = 2000; // ms
             let velocity = initialVelocity;
             let elapsed = 0;
 
@@ -325,7 +350,7 @@ onDocumentReady(() => {
             }
         };
 
-        viewport.addEventListener('pointerdown', (event) => {
+        const handlePointerDown = (event) => {
             if (event.pointerType === 'mouse' && event.button !== 0) {
                 return;
             }
@@ -349,7 +374,10 @@ onDocumentReady(() => {
 
             viewport.setPointerCapture(event.pointerId);
             slider.classList.add('brand-slider--is-dragging');
-        });
+        };
+
+        slider.addEventListener('pointerdown', handlePointerDown, { passive: false });
+        viewport.addEventListener('pointerdown', handlePointerDown, { passive: false });
 
         viewport.addEventListener('pointermove', (event) => {
             if (!isPointerDragging || event.pointerId !== activePointerId) {
@@ -514,121 +542,7 @@ onDocumentReady(() => {
     });
 });
 
-onDocumentReady(() => {
-    const phoneForm = document.querySelector('[data-phone-form]');
 
-    if (!phoneForm) {
-        return;
-    }
-
-    const sendBtn = phoneForm.querySelector('[data-phone-send]');
-    const phoneInput = phoneForm.querySelector('input[name="phone"]');
-    const statusEl = phoneForm.querySelector('[data-phone-status]');
-    const sendUrl = phoneForm.dataset.sendUrl;
-    const csrfToken = document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    const textEmpty = phoneForm.dataset.textEmpty ?? 'Enter phone number before requesting a code.';
-    const textSending = phoneForm.dataset.textSending ?? 'Sending...';
-    const textSuccess = phoneForm.dataset.textSuccess ?? 'Code sent. Check SMS.';
-    const textError = phoneForm.dataset.textError ?? 'Something went wrong. Try again later.';
-    const textCooldown = phoneForm.dataset.textCooldown ?? 'Resend in :seconds s';
-    const cooldownSeconds = Number(phoneForm.dataset.cooldownSeconds ?? 60);
-
-    if (!sendBtn || !phoneInput || !sendUrl) {
-        return;
-    }
-
-    const defaultButtonText = sendBtn.textContent.trim();
-    let cooldownTimerId = null;
-    let cooldownRemaining = 0;
-
-    const isCoolingDown = () => cooldownTimerId !== null;
-
-    const stopCooldown = () => {
-        if (cooldownTimerId !== null) {
-            window.clearInterval(cooldownTimerId);
-            cooldownTimerId = null;
-        }
-        cooldownRemaining = 0;
-        sendBtn.disabled = false;
-        sendBtn.textContent = defaultButtonText;
-    };
-
-    const startCooldown = () => {
-        if (!cooldownSeconds || cooldownSeconds <= 0) {
-            return;
-        }
-
-        cooldownRemaining = cooldownSeconds;
-        sendBtn.disabled = true;
-
-        const renderCountdown = () => {
-            const label = textCooldown.replace(':seconds', cooldownRemaining.toString());
-            sendBtn.textContent = label;
-        };
-
-        renderCountdown();
-
-        cooldownTimerId = window.setInterval(() => {
-            cooldownRemaining -= 1;
-
-            if (cooldownRemaining <= 0) {
-                stopCooldown();
-                return;
-            }
-
-            renderCountdown();
-        }, 1000);
-    };
-
-    const setStatus = (message, isError = false) => {
-        if (!statusEl) {
-            return;
-        }
-
-        statusEl.textContent = message;
-        statusEl.classList.toggle('text-danger', isError);
-    };
-
-    sendBtn.addEventListener('click', async () => {
-        const phone = phoneInput.value.trim();
-
-        if (!phone) {
-            setStatus(textEmpty, true);
-            phoneInput.focus();
-            return;
-        }
-
-        sendBtn.disabled = true;
-        sendBtn.textContent = textSending;
-
-        try {
-            const response = await fetch(sendUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken ?? '',
-                },
-                body: JSON.stringify({ phone }),
-            });
-
-            const payload = await response.json().catch(() => ({}));
-
-            if (!response.ok || !payload.success) {
-                throw new Error(payload.message || textError);
-            }
-
-            setStatus(payload.message || textSuccess, false);
-            startCooldown();
-        } catch (error) {
-            setStatus(error.message || textError, true);
-        } finally {
-            if (!isCoolingDown()) {
-                sendBtn.disabled = false;
-                sendBtn.textContent = defaultButtonText;
-            }
-        }
-    });
-});
 
 const initCardMediaPreview = () => {
     const mediaBlocks = document.querySelectorAll('.brand-listing-card__media[data-photo-sources]');

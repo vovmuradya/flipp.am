@@ -4,6 +4,7 @@
             document.addEventListener('alpine:init', () => {
                 Alpine.data('listingCreateForm', (config) => ({
                     selectedType: config.initialType ?? null,
+                    isSubmitting: false,
                     categoryId: config.initialCategory || '',
                     initialCategory: config.initialCategory || '',
                     categoryMap: config.categoryMap || {},
@@ -84,6 +85,10 @@
                         this.selectedType = type;
                     },
                     handleSubmit(event) {
+                        if (this.isSubmitting) {
+                            return;
+                        }
+
                         this.clearClientErrors();
 
                         if (this.listingType === 'vehicle') {
@@ -110,6 +115,7 @@
                             return;
                         }
 
+                        this.isSubmitting = true;
                         const form = event.target;
                         window.requestAnimationFrame(() => form.submit());
                     },

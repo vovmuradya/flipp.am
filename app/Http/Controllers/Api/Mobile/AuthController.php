@@ -6,11 +6,9 @@ use App\Http\Controllers\Api\Concerns\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Mobile\LoginRequest;
 use App\Http\Requests\Api\Mobile\RegisterRequest;
-use App\Http\Requests\Api\Mobile\SendEmailVerificationCodeRequest;
 use App\Http\Requests\Api\Mobile\SendVerificationCodeRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
-use App\Services\EmailVerificationService;
 use App\Services\PhoneVerificationService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
@@ -22,8 +20,7 @@ class AuthController extends Controller
     use ApiResponse;
 
     public function __construct(
-        private readonly PhoneVerificationService $phoneVerification,
-        private readonly EmailVerificationService $emailVerification,
+        private readonly PhoneVerificationService $phoneVerification
     ) {
     }
 
@@ -34,23 +31,12 @@ class AuthController extends Controller
         return $this->success(message: __('Код отправлен. Пожалуйста, проверьте SMS.'));
     }
 
-    public function sendEmailVerificationCode(SendEmailVerificationCodeRequest $request): JsonResponse
-    {
-        $this->emailVerification->sendCode($request->validated()['email']);
-
-        return $this->success(message: __('Код подтверждения отправлен на email.'));
-    }
-
     public function register(RegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
 
         if (! $this->phoneVerification->verify($data['phone'], $data['verification_code'])) {
             return $this->error(__('Неверный или просроченный код подтверждения.'), 422);
-        }
-
-        if (! $this->emailVerification->verify($data['email'], $data['email_verification_code'])) {
-            return $this->error(__('Неверный или просроченный код подтверждения email.'), 422);
         }
 
         $user = User::create([

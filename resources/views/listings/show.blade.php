@@ -475,29 +475,11 @@
                             @if($relatedListings->isNotEmpty())
                                 <div class="border-t pt-6">
                                     <h3 class="text-2xl font-bold mb-6">{{ __('Похожие объявления') }}</h3>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        @foreach($relatedListings as $item)
-                                            @php
-                                                $relatedImage = $item->getFirstMediaUrl('images', 'medium')
-                                                    ?: $item->getFirstMediaUrl('images')
-                                                    ?: $item->getFirstMediaUrl('auction_photos', 'medium')
-                                                    ?: $item->getFirstMediaUrl('auction_photos')
-                                                    ?: $item->vehicleDetail->preview_image_url
-                                                    ?? $item->vehicleDetail->main_image_url
-                                                    ?? asset('images/no-image.jpg');
-                                            @endphp
-                                            <a href="{{ route('listings.show', $item) }}" class="block bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition overflow-hidden">
-                                                <div class="bg-gray-100" style="aspect-ratio: 4 / 3;">
-                                                    <img src="{{ $relatedImage }}" alt="{{ $item->title }}" class="w-full h-full object-cover" onerror="this.src='{{ asset('images/no-image.jpg') }}'">
-                                                </div>
-                                                <div class="p-3">
-                                                    <h4 class="font-semibold text-gray-900 line-clamp-1">{{ $item->title }}</h4>
-                                                    <p class="text-xs text-gray-500 mb-2">{{ $item->region?->localized_name ?? __('Без региона') }}</p>
-                                                    <p class="text-indigo-600 font-bold text-sm">{{ number_format($item->price, 0, '.', ' ') }} {{ $item->currency }}</p>
-                                                </div>
-                                            </a>
-                                        @endforeach
-                                    </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            @foreach($relatedListings as $item)
+                                <x-listing.card :listing="$item" :showFavorite="false" />
+                            @endforeach
+                        </div>
                                 </div>
                             @endif
                         </div>

@@ -1,8 +1,6 @@
 <?php
 
 use App\Models\User;
-use App\Services\PhoneVerificationService;
-use Illuminate\Support\Str;
 
 test('registration screen can be rendered', function () {
     $response = $this->get('/register');
@@ -11,41 +9,32 @@ test('registration screen can be rendered', function () {
 });
 
 test('new users can register', function () {
-    $this->mock(PhoneVerificationService::class, function ($mock) {
-        $mock->shouldReceive('verify')->andReturn(true);
-        $mock->shouldReceive('normalize')->andReturn('+15550001122');
-    });
-
     $response = $this->post('/register', [
         'name' => 'Test User',
         'email' => 'test@example.com',
-        'phone' => '+1 (555) 000-1122',
-        'verification_code' => '123456',
+        'phone' => '077 123 456',
         'password' => 'password',
         'password_confirmation' => 'password',
     ]);
 
-    $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard.index', absolute: false));
+    $this->assertAuthenticated();
+
+    $user = User::where('email', 'test@example.com')->first();
+    $this->assertNotNull($user);
+    $this->assertSame('+37477123456', $user->phone);
+    $this->assertNull($user->phone_verified_at);
 });
 
 test('duplicate phone numbers are caught after normalization', function () {
     User::factory()->create([
-        'phone' => '+15550001122',
+        'phone' => '+37477123456',
     ]);
-
-    $this->mock(PhoneVerificationService::class, function ($mock) {
-        $mock->shouldReceive('verify')->andReturn(true);
-        $mock->shouldReceive('normalize')->andReturnUsing(function (string $phone) {
-            return Str::of($phone)->replaceMatches('/[^0-9+]/', '')->value();
-        });
-    });
 
     $response = $this->from('/register')->post('/register', [
         'name' => 'Second User',
         'email' => 'second@example.com',
-        'phone' => '+1 (555) 000-1122',
-        'verification_code' => '123456',
+        'phone' => '077 123 456',
         'password' => 'password',
         'password_confirmation' => 'password',
     ]);

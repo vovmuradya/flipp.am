@@ -26,6 +26,7 @@ class ProfileController extends Controller
     {
         return view('profile.edit', [
             'user' => $request->user(),
+            'forcePhoneEdit' => $request->boolean('phone_edit'),
         ]);
     }
 
@@ -36,10 +37,6 @@ class ProfileController extends Controller
     {
         $request->user()->fill($request->validated());
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
-
         $request->user()->save();
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
@@ -47,47 +44,39 @@ class ProfileController extends Controller
 
     public function verifyPhone(Request $request): RedirectResponse
     {
-        $input = $request->all();
-        $input['phone'] = $this->phoneVerification->normalize((string) ($input['phone'] ?? ''));
+        $normalizedPhone = $this->phoneVerification->normalizeArmenian((string) $request->input('phone', ''));
+
+        if (!$normalizedPhone) {
+            return back()->withErrors([
+                'phone' => __('Введите армянский номер телефона в формате +374 XX XXX XXX.'),
+            ], 'phoneVerification')->withInput();
+        }
 
         $validator = Validator::make(
-            $input,
+            ['phone' => $normalizedPhone],
             [
                 'phone' => [
                     'required',
-                    'string',
-                    'min:6',
-                    'max:20',
+                    'regex:/^\\+374\\d{8}$/',
                     Rule::unique('users', 'phone')->ignore($request->user()->id),
                 ],
-                'verification_code' => ['required', 'digits:6'],
             ],
             [],
             [
                 'phone' => __('Телефон'),
-                'verification_code' => __('Код подтверждения'),
             ]
         );
 
         if ($validator->fails()) {
-            return back()->withErrors($validator, 'phoneVerification');
-        }
-
-        $data = $validator->validated();
-
-        if (!$this->phoneVerification->verify($data['phone'], $data['verification_code'])) {
-            return back()->withErrors([
-                'verification_code' => __('Неверный или просроченный код. Попробуйте отправить SMS ещё раз.'),
-            ], 'phoneVerification');
+            return back()->withErrors($validator, 'phoneVerification')->withInput();
         }
 
         $user = $request->user();
-
-        $user->phone = $data['phone'];
-        $user->phone_verified_at = now();
+        $user->phone = $normalizedPhone;
+        $user->phone_verified_at = null;
         $user->save();
 
-        return back()->with('phone_status', __('Номер телефона подтверждён.'));
+        return back()->with('phone_status', __('Номер телефона сохранён.'));
     }
 
     /**

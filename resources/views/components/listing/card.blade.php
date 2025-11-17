@@ -3,7 +3,7 @@
     'badge' => null,
     'expires' => null,
     'expired' => null,
-    'showFavorite' => false,
+    'showFavorite' => true,
 ])
 
 @php
@@ -148,18 +148,24 @@
         @endif
 
         @if($showFavorite)
-            @auth
-                <form action="{{ route('listings.favorite.toggle', $listing) }}" method="POST" class="brand-listing-card__favorite">
-                    @csrf
-                    <button type="submit">
-                        @if(auth()->user()->favorites->contains($listing))
-                            <i class="fa-solid fa-heart"></i>
-                        @else
-                            <i class="fa-regular fa-heart"></i>
-                        @endif
-                    </button>
-                </form>
-            @endauth
+            <div class="brand-listing-card__favorite">
+                @auth
+                    <form action="{{ route('listings.favorite.toggle', $listing) }}" method="POST">
+                        @csrf
+                        <button type="submit" aria-label="{{ __('Добавить в избранное') }}">
+                            @if(auth()->user()->favorites->contains($listing))
+                                <i class="fa-solid fa-heart"></i>
+                            @else
+                                <i class="fa-regular fa-heart"></i>
+                            @endif
+                        </button>
+                    </form>
+                @else
+                    <a href="{{ route('login') }}" aria-label="{{ __('Войти, чтобы добавить в избранное') }}">
+                        <i class="fa-regular fa-heart"></i>
+                    </a>
+                @endauth
+            </div>
         @endif
     </div>
 

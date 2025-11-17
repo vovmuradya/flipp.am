@@ -93,6 +93,10 @@ class SocialAuthController extends Controller
         $user->provider_token = $socialUser->token ?? null;
         $user->provider_refresh_token = $socialUser->refreshToken ?? null;
 
+        if (!$user->email_verified_at) {
+            $user->email_verified_at = now();
+        }
+
         if (!$user->avatar && $socialUser->getAvatar()) {
             $user->avatar = $socialUser->getAvatar();
         }

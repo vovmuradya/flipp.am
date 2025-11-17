@@ -36,7 +36,14 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $normalizedPhone = $this->phoneVerification->normalize((string) $request->input('phone', ''));
+        $normalizedPhone = $this->phoneVerification->normalizeArmenian((string) $request->input('phone', ''));
+
+        if (!$normalizedPhone) {
+            return back()
+                ->withErrors(['phone' => __('Введите армянский номер телефона в формате +374 XX XXX XXX.')])
+                ->withInput($request->except('password', 'password_confirmation'));
+        }
+
         $request->merge([
             'phone' => $normalizedPhone,
         ]);
@@ -44,22 +51,14 @@ class RegisteredUserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'phone' => ['required', 'string', 'min:6', 'max:20', Rule::unique('users', 'phone')],
-            'verification_code' => ['required', 'digits:6'],
+            'phone' => ['required', 'string', 'regex:/^\+374\d{8}$/', Rule::unique('users', 'phone')],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
-
-        if (! $this->phoneVerification->verify($normalizedPhone, $validated['verification_code'])) {
-            return back()
-                ->withErrors(['verification_code' => __('Неверный или просроченный код подтверждения.')])
-                ->withInput($request->except('password', 'password_confirmation', 'verification_code'));
-        }
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'phone' => $normalizedPhone,
-            'phone_verified_at' => now(),
             'password' => Hash::make($validated['password']),
         ]);
 
@@ -67,6 +66,7 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('dashboard.index', absolute: false));
+        return redirect(route('dashboard.index', absolute: false))
+            ->with('status', __('Мы отправили ссылку для подтверждения email на указанную почту.'));
     }
 }

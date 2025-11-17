@@ -51,7 +51,7 @@
                                 @endif
 
                                 <div class="d-flex flex-wrap gap-3 pt-1">
-                                    <button type="submit" class="btn btn-brand-gradient btn-lg px-4">{{ __('Импортировать') }}</button>
+                                    <button id="auction-import-submit" type="submit" class="btn btn-brand-gradient btn-lg px-4">{{ __('Импортировать') }}</button>
                                     <a href="{{ route('home') }}" class="btn btn-brand-outline btn-lg px-4">{{ __('Отмена') }}</a>
                                 </div>
                             </form>
@@ -102,12 +102,117 @@
         </div>
     </section>
 
+    <div id="auction-loading-modal" class="auction-loading-modal d-none" role="dialog" aria-live="polite" aria-label="{{ __('Импорт автомобиля с аукциона') }}">
+        <div class="auction-loading-card">
+            <div class="auction-loading-spinner" aria-hidden="true"></div>
+            <h3 class="auction-loading-title">{{ __('auction_loading_title') }}</h3>
+            <p class="auction-loading-subtitle">{{ __('auction_loading_subtitle') }}</p>
+
+            <div class="auction-loading-ad">
+                <p class="auction-loading-ad-eyebrow">{{ __('auction_loading_ad_label') }}</p>
+                <p class="auction-loading-ad-title">{{ __('auction_loading_ad_title') }}</p>
+                <p class="auction-loading-ad-text">
+                    {!! __('auction_loading_ad_text', [
+                        'email' => sprintf(
+                            '<a href="mailto:%1$s" class="fw-semibold text-decoration-none">%1$s</a>',
+                            __('site_demo_notice_email')
+                        ),
+                    ]) !!}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    @push('styles')
+        <style>
+            .auction-loading-modal {
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.65);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1100;
+                padding: 1.5rem;
+            }
+
+            .auction-loading-modal.d-none {
+                display: none;
+            }
+
+            .auction-loading-card {
+                background: #fff;
+                border-radius: 1.5rem;
+                padding: 2.75rem 2.25rem;
+                max-width: 520px;
+                width: 100%;
+                text-align: center;
+                box-shadow: 0 30px 70px rgba(15, 23, 42, 0.25);
+            }
+
+            .auction-loading-spinner {
+                width: 64px;
+                height: 64px;
+                margin: 0 auto 1.5rem;
+                border-radius: 50%;
+                border: 6px solid #fef3c7;
+                border-top-color: #f97316;
+                animation: auction-spin 1s linear infinite;
+            }
+
+            .auction-loading-title {
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+
+            .auction-loading-subtitle {
+                color: #475569;
+                margin-bottom: 2rem;
+            }
+
+            .auction-loading-ad {
+                border-radius: 1rem;
+                padding: 1.5rem;
+                background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(249, 115, 22, 0.25));
+                border: 1px solid rgba(249, 115, 22, 0.35);
+            }
+
+            .auction-loading-ad-eyebrow {
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                font-size: 0.75rem;
+                color: #b45309;
+                margin-bottom: 0.35rem;
+            }
+
+            .auction-loading-ad-title {
+                font-weight: 600;
+                font-size: 1.1rem;
+                margin-bottom: 0.25rem;
+            }
+
+            .auction-loading-ad-text {
+                margin: 0;
+                color: #7c2d12;
+            }
+
+            @keyframes auction-spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+        </style>
+    @endpush
+
     @push('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', () => {
                 const form = document.getElementById('auction-import-form');
                 const urlInput = document.getElementById('auction-url');
                 const clientError = document.getElementById('auction-url-client-error');
+                const loadingModal = document.getElementById('auction-loading-modal');
+                const submitButton = document.getElementById('auction-import-submit');
                 if (!form || !urlInput || !clientError) {
                     return;
                 }
@@ -147,7 +252,12 @@
                         event.preventDefault();
                         clientError.textContent = messages.unsupportedHost;
                         clientError.classList.remove('d-none');
+                        return;
                     }
+
+                    loadingModal?.classList.remove('d-none');
+                    submitButton?.setAttribute('disabled', 'disabled');
+                    submitButton?.classList.add('disabled');
                 });
             });
         </script>
