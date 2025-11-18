@@ -860,18 +860,35 @@
 
                         @php
                             $imagesError = $errors->has('images') || $errors->has('images.*');
+                            $maxUploadableImages = auth()->user()->role === 'agency' ? 12 : 6;
                         @endphp
                         <div class="{{ $imagesError ? 'mb-4 error-field-container' : 'mb-4' }}" @if($imagesError) data-error-scroll="images" @endif>
-                            <label class="form-label">{{ __('Изображения') }}</label>
+                            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-2">
+                                <label for="images" class="form-label mb-0">{{ __('Фотографии объявления') }}</label>
+                                <span class="badge text-bg-light border text-muted">{{ __('Минимум 1 фото') }}</span>
+                            </div>
+                            <div id="images-hint" class="small text-muted mb-3">
+                                {{ __('Фото обязательны: загрузите хотя бы один файл (до :count изображений, форматы PNG, JPG или WebP, до 5MB каждое).', ['count' => $maxUploadableImages]) }}
+                            </div>
+                            <div class="bg-light border rounded-3 px-3 py-2 mb-3 small text-muted">
+                                <span class="fw-semibold text-dark d-block mb-1">{{ __('Снимки, которые помогают продать:') }}</span>
+                                <ul class="mb-0 ps-3">
+                                    <li>{{ __('Вид автомобиля спереди, сзади и по диагонали') }}</li>
+                                    <li>{{ __('Интерьер, приборная панель и пробег') }}</li>
+                                    <li>{{ __('VIN и возможные повреждения — так больше доверия') }}</li>
+                                </ul>
+                            </div>
                             <input
                                 type="file"
                                 id="images"
                                 name="images[]"
                                 multiple
                                 accept="image/*"
+                                required
+                                aria-describedby="images-hint"
                                 class="form-control {{ $imagesError ? 'is-invalid error-field' : '' }}"
                             >
-                            <small class="text-muted d-block">{{ __('PNG, JPG, WEBP до 5MB') }}</small>
+                            <small class="text-muted d-block mt-2">{{ __('Можно выбрать сразу несколько файлов или добавить их по очереди.') }}</small>
                             @error('images')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror

@@ -46,6 +46,10 @@ class StoreListingRequest extends FormRequest
         $colorKeys = array_keys(VehicleAttributeOptions::colors());
         $vehicleRequired = $this->input('listing_type') === 'vehicle' || $this->boolean('from_auction');
         $brandId = data_get($this->input('vehicle', []), 'brand_id');
+        $isAuctionFlow = $this->boolean('from_auction') || !empty($this->input('auction_photos', []));
+        $imagesRule = $isAuctionFlow
+            ? ['nullable', 'array', 'max:' . $maxImages]
+            : ['required', 'array', 'min:1', 'max:' . $maxImages];
 
         return [
             'title' => ['required', 'string', 'min:3', 'max:100', new RequiredLanguage()],
@@ -53,7 +57,7 @@ class StoreListingRequest extends FormRequest
             'category_id' => ['required', 'exists:categories,id'],
             'region_id' => ['required', 'exists:regions,id'],
             'price' => ['required', 'numeric', 'min:0', 'max:9999999.99'],
-            'images' => ['nullable', 'array', 'max:' . $maxImages],
+            'images' => $imagesRule,
             'images.*' => ['image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
             'custom_fields' => ['nullable', 'array'],
             'custom_fields.*' => ['nullable'],
@@ -90,6 +94,10 @@ class StoreListingRequest extends FormRequest
             'description.min' => 'Описание должно содержать минимум 20 символов.',
             'price.required' => 'Укажите цену.',
             'price.numeric' => 'Цена должна быть числом.',
+            'images.required' => 'Добавьте хотя бы одно изображение автомобиля.',
+            'images.min' => 'Нужно загрузить минимум одно изображение.',
+            'images.max' => 'Можно загрузить не больше :max изображений.',
+            'images.array' => 'Изображения передаются массивом файлов.',
             'vehicle.brand_id.required' => 'Выберите марку из списка.',
             'vehicle.brand_id.exists' => 'Марка должна быть выбрана из справочника.',
             'vehicle.model_id.required' => 'Выберите модель из списка.',
