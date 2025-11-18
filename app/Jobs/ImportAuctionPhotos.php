@@ -35,10 +35,13 @@ class ImportAuctionPhotos implements ShouldQueue
         $this->listingId = $listingId;
         $this->photoUrls = array_values(array_filter($photoUrls));
         $this->onQueue('media');
+        $this->afterCommit();
     }
 
     public function handle(): void
     {
+        Log::info('ImportAuctionPhotos: started', ['listing_id' => $this->listingId]);
+
         $listing = Listing::find($this->listingId);
         if (!$listing) {
             Log::warning('ImportAuctionPhotos: listing not found', ['listing_id' => $this->listingId]);
@@ -83,7 +86,7 @@ class ImportAuctionPhotos implements ShouldQueue
             }
         }
 
-        Log::info('✅ ImportAuctionPhotos: job completed', [
+        Log::info('ImportAuctionPhotos: finished', [
             'listing_id' => $this->listingId,
             'total' => count($urls),
             'successful' => $successCount
