@@ -18,6 +18,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\RefreshCopartCookies::class,
         \App\Console\Commands\RefreshCopartCurrentBids::class,
         \App\Console\Commands\BackfillAuctionPhotos::class,
+        \App\Console\Commands\ExpireEndedAuctions::class,
     ];
 
     /**
@@ -39,6 +40,11 @@ class Kernel extends ConsoleKernel
             ->everyFiveMinutes()
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/auction-backfill.log'));
+
+        $schedule->command('listings:expire-ended-auctions --limit=200')
+            ->everyTenMinutes()
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/auction-expire.log'));
     }
 
     /**
