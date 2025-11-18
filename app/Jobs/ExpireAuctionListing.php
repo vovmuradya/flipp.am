@@ -29,18 +29,29 @@ class ExpireAuctionListing implements ShouldQueue
     {
         $listing = Listing::with('vehicleDetail')->find($this->listingId);
         if (!$listing) {
-            Log::info('ExpireAuctionListing: listing already removed', ['listing_id' => $this->listingId]);
+            Log::info('ExpireAuctionListing: listing not found', ['listing_id' => $this->listingId]);
             return;
         }
 
         $detail = $listing->vehicleDetail;
-        if (!$detail || !$detail->auction_ends_at) {
-            Log::info('ExpireAuctionListing: no auction end time', ['listing_id' => $this->listingId]);
+        if (!$detail) {
+            Log::info('ExpireAuctionListing: no vehicle detail', ['listing_id' => $this->listingId]);
             return;
         }
 
-        $now = Carbon::now();
-        $end = $detail->auction_ends_at instanceof Carbon ? $detail->auction_ends_at : Carbon::parse($detail->auction_ends_at);
+        if (!$detail->is_from_auction) {
+            Log::info('ExpireAuctionListing: listing is not from auction', ['listing_id' => $this->listingId]);
+            return;
+        }
+
+        if (!$detail->auction_ends_at) {
+            Log::info('ExpireAuctionListing: auction end time missing', ['listing_id' => $this->listingId]);
+            return;
+        }
+
+        $end = $detail->auction_ends_at instanceof Carbon
+            ? $detail->auction_ends_at->copy()
+            : Carbon::parse($detail->auction_ends_at);
 
         if ($end->isFuture()) {
             static::dispatch($this->listingId)->delay($end);
