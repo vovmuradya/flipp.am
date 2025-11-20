@@ -100,11 +100,15 @@
 
     $preview = $photoSources[0];
     $vehicleDetail = $listing->vehicleDetail ?? null;
-    $buyNowPrice = $vehicleDetail?->buy_now_price;
+    $buyNowPrice = $vehicleDetail && is_numeric($vehicleDetail->buy_now_price) && (float) $vehicleDetail->buy_now_price > 0
+        ? (float) $vehicleDetail->buy_now_price
+        : null;
     $buyNowCurrency = $vehicleDetail?->buy_now_currency ?: $listing->currency;
     $operationalStatus = $vehicleDetail?->operational_status;
     $isBuyNowAvailable = $buyNowPrice !== null;
-    $currentBidPrice = $vehicleDetail?->current_bid_price;
+    $currentBidPrice = $vehicleDetail && is_numeric($vehicleDetail->current_bid_price) && (float) $vehicleDetail->current_bid_price > 0
+        ? (float) $vehicleDetail->current_bid_price
+        : null;
     $currentBidCurrency = $vehicleDetail?->current_bid_currency ?: $buyNowCurrency ?: $listing->currency;
     $displayPrice = $isBuyNowAvailable ? $buyNowPrice : ($listing->price ?? null);
     $displayCurrency = $isBuyNowAvailable

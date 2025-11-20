@@ -32,7 +32,7 @@ class Kernel extends ConsoleKernel
             ->appendOutputTo(storage_path('logs/copart-cookies.log'));
 
         $schedule->command('copart:refresh-current-bids --limit=150')
-            ->dailyAt('04:00')
+            ->everyTwoHours()
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/copart-bids.log'));
 

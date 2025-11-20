@@ -103,6 +103,16 @@
                         }
 
                         $previewImage = $previewImage ?: $fallbackImage;
+
+                        $vehicleDetail = $listing->vehicleDetail;
+                        $buyNowPrice = $vehicleDetail && is_numeric($vehicleDetail->buy_now_price) && (float) $vehicleDetail->buy_now_price > 0
+                            ? (float) $vehicleDetail->buy_now_price
+                            : null;
+                        $buyNowCurrency = $vehicleDetail?->buy_now_currency ?: $listing->currency;
+                        $currentBidPrice = $vehicleDetail && is_numeric($vehicleDetail->current_bid_price) && (float) $vehicleDetail->current_bid_price > 0
+                            ? (float) $vehicleDetail->current_bid_price
+                            : null;
+                        $currentBidCurrency = $vehicleDetail?->current_bid_currency ?: ($buyNowCurrency ?: $listing->currency);
                     @endphp
                     <div class="col-12 col-md-6 col-xl-4">
                         <article class="auction-card" id="auction-card-{{ $listing->id }}" data-listing-card="{{ $listing->id }}">
@@ -138,7 +148,27 @@
                                         @endif
                                     </li>
                                     <li>
-                                        <span>{{ __('Ставка') }}</span>
+                                        <span>{{ __('Текущая ставка') }}</span>
+                                        <strong>
+                                            @if($currentBidPrice !== null)
+                                                {{ number_format($currentBidPrice, 0, '.', ' ') }} {{ $currentBidCurrency }}
+                                            @else
+                                                <span class="text-muted">{{ __('Нет данных') }}</span>
+                                            @endif
+                                        </strong>
+                                    </li>
+                                    <li>
+                                        <span>{{ __('Купить сейчас') }}</span>
+                                        <strong>
+                                            @if($buyNowPrice !== null)
+                                                {{ number_format($buyNowPrice, 0, '.', ' ') }} {{ $buyNowCurrency ?? 'USD' }}
+                                            @else
+                                                <span class="text-muted">{{ __('Не указано') }}</span>
+                                            @endif
+                                        </strong>
+                                    </li>
+                                    <li>
+                                        <span>{{ __('Цена объявления') }}</span>
                                         <strong>{{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}</strong>
                                     </li>
                                 </ul>
