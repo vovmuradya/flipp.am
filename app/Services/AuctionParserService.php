@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Cookie\CookieJar;
@@ -43,6 +44,8 @@ class AuctionParserService
         $this->copartBlocked = false;
         $this->copartCookiesRefreshed = false;
 
+        $this->ensureCacheDirectory();
+
         $domain = parse_url($url, PHP_URL_HOST);
 
         if (str_contains($domain, 'copart.com')) {
@@ -68,6 +71,17 @@ class AuctionParserService
         }
 
         return null;
+    }
+
+    private function ensureCacheDirectory(): void
+    {
+        try {
+            File::ensureDirectoryExists(storage_path('framework/cache/data'), 0775, true);
+        } catch (\Throwable $e) {
+            Log::warning('AuctionParserService: unable to ensure cache directory', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function buildCopartCookieJar(): CookieJar
