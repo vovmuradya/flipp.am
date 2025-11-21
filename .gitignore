@@ -13,11 +13,6 @@
 /.zed
 /auth.json
 /node_modules
-<<<<<<< ours
-=======
-# Держим production-сборку Vite в репозитории, чтобы SPA работало без dev-сервера
->>>>>>> theirs
-!/public/build
 # Держим production-сборку Vite в репозитории, чтобы SPA работало без dev-сервера
 !/public/build
 /public/hot
