@@ -19,7 +19,7 @@
         $metaKeywords = trim($__env->yieldContent('meta_keywords')) ?: 'idrom, авто, объявления, покупка авто, аукционы, Армения';
         $metaRobots = trim($__env->yieldContent('meta_robots')) ?: 'index,follow';
         $metaCanonical = trim($__env->yieldContent('meta_canonical')) ?: url()->current();
-        $metaOgImage = trim($__env->yieldContent('meta_image')) ?: asset('logo-512.png');
+        $metaOgImage = trim($__env->yieldContent('meta_image')) ?: asset('images/logo.png');
     @endphp
 
     <title>{{ $metaTitle }}</title>
@@ -27,11 +27,8 @@
     <meta name="keywords" content="{{ $metaKeywords }}">
     <meta name="robots" content="{{ $metaRobots }}">
     <link rel="canonical" href="{{ $metaCanonical }}">
-    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon.png') }}">
-    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icon-192x192.png') }}">
-    <link rel="icon" type="image/png" sizes="512x512" href="{{ asset('icon-512x512.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo.png') }}">
 
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-5VBKSM39JN"></script>
