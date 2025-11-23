@@ -270,6 +270,93 @@ class AuctionParserService
     }
 
     /**
+     * Загружает данные лота и фотографии через Puppeteer, когда прямые запросы блокируются.
+     *
+     * @return array{details: mixed, images: mixed, cookie: ?string}|null
+     */
+    private function fetchCopartLotViaHeadless(string $lotId): ?array
+    {
+        $script = base_path('scraper/fetch-copart-lot.cjs');
+        if (!is_file($script)) {
+            Log::warning('Copart headless script missing', ['script' => $script]);
+            return null;
+        }
+
+        $process = new Process(['node', $script, $lotId], base_path(), null, null, 120);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            Log::warning('Copart headless fetch failed', [
+                'lot_id' => $lotId,
+                'error' => trim($process->getErrorOutput()) ?: trim($process->getOutput()),
+            ]);
+            return null;
+        }
+
+        $output = trim($process->getOutput());
+        if ($output === '') {
+            Log::warning('Copart headless fetch returned empty output', ['lot_id' => $lotId]);
+            return null;
+        }
+
+        $decoded = json_decode($output, true);
+        if (!is_array($decoded)) {
+            Log::warning('Copart headless fetch produced invalid JSON', [
+                'lot_id' => $lotId,
+                'snippet' => substr($output, 0, 200),
+            ]);
+            return null;
+        }
+
+        return [
+            'details' => $decoded['details'] ?? null,
+            'images' => $decoded['images'] ?? null,
+            'cookie' => isset($decoded['cookies']) && is_string($decoded['cookies']) && trim($decoded['cookies']) !== ''
+                ? trim($decoded['cookies'])
+                : null,
+        ];
+    }
+
+    private function applyCopartCookieOverride(?string $cookieString): void
+    {
+        if (!is_string($cookieString)) {
+            return;
+        }
+
+        $cookieString = trim($cookieString);
+        if ($cookieString === '') {
+            return;
+        }
+
+        Cache::put(CopartCookieManager::CACHE_KEY, $cookieString, now()->addHours(6));
+        $this->copartCookieString = $cookieString;
+        $this->copartCookieArray = null;
+    }
+
+    private function applyHeadlessCookies(array $payload, array &$headers, ?CookieJar &$cookieJar): void
+    {
+        $cookieString = $payload['cookie'] ?? null;
+        if (!is_string($cookieString) || trim($cookieString) === '') {
+            return;
+        }
+
+        $this->applyCopartCookieOverride($cookieString);
+        $this->rebuildCopartRequestContext($headers, $cookieJar);
+    }
+
+    private function rebuildCopartRequestContext(array &$headers, ?CookieJar &$cookieJar): void
+    {
+        $cookieHeader = $this->getCopartCookieHeader();
+        if ($cookieHeader) {
+            $headers['Cookie'] = $cookieHeader;
+        } else {
+            unset($headers['Cookie']);
+        }
+
+        $cookieJar = $this->buildCopartCookieJar();
+    }
+
+    /**
      * @param array<string,string> $headers
      */
     private function requestCopartJson(string $url, array $headers, ?CookieJar $cookieJar = null): ?array
@@ -475,11 +562,14 @@ class AuctionParserService
     private function parseCopart(string $url, bool $aggressive = true): ?array
     {
         $attempt = 0;
+        $normalizedUrl = $this->normalizeCopartUrl($url) ?? $url;
+        $normalizedTried = ($normalizedUrl === $url);
+        $currentUrl = $url;
         $result = null;
 
-        while ($attempt < 2) {
+        while ($attempt < 3) {
             $this->copartBlocked = false;
-            $result = $this->parseCopartAttempt($url, $aggressive);
+            $result = $this->parseCopartAttempt($currentUrl, $aggressive);
 
             $retryReason = $this->shouldForceRetry($result);
             if ($retryReason === null) {
@@ -502,6 +592,19 @@ class AuctionParserService
                 } else {
                     Log::warning('⚠️ Copart cookie refresh unavailable, retrying with existing session');
                 }
+
+                continue;
+            }
+
+            if (!$normalizedTried && $currentUrl !== $normalizedUrl) {
+                $normalizedTried = true;
+                $attempt++;
+                $currentUrl = $normalizedUrl;
+
+                Log::info('🔁 Copart retrying with normalized URL (slug removed)', [
+                    'original_url' => $url,
+                    'normalized_url' => $normalizedUrl,
+                ]);
 
                 continue;
             }
@@ -533,6 +636,7 @@ class AuctionParserService
             $mileage = null;
             $color = null;
             $engineStr = null;
+            $headlessPayload = null;
 
             $headers = [
                 'User-Agent' => $this->copartUserAgent(),
@@ -564,7 +668,24 @@ class AuctionParserService
 
             $auctionEndAt = null;
 
-            if ($this->copartBlocked) {
+            if (($this->copartBlocked || empty($details)) && $headlessPayload === null) {
+                $headlessPayload = $this->fetchCopartLotViaHeadless($lotId);
+                if (!is_array($headlessPayload)) {
+                    $headlessPayload = false;
+                } else {
+                    $this->applyHeadlessCookies($headlessPayload, $headers, $cookieJar);
+                    $headlessDetails = data_get($headlessPayload, 'details.data.lotDetails');
+                    if (is_array($headlessDetails) && !empty($headlessDetails)) {
+                        $details = $headlessDetails;
+                        $apiData = $headlessPayload['details'] ?? $apiData;
+                        Log::info('✅ Copart headless fallback returned vehicle meta');
+                    }
+                    $this->copartBlocked = false;
+                    $this->copartBlockedDuringLastParse = false;
+                }
+            }
+
+            if ($this->copartBlocked && empty($details)) {
                 Log::warning('❌ Copart blocked while fetching lot meta, aborting attempt');
                 return null;
             }
@@ -627,8 +748,28 @@ class AuctionParserService
                 $imgHeaders['Accept'] = 'application/json, text/plain, */*';
 
                 $imgData = $this->requestCopartJson($imageApiUrl, $imgHeaders, $cookieJar);
+                $imagesList = data_get($imgData, 'data.imagesList');
 
-                if ($this->copartBlocked) {
+                if (($this->copartBlocked || empty($imagesList)) && $headlessPayload === null) {
+                    $headlessPayload = $this->fetchCopartLotViaHeadless($lotId);
+                    if (!is_array($headlessPayload)) {
+                        $headlessPayload = false;
+                    } else {
+                        $this->applyHeadlessCookies($headlessPayload, $headers, $cookieJar);
+                        if (empty($details)) {
+                            $headlessDetails = data_get($headlessPayload, 'details.data.lotDetails');
+                            if (is_array($headlessDetails) && !empty($headlessDetails)) {
+                                $details = $headlessDetails;
+                            }
+                        }
+                        $imgData = $headlessPayload['images'] ?? $imgData;
+                        $imagesList = data_get($imgData, 'data.imagesList', $imagesList);
+                        $this->copartBlocked = false;
+                        $this->copartBlockedDuringLastParse = false;
+                    }
+                }
+
+                if ($this->copartBlocked && empty($imagesList)) {
                     Log::warning('❌ Copart blocked while fetching image metadata');
                     return null;
                 }
@@ -847,6 +988,21 @@ class AuctionParserService
         }
 
         return null;
+    }
+
+    private function normalizeCopartUrl(string $url): ?string
+    {
+        if (!str_contains($url, 'copart.com/lot/')) {
+            return null;
+        }
+
+        if (!preg_match('/copart\\.com\\/lot\\/(\\d+)/i', $url, $m)) {
+            return null;
+        }
+
+        $lotId = $m[1];
+
+        return 'https://www.copart.com/lot/' . $lotId;
     }
 
     private function minCopartPhotos(): int

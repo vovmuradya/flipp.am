@@ -320,7 +320,7 @@ class ListingController extends Controller
         }
 
         try {
-            set_time_limit(15);
+            set_time_limit(60);
 
             $parsed = $service->parseFromUrl($url, aggressive: (bool) config('services.copart.aggressive', false));
 
