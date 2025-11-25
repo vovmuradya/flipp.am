@@ -57,7 +57,8 @@ class ImageProxyController extends Controller
 
         try {
             $configuredReferer = config('services.copart.referer') ?? 'https://www.copart.com/';
-            $configuredOrigin = config('services.copart.origin') ?? 'https://www.copart.com';
+        $configuredOrigin = config('services.copart.origin') ?? 'https://www.copart.com';
+        $trimTop = (int) $request->query('trim_top', 0);
             $configuredUserAgent = config('services.copart.user_agent') ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
             // ✅ ИСПРАВЛЕНИЕ: Динамически используем Referer из запроса, если он есть
@@ -125,7 +126,26 @@ class ImageProxyController extends Controller
                     ->header('Cache-Control', 'public, max-age=3600');
             }
 
-            return response($response->body(), 200)
+            $body = $response->body();
+
+            if ($trimTop > 0 && function_exists('imagecreatefromstring')) {
+                $img = @imagecreatefromstring($body);
+                if ($img !== false) {
+                    $width = imagesx($img);
+                    $height = imagesy($img);
+                    $trim = min($trimTop, $height - 1);
+                    $cropped = imagecreatetruecolor($width, $height - $trim);
+                    imagecopy($cropped, $img, 0, 0, 0, $trim, $width, $height - $trim);
+                    ob_start();
+                    imagepng($cropped);
+                    $body = ob_get_clean();
+                    imagedestroy($img);
+                    imagedestroy($cropped);
+                    $contentType = 'image/png';
+                }
+            }
+
+            return response($body, 200)
                 ->header('Content-Type', $contentType)
                 ->header('Cache-Control', 'public, max-age=86400')
                 ->header('Access-Control-Allow-Origin', '*');
