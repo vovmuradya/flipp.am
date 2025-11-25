@@ -23,6 +23,7 @@ use App\Support\VehicleCategoryResolver;
 use App\Support\VehicleAttributeOptions;
 use App\Models\CarBrand;
 use App\Support\SearchQueryHelper;
+use App\Models\DealerProfile;
 class ListingController extends Controller
 {
     private const ALLOWED_AUCTION_DOMAINS = [
@@ -189,6 +190,16 @@ class ListingController extends Controller
 
         $currentOrigin = $originFilter ?: ($onlyRegular ? 'regular' : ($onlyAuctions ? 'abroad' : 'regular'));
 
+        $dealers = collect();
+        if (\Illuminate\Support\Facades\Schema::hasTable('dealer_profiles')) {
+            $dealers = DealerProfile::query()
+                ->with('user')
+                ->whereHas('user', fn ($q) => $q->where('is_dealer', true))
+                ->latest()
+                ->take(12)
+                ->get();
+        }
+
         return view('listings.index', compact(
             'listings',
             'categories',
@@ -197,7 +208,8 @@ class ListingController extends Controller
             'onlyRegular',
             'onlyAuctions',
             'brands',
-            'currentOrigin'
+            'currentOrigin',
+            'dealers'
         ));
     }
 

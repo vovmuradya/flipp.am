@@ -3355,3 +3355,41 @@ body {
 .auction-card__actions form {
     display: inline-flex;
 }
+
+.dealer-logos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+}
+
+.dealer-logo-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1px solid rgba(17, 24, 39, 0.06);
+    border-radius: 14px;
+    padding: 12px;
+    min-height: 90px;
+    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dealer-logo-card img {
+    max-height: 60px;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+.dealer-logo-placeholder {
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+    color: #374151;
+}
+
+.dealer-logo-card:hover,
+.dealer-logo-card:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 22px rgba(17, 24, 39, 0.12);
+}

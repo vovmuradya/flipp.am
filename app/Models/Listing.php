@@ -34,6 +34,7 @@ class Listing extends Model implements HasMedia
         'language',
         'is_from_auction',  // Новое поле для разделения обычных и аукционных объявлений
         'auction_photo_urls',
+        'refreshed_at',
     ];
 
     protected function casts(): array
@@ -42,6 +43,7 @@ class Listing extends Model implements HasMedia
             'promoted_until' => 'datetime',
             'last_bumped_at' => 'datetime',
             'auction_photo_urls' => 'array',
+            'refreshed_at' => 'datetime',
         ];
     }
 
@@ -67,6 +69,13 @@ class Listing extends Model implements HasMedia
             if (empty($listing->slug)) {
                 $listing->slug = static::generateUniqueSlug($listing->title);
             }
+            if (empty($listing->refreshed_at)) {
+                $listing->refreshed_at = now();
+            }
+        });
+
+        static::addGlobalScope('refreshed_order', function ($query) {
+            $query->orderByDesc('refreshed_at')->orderByDesc('created_at');
         });
     }
 
@@ -97,6 +106,31 @@ class Listing extends Model implements HasMedia
             ->where('category_id', $this->category_id)
             ->where('region_id', $this->region_id)
             ->latest();
+    }
+
+    public function scopeOrderByRefreshed($query)
+    {
+        return $query->orderByDesc('refreshed_at')->orderByDesc('created_at');
+    }
+
+    public function canBeRefreshed(): bool
+    {
+        if (!$this->refreshed_at) {
+            return true;
+        }
+
+        return $this->refreshed_at->diffInHours(now()) >= 48;
+    }
+
+    public function hoursLeft(): int
+    {
+        if (!$this->refreshed_at) {
+            return 0;
+        }
+
+        $hours = 48 - $this->refreshed_at->diffInHours(now());
+
+        return max(0, $hours);
     }
 
     /**

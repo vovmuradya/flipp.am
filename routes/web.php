@@ -14,6 +14,10 @@ use App\Http\Controllers\ProxyController; // Новый прокси-контр�
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\DealerProfileController;
+use App\Http\Controllers\DealerPaymentController;
+use App\Http\Controllers\DealerListController;
+use App\Http\Controllers\ListingRefreshController;
 
 /*
 |--------------------------------------------------------------------------
@@ -43,6 +47,9 @@ Route::get('/proxy/image', [ProxyController::class, 'image'])->name('proxy.image
 Route::get('/media/{media}/{conversion?}', [MediaController::class, 'show'])
     ->where('conversion', '[A-Za-z0-9_\-]+')
     ->name('media.show');
+Route::get('/dealers', [DealerProfileController::class, 'index'])->name('dealers.index');
+Route::get('/dealer/{slug}', [DealerProfileController::class, 'show'])->name('dealers.show');
+Route::post('/payment/dealer/webhook', [DealerPaymentController::class, 'webhook'])->name('dealer.payment.webhook');
 
 // Защищённые
 Route::middleware('auth')->group(function () {
@@ -51,8 +58,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/listings/create-from-external', [ListingController::class, 'createFromExternal'])->name('listings.create-from-external');
     Route::post('/listings/import-auction', [ListingController::class, 'importAuctionListing'])->name('listings.import-auction');
     Route::post('/listings/import-external', [ListingController::class, 'importExternalListing'])->name('listings.import-external');
+    Route::post('/listing/{id}/refresh', [ListingRefreshController::class, 'refresh'])->name('listings.refresh');
 
     Route::resource('listings', ListingController::class)->only(['create', 'store', 'edit', 'update', 'destroy']);
+    Route::get('/payment/dealer', [DealerPaymentController::class, 'showCheckout'])->name('dealer.payment');
+    Route::post('/payment/dealer/checkout', [DealerPaymentController::class, 'createCheckout'])->name('dealer.payment.checkout');
+    Route::get('/payment/dealer/success', [DealerPaymentController::class, 'success'])->name('dealer.payment.success');
 
     // ✅ ТЗ v2.1: РАЗДЕЛЕНИЕ ОБЪЯВЛЕНИЙ: Маршруты для аукционных объявлений
     Route::resource('auction-listings', \App\Http\Controllers\AuctionListingController::class)

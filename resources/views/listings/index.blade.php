@@ -42,6 +42,28 @@
             </div>
         @endif
 
+        @if(!$onlyRegular && !$onlyAuctions && ($dealers ?? collect())->isNotEmpty())
+            <div class="brand-container mt-5">
+                <div class="brand-slider__header mb-3">
+                    <div>
+                        <h3 class="brand-slider__title">{{ __('dealer.our_dealers') }}</h3>
+                        <p class="brand-slider__subtitle">{{ __('dealer.become') }}</p>
+                    </div>
+                </div>
+                <div class="dealer-logos-grid">
+                    @foreach($dealers as $dealer)
+                        <a href="{{ route('dealers.show', $dealer->slug) }}" class="dealer-logo-card">
+                            @if($dealer->logo)
+                                <img src="{{ $dealer->logo }}" alt="{{ $dealer->company_name }}" loading="lazy">
+                            @else
+                                <div class="dealer-logo-placeholder">{{ $dealer->company_name }}</div>
+                            @endif
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         <div class="brand-container {{ $isFullWidth ? 'brand-container--fluid' : '' }}">
             @if($onlyRegular)
                 @include('listings.partials.vehicle-search', [

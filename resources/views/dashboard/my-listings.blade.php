@@ -112,9 +112,21 @@
                                 <p class="card-text fw-semibold mb-2">
                                     {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}
                                 </p>
-                                <p class="card-text text-muted small mt-auto mb-3">
+                                <p class="card-text text-muted small mt-auto mb-2">
                                     {{ __('Добавлено: :date', ['date' => $listing->created_at->format('d.m.Y')]) }}
                                 </p>
+                                <div class="d-flex gap-2 align-items-center mb-2">
+                                    @if($listing->canBeRefreshed())
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-primary flex-grow-1 js-refresh-listing"
+                                                data-id="{{ $listing->id }}"
+                                                data-url="{{ route('listings.refresh', $listing->id) }}">
+                                            {{ __('listing.refresh') }}
+                                        </button>
+                                    @else
+                                        <span class="text-muted small">{{ __('listing.wait', ['hours' => $listing->hoursLeft()]) }}</span>
+                                    @endif
+                                </div>
                                 <div class="d-flex gap-2">
                                     <a href="{{ route('listings.edit', $listing) }}" class="btn btn-sm btn-brand-gradient flex-grow-1">
                                         {{ __('Редактировать') }}
@@ -144,4 +156,39 @@
             </div>
         </div>
     </section>
+
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                document.querySelectorAll('.js-refresh-listing').forEach((btn) => {
+                    btn.addEventListener('click', async () => {
+                        btn.disabled = true;
+                        try {
+                            const res = await fetch(btn.dataset.url, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': csrf,
+                                    'Accept': 'application/json',
+                                },
+                            });
+                            const data = await res.json();
+                            if (data.status === 'ok') {
+                                btn.textContent = '{{ __('listing.refreshed') }}';
+                                btn.classList.remove('btn-outline-primary');
+                                btn.classList.add('btn-success');
+                            } else if (data.message) {
+                                alert(data.message);
+                                btn.disabled = false;
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            btn.disabled = false;
+                        }
+                    });
+                });
+            });
+        </script>
+    @endpush
 </x-app-layout>

@@ -130,7 +130,7 @@ async function main() {
         await page.evaluate(async () => {
             await new Promise((resolve) => {
                 let totalHeight = 0;
-                const distance = 400;
+                const distance = 500;
                 const timer = setInterval(() => {
                     window.scrollBy(0, distance);
                     totalHeight += distance;
@@ -138,7 +138,7 @@ async function main() {
                         clearInterval(timer);
                         resolve();
                     }
-                }, 150);
+                }, 100);
             });
         });
 
@@ -148,16 +148,16 @@ async function main() {
             const mainImg = await page.$(mainImageSelector);
             if (mainImg) {
                 await mainImg.click({ delay: 50 });
-                for (let i = 0; i < 40; i++) {
+                for (let i = 0; i < 25; i++) {
                     await page.keyboard.press('ArrowRight');
-                    await sleep(180);
+                    await sleep(120);
                 }
             }
         } catch (_) {
             // best effort
         }
 
-        await sleep(1200);
+        await sleep(700);
 
         const raw = await page.evaluate((itemId) => {
             const textContent = (selector) => {

@@ -428,6 +428,7 @@
                                 $photoSectionTitle = $copartSource ?? false
                                     ? __('📸 Фотографии с Copart (:count)', ['count' => count($finalPhotos)])
                                     : __('📸 Фотографии с внешнего источника (:count)', ['count' => count($finalPhotos)]);
+                                $photoCropClass = (($fromExternalFlow ?? request()->boolean('from_external')) && !($copartSource ?? false)) ? 'image-crop-top' : '';
                             @endphp
                             <h3 class="text-lg fw-semibold mb-3">{{ $photoSectionTitle }}</h3>
                             <div
@@ -448,12 +449,14 @@
                                 <div class="mx-auto mb-3" style="width: 220px; height: 165px; border-radius: 14px; overflow: hidden; background: #f1f3f5;">
                                     <img :src="mainImage" alt="{{ __('Главное фото') }}"
                                          style="width: 100%; height: 100%; object-fit: contain;"
+                                         class="{{ $photoCropClass }}"
                                          x-on:error="photos.shift(); setFirstAvailable()">
                                 </div>
                                 <div class="d-flex flex-wrap gap-2">
                                     @foreach($finalPhotos as $index => $photoUrl)
                                         <img src="{{ $photoUrl }}" alt="{{ __('Фото :index', ['index' => $index + 1]) }}" width="70" height="70"
                                              style="border-radius: 10px; object-fit: cover; cursor: pointer; border: 2px solid #e5e7eb;"
+                                             class="{{ $photoCropClass }}"
                                              @click="mainImage = @js($photoUrl)"
                                              onerror="this.style.display='none'">
                                     @endforeach
@@ -1086,6 +1089,10 @@
             0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.55); }
             70% { box-shadow: 0 0 0 12px rgba(248, 113, 113, 0); }
             100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
+        }
+
+        .image-crop-top {
+            clip-path: inset(20px 0 0 0);
         }
     </style>
 @endpush

@@ -1,10 +1,10 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="brand-container py-6">
-            <p class="profile-page__eyebrow">{{ __('Личный кабинет') }}</p>
-            <h1 class="profile-page__title">{{ __('Настройки профиля') }}</h1>
+            <p class="profile-page__eyebrow">{{ __('profile.cabinet') }}</p>
+            <h1 class="profile-page__title">{{ __('profile.settings') }}</h1>
             <p class="profile-page__subtitle">
-                {{ __('Обновите контактные данные, подтвердите номер телефона и управляйте безопасностью аккаунта.') }}
+                {{ __('profile.subtitle') }}
             </p>
         </div>
     </x-slot>
@@ -22,14 +22,14 @@
 
             <div class="profile-page__hero brand-surface">
                 <div>
-                    <p class="profile-page__hero-label">{{ __('Вы авторизованы как') }}</p>
+                    <p class="profile-page__hero-label">{{ __('profile.authorized_as') }}</p>
                     <h2 class="profile-page__hero-title">{{ $user->name }}</h2>
                     <p class="profile-page__hero-subtitle">{{ $user->email }}</p>
                 </div>
                 <div class="profile-pill-group">
                     <span class="profile-pill {{ $user->phone ? 'profile-pill--success' : 'profile-pill--muted' }}">
                         <i class="fa-solid fa-phone"></i>
-                        {{ $user->phone ? __('Телефон указан') : __('Телефон не указан') }}
+                        {{ $user->phone ? __('profile.phone_set') : __('profile.phone_not_set') }}
                     </span>
                     <span class="profile-pill profile-pill--muted">
                         <i class="fa-solid fa-circle-user"></i>
@@ -42,13 +42,13 @@
                 <div class="brand-surface profile-card">
                     <div class="profile-card__header">
                         <div>
-                            <p class="profile-card__eyebrow">{{ __('Основная информация') }}</p>
-                            <h3 class="profile-card__title">{{ __('Контактные данные') }}</h3>
+                            <p class="profile-card__eyebrow">{{ __('profile.main_info') }}</p>
+                            <h3 class="profile-card__title">{{ __('profile.contact_data') }}</h3>
                         </div>
                         @if (session('status') === 'profile-updated')
                             <span class="profile-pill profile-pill--success">
                                 <i class="fa-solid fa-circle-check"></i>
-                                {{ __('Сохранено') }}
+                                {{ __('profile.saved') }}
                             </span>
                         @endif
                     </div>
@@ -58,7 +58,7 @@
                         @method('patch')
 
                         <div class="profile-form__group">
-                            <label for="profile_name" class="brand-form-label">{{ __('Имя и фамилия') }}</label>
+                            <label for="profile_name" class="brand-form-label">{{ __('profile.name') }}</label>
                             <input
                                 type="text"
                                 id="profile_name"
@@ -74,7 +74,7 @@
                         </div>
 
                         <div class="profile-form__group">
-                            <label for="profile_email" class="brand-form-label">{{ __('Электронная почта') }}</label>
+                            <label for="profile_email" class="brand-form-label">{{ __('profile.email') }}</label>
                             <input
                                 type="email"
                                 id="profile_email"
@@ -91,7 +91,7 @@
 
                         <div class="profile-form__actions">
                             <button type="submit" class="btn-brand-gradient">
-                                {{ __('Сохранить изменения') }}
+                                {{ __('profile.save_changes') }}
                             </button>
                         </div>
                     </form>
@@ -102,11 +102,11 @@
                 <div class="brand-surface profile-card" data-phone-card>
                     <div class="profile-card__header">
                         <div>
-                            <p class="profile-card__eyebrow">{{ __('Безопасность объявлений') }}</p>
-                            <h3 class="profile-card__title">{{ __('Номер телефона') }}</h3>
+                            <p class="profile-card__eyebrow">{{ __('profile.listing_security') }}</p>
+                            <h3 class="profile-card__title">{{ __('profile.phone_title') }}</h3>
                         </div>
                         <span class="profile-pill {{ $user->phone ? 'profile-pill--success' : 'profile-pill--muted' }}">
-                            {{ $user->phone ? __('Указан') : __('Не указан') }}
+                            {{ $user->phone ? __('profile.specified') : __('profile.not_specified') }}
                         </span>
                     </div>
 
@@ -126,7 +126,7 @@
                         @csrf
 
                         <div class="profile-form__group">
-                            <label for="profile_phone" class="brand-form-label">{{ __('Номер телефона') }}</label>
+                            <label for="profile_phone" class="brand-form-label">{{ __('profile.phone_title') }}</label>
                             <div class="d-flex align-items-center gap-2">
                                 <span class="brand-phone-prefix">+374</span>
                                 <input
@@ -140,7 +140,7 @@
                                 >
                             </div>
                             <p class="profile-form__hint">
-                                {{ __('Введите последние 8 цифр. Префикс +374 добавится автоматически.') }}
+                                {{ __('profile.phone_hint') }}
                             </p>
                             @if ($errors->phoneVerification->has('phone'))
                                 <p class="profile-form__error">{{ $errors->phoneVerification->first('phone') }}</p>
@@ -149,10 +149,53 @@
 
                         <div class="profile-form__actions">
                             <button type="submit" class="btn-brand-gradient">
-                                {{ __('Сохранить номер') }}
+                                {{ __('profile.save_phone') }}
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <div class="profile-page__grid">
+                <div class="brand-surface profile-card">
+                    <div class="profile-card__header">
+                        <div>
+                            <p class="profile-card__eyebrow">{{ __('profile.dealer_section') }}</p>
+                            <h3 class="profile-card__title">{{ __('profile.dealer_title') }}</h3>
+                        </div>
+                        @if($user->is_dealer)
+                            <span class="profile-pill profile-pill--success">
+                                <i class="fa-solid fa-circle-check"></i>
+                                {{ __('profile.dealer_active') }}
+                            </span>
+                        @else
+                            <span class="profile-pill profile-pill--muted">
+                                {{ __('profile.dealer_inactive') }}
+                            </span>
+                        @endif
+                    </div>
+
+                    @if(!$user->is_dealer)
+                        <p class="profile-card__text mb-3">{{ __('profile.dealer_text') }}</p>
+                        <a href="{{ route('dealer.payment') }}" class="btn btn-brand-gradient">
+                            {{ __('profile.become_dealer') }}
+                        </a>
+                    @else
+                        @php $dealerProfile = $user->dealerProfile; @endphp
+                        @if($dealerProfile)
+                            <a href="{{ route('dealers.show', $dealerProfile->slug) }}" class="btn btn-brand-gradient">
+                                {{ __('profile.my_dealer_profile') }}
+                            </a>
+                        @else
+                            <p class="profile-card__text text-muted mb-2">{{ __('profile.dealer_no_profile') }}</p>
+                            <a href="{{ route('dealer.payment') }}" class="btn btn-brand-outline">
+                                {{ __('profile.create_dealer_profile') }}
+                            </a>
+                        @endif
+                        <a href="{{ route('dealer.settings') }}" class="btn btn-brand-outline mt-2">
+                            {{ __('profile.edit_dealer_profile') }}
+                        </a>
+                    @endif
                 </div>
             </div>
 
@@ -160,13 +203,13 @@
                 <div class="brand-surface profile-card">
                     <div class="profile-card__header">
                         <div>
-                            <p class="profile-card__eyebrow">{{ __('Безопасность') }}</p>
-                            <h3 class="profile-card__title">{{ __('Смена пароля') }}</h3>
+                            <p class="profile-card__eyebrow">{{ __('profile.security') }}</p>
+                            <h3 class="profile-card__title">{{ __('profile.password_change') }}</h3>
                         </div>
                         @if (session('status') === 'password-updated')
                             <span class="profile-pill profile-pill--success">
                                 <i class="fa-solid fa-circle-check"></i>
-                                {{ __('Обновлено') }}
+                                {{ __('profile.updated') }}
                             </span>
                         @endif
                     </div>
@@ -176,7 +219,7 @@
                         @method('put')
 
                         <div class="profile-form__group">
-                            <label for="current_password" class="brand-form-label">{{ __('Текущий пароль') }}</label>
+                            <label for="current_password" class="brand-form-label">{{ __('profile.current_password') }}</label>
                             <input
                                 type="password"
                                 id="current_password"
@@ -191,7 +234,7 @@
 
                         <div class="profile-form__grid">
                             <div>
-                                <label for="new_password" class="brand-form-label">{{ __('Новый пароль') }}</label>
+                                <label for="new_password" class="brand-form-label">{{ __('profile.new_password') }}</label>
                                 <input
                                     type="password"
                                     id="new_password"
@@ -205,7 +248,7 @@
                             </div>
 
                             <div>
-                                <label for="new_password_confirmation" class="brand-form-label">{{ __('Повторите пароль') }}</label>
+                                <label for="new_password_confirmation" class="brand-form-label">{{ __('profile.confirm_password') }}</label>
                                 <input
                                     type="password"
                                     id="new_password_confirmation"
@@ -221,7 +264,7 @@
 
                         <div class="profile-form__actions">
                             <button type="submit" class="btn-brand-outline">
-                                {{ __('Сохранить пароль') }}
+                                {{ __('profile.save_password') }}
                             </button>
                         </div>
                     </form>
@@ -230,13 +273,13 @@
                 <div class="brand-surface profile-card profile-card--danger">
                     <div class="profile-card__header">
                         <div>
-                            <p class="profile-card__eyebrow">{{ __('Опасная зона') }}</p>
-                            <h3 class="profile-card__title">{{ __('Удаление аккаунта') }}</h3>
+                            <p class="profile-card__eyebrow">{{ __('profile.danger_zone') }}</p>
+                            <h3 class="profile-card__title">{{ __('profile.delete_account') }}</h3>
                         </div>
                     </div>
 
                     <p class="profile-card__text">
-                        {{ __('После удаления аккаунта восстановить данные будет невозможно. Скачайте важную информацию заранее и подтвердите действие паролем.') }}
+                        {{ __('profile.delete_warning') }}
                     </p>
 
                     <form method="post" action="{{ route('profile.destroy') }}" class="profile-form">
@@ -244,7 +287,7 @@
                         @method('delete')
 
                         <div class="profile-form__group">
-                            <label for="delete_password" class="brand-form-label">{{ __('Пароль для подтверждения') }}</label>
+                            <label for="delete_password" class="brand-form-label">{{ __('profile.confirm_password_label') }}</label>
                             <input
                                 type="password"
                                 id="delete_password"
@@ -261,9 +304,9 @@
                             <button
                                 type="submit"
                                 class="btn-brand-red btn-brand-full"
-                                onclick="return confirm('{{ __('Вы уверены, что хотите удалить аккаунт?') }}')"
+                                onclick="return confirm('{{ __('profile.confirm_delete') }}')"
                             >
-                                {{ __('Удалить аккаунт') }}
+                                {{ __('profile.delete_button') }}
                             </button>
                         </div>
                     </form>
@@ -272,5 +315,3 @@
         </div>
     </section>
 </x-app-layout>
-
-

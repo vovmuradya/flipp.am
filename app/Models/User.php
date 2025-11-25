@@ -28,6 +28,7 @@ class User extends Authenticatable
         'provider_id',
         'provider_token',
         'provider_refresh_token',
+        'is_dealer',
     ];
 
     protected $hidden = [
@@ -45,6 +46,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_dealer' => 'boolean',
         ];
     }
 
@@ -108,11 +110,16 @@ class User extends Authenticatable
         return $this->hasMany(Device::class);
     }
 
+    public function dealerProfile()
+    {
+        return $this->hasOne(DealerProfile::class);
+    }
+
     // ==================== Методы для работы с ролями (ТЗ v2.1) ====================
 
     public function isDealer(): bool
     {
-        return $this->role === 'dealer';
+        return (bool) ($this->is_dealer || $this->role === 'dealer');
     }
 
     public function isIndividual(): bool

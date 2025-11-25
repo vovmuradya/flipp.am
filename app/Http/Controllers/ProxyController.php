@@ -213,22 +213,30 @@ class ProxyController extends Controller
             }
 
             $contentType = $response->header('Content-Type', 'image/jpeg');
-            $etag = $response->header('ETag');
-            $lastModified = $response->header('Last-Modified');
+            $body = $response->body();
 
-            $res = response($response->body(), 200)
+            $trimTop = (int) $request->query('trim_top', 0);
+            if ($trimTop > 0 && function_exists('imagecreatefromstring')) {
+                $img = @imagecreatefromstring($body);
+                if ($img !== false) {
+                    $width = imagesx($img);
+                    $height = imagesy($img);
+                    $trim = min($trimTop, $height - 1);
+                    $cropped = imagecreatetruecolor($width, $height - $trim);
+                    imagecopy($cropped, $img, 0, 0, 0, $trim, $width, $height - $trim);
+                    ob_start();
+                    imagepng($cropped);
+                    $body = ob_get_clean();
+                    imagedestroy($img);
+                    imagedestroy($cropped);
+                    $contentType = 'image/png';
+                }
+            }
+
+            return response($body, 200)
                 ->header('Content-Type', $contentType)
                 ->header('Cache-Control', 'public, max-age=86400')
                 ->header('Access-Control-Allow-Origin', '*');
-
-            if (!empty($etag)) {
-                $res->header('ETag', $etag);
-            }
-            if (!empty($lastModified)) {
-                $res->header('Last-Modified', $lastModified);
-            }
-
-            return $res;
         } catch (\Throwable $e) {
             Log::error('❌ Proxy image exception: ' . $e->getMessage(), ['url' => substr($url, 0, 200), 'trace' => substr($e->getTraceAsString(), 0, 500)]);
             return $this->placeholderResponse('Exception');
