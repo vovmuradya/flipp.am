@@ -51,13 +51,17 @@ class ProxyController extends Controller
             'via.placeholder.com',
             'placeholder.com',
             'dummyimage.com',
+            's.list.am',
+            'www.list.am',
+            'list.am',
+            'upa.list.am',
         ];
 
         $host = strtolower(parse_url($url, PHP_URL_HOST) ?? '');
 
         // Гибкая проверка: если host содержит copart.com или iaai, тоже разрешаем
         $allowed = false;
-        if ($host && (str_contains($host, 'copart.com') || str_contains($host, 'iaai.com') || str_contains($host, 'iaai.net') || in_array($host, $allowedHosts, true))) {
+        if ($host && (str_contains($host, 'copart.com') || str_contains($host, 'iaai.com') || str_contains($host, 'iaai.net') || str_contains($host, 'list.am') || in_array($host, $allowedHosts, true))) {
             $allowed = true;
         }
 

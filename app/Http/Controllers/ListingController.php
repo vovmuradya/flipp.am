@@ -29,6 +29,10 @@ class ListingController extends Controller
         'copart.com',
     ];
 
+    private const ALLOWED_EXTERNAL_DOMAINS = [
+        'list.am',
+    ];
+
     public function index(Request $request)
     {
         $onlyRegular = $request->boolean('only_regular');
@@ -234,13 +238,15 @@ class ListingController extends Controller
         }
         $regions = Region::all();
 
-        // Получаем данные с аукциона строго при ?from_auction=1
+        // Получаем данные из предзаполнения (аукцион или внешний сайт)
         $fromAuctionFlow = $request->boolean('from_auction');
+        $fromExternalFlow = $request->boolean('from_external');
+        $prefillFlow = $fromAuctionFlow || $fromExternalFlow;
         $auctionData = null;
 
-        if ($fromAuctionFlow && session()->has('auction_vehicle_data')) {
+        if ($prefillFlow && session()->has('auction_vehicle_data')) {
             $auctionData = session('auction_vehicle_data');
-        } elseif (!$fromAuctionFlow && session()->has('auction_vehicle_data')) {
+        } elseif (!$prefillFlow && session()->has('auction_vehicle_data')) {
             session()->forget('auction_vehicle_data');
         }
 
@@ -249,7 +255,8 @@ class ListingController extends Controller
             'regions',
             'auctionData',
             'defaultVehicleCategoryId',
-            'fromAuctionFlow'
+            'fromAuctionFlow',
+            'fromExternalFlow'
         ));
     }
 
@@ -275,6 +282,18 @@ class ListingController extends Controller
         }
 
         return view('listings.create-from-auction');
+    }
+
+    /**
+     * Страница импорта объявления с другого сайта (List.am)
+     */
+    public function createFromExternal()
+    {
+        if ($redirect = $this->ensurePhoneVerified()) {
+            return $redirect;
+        }
+
+        return view('listings.create-from-external');
     }
 
     /**
@@ -351,6 +370,7 @@ class ListingController extends Controller
                 'engine_displacement_cc' => isset($parsed['engine_displacement_cc']) && is_numeric($parsed['engine_displacement_cc']) ? (int) $parsed['engine_displacement_cc'] : null,
                 'body_type' => $parsed['body_type'] ?? null,
                 'photos' => array_values(array_filter($parsed['photos'] ?? [], fn ($u) => is_string($u) && strlen($u) > 5)),
+                'description' => $parsed['description'] ?? null,
                 'source_auction_url' => $parsed['source_auction_url'] ?? $url,
                 'auction_ends_at' => $parsed['auction_ends_at'] ?? null,
                 'buy_now_price' => isset($parsed['buy_now_price']) && $parsed['buy_now_price'] !== '' ? (float) $parsed['buy_now_price'] : null,
@@ -419,6 +439,111 @@ class ListingController extends Controller
             return back()
                 ->withInput()
                 ->with('auction_error', 'Не удалось загрузить данные с аукциона. Попробуйте ещё раз или заполните форму вручную.');
+        }
+    }
+
+    public function importExternalListing(Request $request, AuctionParserService $service)
+    {
+        if ($redirect = $this->ensurePhoneVerified()) {
+            return $redirect;
+        }
+
+        $validated = $request->validate([
+            'auction_url' => 'required|url',
+        ]);
+
+        $url = $validated['auction_url'];
+
+        if (!$this->isAllowedExternalUrl($url)) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'auction_url' => 'Поддерживаются только ссылки с List.am.',
+                ]);
+        }
+
+        try {
+            set_time_limit(60);
+
+            $parsed = $service->parseFromUrl($url, aggressive: false);
+
+            if (!$parsed) {
+                $parsed = $this->fallbackAuctionData($url);
+            }
+
+            if (!$parsed || empty($parsed['make']) || empty($parsed['model'])) {
+                return back()
+                    ->withInput()
+                    ->with('auction_error', __('Не удалось найти данные по этой ссылке. Проверьте URL и попробуйте снова.'));
+            }
+
+            $vehicle = [
+                'make' => $parsed['make'] ?? null,
+                'model' => $parsed['model'] ?? null,
+                'year' => isset($parsed['year']) && preg_match('/^(19|20)\d{2}$/', (string) $parsed['year']) ? (int) $parsed['year'] : null,
+                'mileage' => isset($parsed['mileage']) && is_numeric($parsed['mileage']) ? (int) $parsed['mileage'] : null,
+                'exterior_color' => $parsed['exterior_color'] ?? null,
+                'transmission' => $parsed['transmission'] ?? 'automatic',
+                'fuel_type' => $parsed['fuel_type'] ?? 'gasoline',
+                'engine_displacement_cc' => isset($parsed['engine_displacement_cc']) && is_numeric($parsed['engine_displacement_cc']) ? (int) $parsed['engine_displacement_cc'] : null,
+                'body_type' => $parsed['body_type'] ?? null,
+                'photos' => array_values(array_filter($parsed['photos'] ?? [], fn ($u) => is_string($u) && strlen($u) > 5)),
+                'source_auction_url' => $parsed['source_auction_url'] ?? $url,
+                'auction_ends_at' => $parsed['auction_ends_at'] ?? null,
+                'buy_now_price' => isset($parsed['buy_now_price']) && $parsed['buy_now_price'] !== '' ? (float) $parsed['buy_now_price'] : null,
+                'buy_now_currency' => $parsed['buy_now_currency'] ?? null,
+                'operational_status' => $parsed['operational_status'] ?? null,
+                'is_from_auction' => false,
+            ];
+
+            $titleParts = [];
+            if ($vehicle['year']) {
+                $titleParts[] = $vehicle['year'];
+            }
+            if ($vehicle['make']) {
+                $titleParts[] = $vehicle['make'];
+            }
+            if ($vehicle['model']) {
+                $titleParts[] = $vehicle['model'];
+            }
+
+            $title = trim(implode(' ', $titleParts));
+
+            $descriptionText = trim((string) ($parsed['description'] ?? ''));
+            $descriptionLines = $descriptionText !== ''
+                ? [$descriptionText]
+                : [
+                    'Սա արտահայտված հայտարարություն է այլ կայքից։ Խնդրում ենք ստուգել տվյալները եւ լրացնել բացակայող դաշտերը:',
+                    '',
+                    'Ссылка на источник: ' . $vehicle['source_auction_url'],
+                ];
+
+            $categoryId = $this->resolveVehicleCategoryId();
+            if (!$categoryId) {
+                return back()
+                    ->withInput()
+                    ->with('auction_error', 'Категории для транспортных объявлений не настроены. Обратитесь к администратору.');
+            }
+
+            $payload = [
+                'title' => $title,
+                'description' => implode("\n", $descriptionLines),
+                'price' => $vehicle['buy_now_price'] ?? null,
+                'category_id' => $categoryId,
+                'auction_url' => $url,
+                'vehicle' => $vehicle,
+                'photos' => $vehicle['photos'],
+            ];
+
+            session(['auction_vehicle_data' => $payload]);
+
+            return redirect()->route('listings.create', ['from_external' => 1]);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()
+                ->withInput()
+                ->with('auction_error', 'Не удалось загрузить данные с этого сайта. Попробуйте ещё раз или заполните форму вручную.');
         }
     }
 
@@ -519,6 +644,32 @@ class ListingController extends Controller
         }
 
         return false;
+    }
+
+    private function isAllowedExternalUrl(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!is_string($host) || $host === '') {
+            return false;
+        }
+
+        $host = strtolower($host);
+
+        foreach (self::ALLOWED_EXTERNAL_DOMAINS as $domain) {
+            $domain = strtolower($domain);
+            if ($host === $domain || str_ends_with($host, '.' . $domain)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function resolveVehicleCategoryId(): ?int
+    {
+        $categoryId = VehicleCategoryResolver::resolve();
+
+        return $categoryId ?: null;
     }
 
     public function store(ListingRequest $request)

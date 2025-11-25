@@ -26,7 +26,15 @@
                 @endphp
                 <div class="brand-form__header {{ $auctionData ? 'brand-form__header--auction' : '' }}">
                     <h1 class="text-2xl font-bold mb-1">
-                        {{ $auctionData ? __('🚗 Создать объявление с аукциона') : __('Создать объявление') }}
+                        @php
+                            $sourceUrlHeader = $auctionData['auction_url'] ?? null;
+                            $sourceHostHeader = $sourceUrlHeader ? parse_url($sourceUrlHeader, PHP_URL_HOST) : null;
+                            $isCopartHeader = $sourceHostHeader && str_contains(strtolower($sourceHostHeader), 'copart.com');
+                            $headerText = $auctionData
+                                ? ($isCopartHeader ? __('🚗 Создать объявление с аукциона') : __('🚗 Создать объявление с внешнего сайта'))
+                                : __('Создать объявление');
+                        @endphp
+                        {{ $headerText }}
                     </h1>
                     @if($auctionData && isset($auctionData['auction_url']))
                         <p class="mb-0">
@@ -365,6 +373,10 @@
                         $copartCurrentBidValue = $copartHasCurrentBid ? (float) $copartCurrentBidRaw : null;
                         $copartCurrentBidCurrency = strtoupper($vehiclePrefill['current_bid_currency'] ?: $copartBuyNowCurrency);
 
+                        $sourceUrl = $ad['source_auction_url'] ?? $ad['auction_url'] ?? ($ad['vehicle']['source_auction_url'] ?? '');
+                        $sourceHost = is_string($sourceUrl) && $sourceUrl !== '' ? parse_url($sourceUrl, PHP_URL_HOST) : null;
+                        $copartSource = is_string($sourceHost) && str_contains(strtolower($sourceHost), 'copart.com');
+
                         $defaultPrice = $ad['price'] ?? ($copartHasBuyNow ? $copartBuyNowPriceValue : null);
                         $priceInputValue = old('price', $defaultPrice);
                         if ($priceInputValue !== null && (float) $priceInputValue <= 0) {
@@ -411,12 +423,31 @@
 
                     @if($ad && !empty($finalPhotos))
                         <div class="mb-4">
-                            <h3 class="text-lg fw-semibold mb-3">{{ __('📸 Фотографии с Copart (:count)', ['count' => count($finalPhotos)]) }}</h3>
-                            <div x-data="{ mainImage: @js($mainImageDefault) }">
+                            @php
+                                $photoSectionTitle = $copartSource ?? false
+                                    ? __('📸 Фотографии с Copart (:count)', ['count' => count($finalPhotos)])
+                                    : __('📸 Фотографии с внешнего источника (:count)', ['count' => count($finalPhotos)]);
+                            @endphp
+                            <h3 class="text-lg fw-semibold mb-3">{{ $photoSectionTitle }}</h3>
+                            <div
+                                x-data="{
+                                    photos: @js(array_values($finalPhotos)),
+                                    mainImage: @js($mainImageDefault),
+                                    placeholder: @js($placeholderUrl),
+                                    setFirstAvailable() {
+                                        if (this.photos.length > 0) {
+                                            this.mainImage = this.photos[0];
+                                        } else {
+                                            this.mainImage = this.placeholder;
+                                        }
+                                    }
+                                }"
+                                x-init="setFirstAvailable()"
+                            >
                                 <div class="mx-auto mb-3" style="width: 220px; height: 165px; border-radius: 14px; overflow: hidden; background: #f1f3f5;">
-                                    <img :src="mainImage" src="{{ $mainImageDefault }}" alt="{{ __('Главное фото') }}"
+                                    <img :src="mainImage" alt="{{ __('Главное фото') }}"
                                          style="width: 100%; height: 100%; object-fit: contain;"
-                                         onerror="this.src='{{ $placeholderUrl }}'">
+                                         x-on:error="photos.shift(); setFirstAvailable()">
                                 </div>
                                 <div class="d-flex flex-wrap gap-2">
                                     @foreach($finalPhotos as $index => $photoUrl)
@@ -428,6 +459,121 @@
                                 </div>
                             </div>
                         </div>
+                    @endif
+
+                    @if($ad && empty($finalPhotos))
+                        <div class="alert alert-warning">
+                            {{ __('Не удалось получить фотографии для этой ссылки. Проверьте корректность URL или попробуйте снова.') }}
+                        </div>
+                        <div class="d-flex justify-content-end mt-3">
+                            <a href="{{ route('listings.create-from-external') }}" class="btn btn-brand-outline">
+                                {{ __('Вернуться к импорту') }}
+                            </a>
+                        </div>
+                        @php return; @endphp
+                    @endif
+
+                    @if($ad)
+                        @php
+                            $prefillPreview = [];
+                            $formatNumber = fn($val) => number_format((float)$val, 0, '.', ' ');
+                            $normalizeNumber = function ($val) {
+                                if (is_numeric($val)) {
+                                    return (float) $val;
+                                }
+                                if (is_string($val)) {
+                                    $digits = preg_replace('/[^\d\.]/', '', $val);
+                                    return is_numeric($digits) ? (float) $digits : null;
+                                }
+                                return null;
+                            };
+                            $yesLabel = __('Այո');
+                            $noLabel = __('Ոչ');
+                            $src = fn($key) => $vehiclePrefill[$key] ?? $adV[$key] ?? $ad[$key] ?? null;
+
+                            if (!empty($src('vin'))) {
+                                $prefillPreview['VIN'] = $src('vin');
+                            }
+                            $mileageVal = $normalizeNumber($src('mileage'));
+                            if ($mileageVal !== null) {
+                                $prefillPreview[__('Վազք (կմ)')] = $formatNumber($mileageVal) . ' ' . __('կմ');
+                            }
+                            if (!empty($src('year'))) {
+                                $prefillPreview[__('Թողարկման տարի')] = $src('year');
+                            }
+                            if (!empty($src('body_type'))) {
+                                $bt = $src('body_type');
+                                $prefillPreview[__('Մարմնի տեսակ')] = $bodyTypeOptions[$bt] ?? $bt;
+                            }
+                            if (!empty($src('transmission'))) {
+                                $tr = $src('transmission');
+                                $prefillPreview[__('Փոխանցման տուփ')] = $transmissionOptions[$tr] ?? $tr;
+                            }
+                            if (!empty($src('fuel_type'))) {
+                                $ft = $src('fuel_type');
+                                $prefillPreview[__('Վառելիք')] = $fuelTypeOptions[$ft] ?? $ft;
+                            }
+                            $eng = $normalizeNumber($src('engine_displacement_cc'));
+                            if ($eng !== null) {
+                                $prefillPreview[__('Շարժիչի ծավալ')] = $formatNumber($eng) . ' ' . __('սմ³');
+                            }
+                            if (!empty($src('exterior_color'))) {
+                                $clr = $src('exterior_color');
+                                $prefillPreview[__('Մարմնի գույն')] = $colorOptions[$clr] ?? $clr;
+                            }
+                            if (!empty($src('drivetrain') ?? $src('wheel_drive'))) {
+                                $drv = $src('drivetrain') ?? $src('wheel_drive');
+                                $prefillPreview[__('Քարշակ')] = $drv;
+                            }
+                            if (!empty($src('condition'))) {
+                                $prefillPreview[__('Ներկա վիճակը')] = $src('condition');
+                            }
+                            if (!empty($src('gas_equipment') ?? $src('gbo'))) {
+                                $prefillPreview[__('Գազի սարքավորում')] = $yesLabel;
+                            }
+                            if (!empty($src('steering'))) {
+                                $prefillPreview[__('Ղեկ')] = $src('steering');
+                            }
+                            if (isset($vehiclePrefill['customs_cleared']) || isset($ad['customs_cleared']) || isset($adV['customs_cleared'])) {
+                                $val = $vehiclePrefill['customs_cleared'] ?? $adV['customs_cleared'] ?? $ad['customs_cleared'] ?? null;
+                                $prefillPreview[__('Մաքսազերծված է')] = $val ? $yesLabel : $noLabel;
+                            }
+                            if (isset($vehiclePrefill['exchange_possible']) || isset($ad['exchange_possible']) || isset($adV['exchange_possible'])) {
+                                $val = $vehiclePrefill['exchange_possible'] ?? $adV['exchange_possible'] ?? $ad['exchange_possible'] ?? null;
+                                $prefillPreview[__('Փոխանակում')] = $val ? $yesLabel : $noLabel;
+                            }
+                            if (!empty($src('wheel_size'))) {
+                                $prefillPreview[__('Անիվի չափսերը')] = $src('wheel_size');
+                            }
+                            if (!empty($src('headlights'))) {
+                                $prefillPreview[__('Լուսարձակներ')] = $src('headlights');
+                            }
+                            if (!empty($src('interior_color'))) {
+                                $prefillPreview[__('Սրահի գույնը')] = $src('interior_color');
+                            }
+                            if (!empty($src('interior'))) {
+                                $prefillPreview[__('Սրահը')] = $src('interior');
+                            }
+                            if (isset($vehiclePrefill['sunroof']) || isset($ad['sunroof']) || isset($adV['sunroof'])) {
+                                $val = $vehiclePrefill['sunroof'] ?? $adV['sunroof'] ?? $ad['sunroof'] ?? null;
+                                $prefillPreview[__('Լյուկ')] = $val ? $yesLabel : $noLabel;
+                            }
+                        @endphp
+                        @if(!empty($prefillPreview))
+                            <div class="alert alert-info mb-4">
+                                <div class="fw-semibold mb-2">{{ __('Լրացված տվյալներ') }}</div>
+                                <div class="row g-2">
+                                    @foreach($prefillPreview as $label => $value)
+                                        <div class="col-sm-6">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">{{ $label }}</span>
+                                                <span class="fw-semibold">{{ $value }}</span>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
                     @endif
 
                     @if ($errors->any())
@@ -476,10 +622,12 @@
                                value="{{ old('category_id', $ad['category_id'] ?? ($defaultVehicleCategoryId ?? '')) }}">
 
                         @if($ad)
-                            <input type="hidden" name="from_auction" value="1">
+                            @if($copartSource ?? false)
+                                <input type="hidden" name="from_auction" value="1">
+                                <input type="hidden" name="vehicle[is_from_auction]" value="1">
+                            @endif
                             <input type="hidden" name="listing_type" value="vehicle">
-                            <input type="hidden" name="vehicle[is_from_auction]" value="1">
-                            <input type="hidden" name="vehicle[source_auction_url]" value="{{ $ad['auction_url'] ?? '' }}">
+                            <input type="hidden" name="vehicle[source_auction_url]" value="{{ $ad['auction_url'] ?? $ad['source_auction_url'] ?? '' }}">
                             @if(!empty($adV['auction_ends_at']))
                                 <input type="hidden" name="vehicle[auction_ends_at]" value="{{ $adV['auction_ends_at'] }}">
                             @endif
@@ -490,7 +638,7 @@
 
                         <div class="brand-surface mb-4" id="vehicle-fields" x-show="listingType === 'vehicle'" x-cloak>
                                 <h3 class="h5 mb-3">{{ __('Характеристики автомобиля') }}</h3>
-                                @if($ad)
+                                @if($ad && ($copartSource ?? false))
                                     @php
                                         $auctionVehicleValues = [
                                             'make' => $vehiclePrefill['make'] ?? '',
@@ -536,9 +684,11 @@
                                             'exterior_color' => $displayExteriorColor !== '' ? $displayExteriorColor : '—',
                                         ];
                                     @endphp
-                                    <div class="alert alert-warning mb-3 py-2 px-3">
-                                        {{ __('Эти данные загружены с Copart и предназначены только для просмотра.') }}
-                                    </div>
+                                    @if($copartSource ?? false)
+                                        <div class="alert alert-warning mb-3 py-2 px-3">
+                                            {{ __('Эти данные загружены с Copart и предназначены только для просмотра.') }}
+                                        </div>
+                                    @endif
                                     <div class="row g-3">
                                         <div class="col-md-4">
                                             <label class="form-label">{{ __('Марка') }}</label>
@@ -821,20 +971,17 @@
                                 </div>
                             </div>
                         </div>
-                        @if($copartHasBuyNow)
+                        @if($copartSource && $copartHasBuyNow)
                             <div class="mb-4">
                                 <div class="alert alert-warning bg-amber-50 border-amber-200 text-amber-800 mb-0 rounded-3 d-flex flex-column gap-1">
                                     <span class="text-uppercase small fw-semibold">{{ __('Цена «Buy Now» на Copart') }}</span>
                                     <span class="fs-4 fw-bold">
                                         {{ number_format($copartBuyNowPriceValue, 0, '.', ' ') }} {{ $copartBuyNowCurrency }}
                                     </span>
-                                    <small class="text-muted">
-                                        {{ __('Мы автоматически сохраним эту цену в карточке авто (раздел «Купить сейчас»).') }}
-                                    </small>
                                 </div>
                             </div>
                         @endif
-                        @if($copartHasCurrentBid)
+                        @if($copartSource && $copartHasCurrentBid)
                             <div class="mb-4">
                                 <div class="alert alert-info bg-indigo-50 border border-indigo-200 text-indigo-900 mb-0 rounded-3 d-flex flex-column gap-1">
                                     <span class="text-uppercase small fw-semibold">{{ __('Текущая ставка на Copart') }}</span>
@@ -848,10 +995,10 @@
                             </div>
                         @endif
 
-                    @if(! $ad)
-                        @include('listings.partials.region-dropdown', [
-                            'regions' => $regions,
-                            'selectedRegion' => old('region_id'),
+                        @if(! $ad || !($copartSource ?? false))
+                            @include('listings.partials.region-dropdown', [
+                                'regions' => $regions,
+                                'selectedRegion' => old('region_id'),
                             'fieldId' => 'region_id',
                             'fieldName' => 'region_id',
                             'label' => __('Регион'),
@@ -862,7 +1009,7 @@
                             $imagesError = $errors->has('images') || $errors->has('images.*');
                             $maxUploadableImages = auth()->user()->role === 'agency' ? 12 : 6;
                         @endphp
-                        <div class="{{ $imagesError ? 'mb-4 error-field-container' : 'mb-4' }}" @if($imagesError) data-error-scroll="images" @endif>
+                        <div class="{{ $imagesError ? 'mb-4 error-field-container' : 'mb-4' }}" {{ $imagesError ? 'data-error-scroll=images' : '' }}>
                             <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-2">
                                 <label for="images" class="form-label mb-0">{{ __('Фотографии объявления') }}</label>
                                 <span class="badge text-bg-light border text-muted">{{ __('Минимум 1 фото') }}</span>
@@ -907,8 +1054,16 @@
                             <button type="submit"
                                     class="btn-brand-gradient d-inline-flex align-items-center gap-2"
                                     :disabled="!formVisible || isSubmitting">
+                                @php
+                                    $footerSourceUrl = $ad['auction_url'] ?? $ad['source_auction_url'] ?? ($ad['vehicle']['source_auction_url'] ?? null);
+                                    $footerHost = $footerSourceUrl ? parse_url($footerSourceUrl, PHP_URL_HOST) : null;
+                                    $footerIsCopart = $footerHost && str_contains(strtolower($footerHost), 'copart.com');
+                                    $submitLabel = $ad
+                                        ? ($footerIsCopart ? __('🚀 Создать объявление с аукциона') : __('🚀 Создать объявление с внешнего сайта'))
+                                        : __('Создать объявление');
+                                @endphp
                                 <span x-show="!isSubmitting">
-                                    {{ $ad ? __('🚀 Создать объявление с аукциона') : __('Создать объявление') }}
+                                    {{ $submitLabel }}
                                 </span>
                                 <span x-show="isSubmitting" class="d-inline-flex align-items-center gap-2" x-cloak>
                                     <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -968,6 +1123,19 @@
                 if (focusTarget instanceof HTMLElement) {
                     focusTarget.classList.add('error-field-flash');
                 }
+            });
+
+            // Подсветка первого незаполненного обязательного поля при клике «Создать»
+            document.addEventListener('DOMContentLoaded', () => {
+                const form = document.querySelector('form[action="{{ route('listings.store') }}"]');
+                if (!form) return;
+                form.addEventListener('submit', (e) => {
+                    const invalid = form.querySelector('input[required]:invalid, select[required]:invalid, textarea[required]:invalid');
+                    if (invalid) {
+                        invalid.classList.add('error-field', 'error-field-flash');
+                        invalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
             });
         </script>
     @endpush

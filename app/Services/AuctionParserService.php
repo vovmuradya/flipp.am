@@ -48,6 +48,20 @@ class AuctionParserService
 
         $domain = parse_url($url, PHP_URL_HOST);
 
+        if (str_contains($domain, 'list.am')) {
+            $cacheKey = 'auction_parser:listam:' . md5($url);
+            if (Cache::has($cacheKey)) {
+                return Cache::get($cacheKey);
+            }
+
+            $result = $this->parseListAm($url);
+            if ($result !== null) {
+                Cache::put($cacheKey, $result, now()->addMinutes(10));
+            }
+
+            return $result;
+        }
+
         if (str_contains($domain, 'copart.com')) {
             $aggressiveMode = filter_var(config('services.copart.aggressive', $aggressive), FILTER_VALIDATE_BOOLEAN);
             $cacheKey = 'auction_parser:' . md5(($aggressiveMode ? '1' : '0') . '|' . $url);
@@ -955,6 +969,369 @@ class AuctionParserService
             Log::error('❌ Copart error: ' . $e->getMessage());
             return null;
         }
+    }
+
+    private function parseListAm(string $url): ?array
+    {
+        try {
+            Log::info('🔍 Parsing List.am URL: ' . $url);
+
+            $payload = $this->fetchListAmViaHeadless($url);
+            if (!is_array($payload)) {
+                Log::warning('⚠️ List.am headless returned no payload', ['url' => $url]);
+                return $this->parseListAmFromSlug($url);
+            }
+
+            $title = is_string($payload['title'] ?? null) ? trim($payload['title']) : '';
+            $description = is_string($payload['description'] ?? null) ? trim($payload['description']) : null;
+
+            [$year, $make, $model] = $this->extractListAmVehicleFromTitle($title ?: $url);
+
+            $price = $this->normalizePriceValue($payload['price'] ?? null);
+            $currency = $this->normalizeCurrencyCode($payload['currency'] ?? null);
+            $mileage = $this->normalizeNumericValue($payload['mileage'] ?? null);
+            if (!$mileage && $description) {
+                $mileage = $this->extractMileageFromText($description);
+            }
+
+            $photos = $this->proxyExternalImages($payload['images'] ?? [], $url);
+
+            if (empty($photos)) {
+                $placeholderUrl = 'https://via.placeholder.com/800x600/e5e7eb/6b7280?text=No+Image+Available';
+                $photos = [url('/proxy/image?u=' . rawurlencode($placeholderUrl))];
+                Log::warning('⚠️ List.am images missing, using placeholder', ['url' => $url]);
+            }
+
+            $data = [
+                'make' => $make ?: 'Неизвестно',
+                'model' => $model ?: 'Неизвестно',
+                'year' => $year ?: (int) date('Y'),
+                'mileage' => $mileage,
+                'exterior_color' => null,
+                'transmission' => 'automatic',
+                'fuel_type' => 'gasoline',
+                'engine_displacement_cc' => null,
+                'body_type' => null,
+                'photos' => array_values($photos),
+                'source_auction_url' => $url,
+                'auction_ends_at' => null,
+                'buy_now_price' => $price,
+                'buy_now_currency' => $price !== null ? ($currency ?? 'AMD') : null,
+                'current_bid_price' => null,
+                'current_bid_currency' => null,
+                'operational_status' => null,
+                'title' => $title ?: null,
+                'description' => $description ?: null,
+            ];
+
+            // Если это похоже не на транспорт — прекращаем обработку
+            if (!$this->looksLikeVehicleFromListAm($data)) {
+                Log::warning('❌ List.am item rejected as non-vehicle', ['url' => $url, 'title' => $title]);
+                return null;
+            }
+
+            Log::info('📦 List.am parsed', [
+                'url' => $url,
+                'make' => $data['make'],
+                'model' => $data['model'],
+                'year' => $data['year'],
+                'photos' => count($data['photos']),
+            ]);
+
+            return $data;
+        } catch (\Throwable $e) {
+            Log::warning('❌ List.am error: ' . $e->getMessage(), ['url' => $url]);
+            return null;
+        }
+    }
+
+    /**
+     * Грубая проверка, что объявление с List.am похоже на транспорт.
+     */
+    private function looksLikeVehicleFromListAm(array $data): bool
+    {
+        $photos = $data['photos'] ?? [];
+        if (!is_array($photos) || count($photos) < 2) {
+            return false;
+        }
+
+        $year = $data['year'] ?? null;
+        $currentYear = (int) date('Y');
+        if (!is_numeric($year) || (int) $year < 1980 || (int) $year > $currentYear + 1) {
+            return false;
+        }
+
+        $title = strtolower(trim((string) ($data['title'] ?? '')));
+        $description = strtolower(trim((string) ($data['description'] ?? '')));
+        $haystack = $title . ' ' . $description;
+
+        $makes = [
+            'acura','alfa romeo','alfa','audi','bmw','buick','cadillac','chevrolet','chevy','chrysler','citroen','dacia','daewoo','daihatsu','dodge','fiat','ford','genesis','gmc','honda','hyundai','infiniti','isuzu','jaguar','jeep','kia','lada','land rover','lexus','maserati','mazda','mercedes','benz','mini','mitsubishi','nissan','opel','peugeot','porsche','ram','renault','saab','seat','skoda','smart','subaru','suzuki','tesla','toyota','volkswagen','vw','volvo','hummer','pontiac','saturn','scion','uaz','gaz'
+        ];
+        foreach ($makes as $make) {
+            if (str_contains($haystack, $make)) {
+                return true;
+            }
+        }
+
+        // fallback: если есть год и минимум 3 фото, но нет брендов — всё равно пропустим
+        if (count($photos) >= 3) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function fetchListAmViaHeadless(string $url): ?array
+    {
+        $script = base_path('scraper/fetch-listam-item.cjs');
+        if (!is_file($script)) {
+            Log::warning('List.am headless script missing', ['script' => $script]);
+            return null;
+        }
+
+        $process = new Process(['node', $script, $url], base_path(), null, null, 120);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            Log::warning('List.am headless fetch failed', [
+                'url' => $url,
+                'error' => trim($process->getErrorOutput()) ?: trim($process->getOutput()),
+            ]);
+            return null;
+        }
+
+        $output = trim($process->getOutput());
+        if ($output === '') {
+            return null;
+        }
+
+        $decoded = json_decode($output, true);
+        if (!is_array($decoded)) {
+            Log::warning('List.am headless produced invalid JSON', [
+                'url' => $url,
+                'snippet' => substr($output, 0, 200),
+            ]);
+            return null;
+        }
+
+        return $decoded;
+    }
+
+    private function extractListAmVehicleFromTitle(string $title): array
+    {
+        $year = null;
+        if (preg_match('/(19|20)\d{2}/', $title, $m)) {
+            $year = (int) $m[0];
+        }
+
+        $parts = preg_split('/[\s,\-|\/]+/', strtolower($title));
+        $parts = array_values(array_filter(array_map('trim', $parts)));
+
+        $makes = [
+            'acura','alfa','romeo','audi','bmw','buick','cadillac','chevrolet','chevy','chrysler','citroen','dacia','daewoo','daihatsu','dodge','fiat','ford','genesis','gmc','honda','hyundai','infiniti','isuzu','jaguar','jeep','kia','lada','land','rover','lexus','lincoln','maserati','mazda','mercedes','benz','mini','mitsubishi','nissan','opel','peugeot','porsche','ram','renault','saab','seat','skoda','smart','subaru','suzuki','tesla','toyota','volkswagen','vw','volvo','hummer','pontiac','saturn','scion','uaz','gaz',
+        ];
+
+        $make = null;
+        $model = null;
+
+        foreach ($parts as $idx => $token) {
+            $clean = preg_replace('/[^a-z0-9]+/i', '', $token);
+            if ($clean === '') {
+                continue;
+            }
+
+            if (in_array($clean, $makes, true)) {
+                $make = $this->titleCase($clean);
+                $modelTokens = array_slice($parts, $idx + 1, 3);
+                $modelTokens = array_map(function ($value) {
+                    return preg_replace('/[^a-z0-9]+/i', '', $value);
+                }, $modelTokens);
+                $modelTokens = array_values(array_filter($modelTokens));
+                if (!empty($modelTokens)) {
+                    $model = $this->titleCase(implode(' ', $modelTokens));
+                }
+                break;
+            }
+        }
+
+        return [$year, $make, $model];
+    }
+
+    private function normalizePriceValue($raw): ?float
+    {
+        if (is_numeric($raw)) {
+            return (float) $raw;
+        }
+
+        if (!is_string($raw)) {
+            return null;
+        }
+
+        $clean = preg_replace('/[^\d.,]/', '', $raw);
+        $clean = str_replace([' ', ','], ['', ''], $clean);
+        if ($clean === '' || !is_numeric($clean)) {
+            return null;
+        }
+
+        return (float) $clean;
+    }
+
+    private function normalizeCurrencyCode(?string $currency): ?string
+    {
+        if (!is_string($currency)) {
+            return null;
+        }
+
+        $c = strtoupper(trim($currency));
+        if ($c === '') {
+            return null;
+        }
+
+        $map = [
+            'AMD' => 'AMD',
+            'ДРАМ' => 'AMD',
+            '֏' => 'AMD',
+            'USD' => 'USD',
+            '$' => 'USD',
+            'EUR' => 'EUR',
+            '€' => 'EUR',
+        ];
+
+        if (isset($map[$c])) {
+            return $map[$c];
+        }
+
+        return $c;
+    }
+
+    private function normalizeExternalImageUrl(string $imgUrl, string $referer): ?string
+    {
+        $imgUrl = trim($imgUrl);
+        if ($imgUrl === '') {
+            return null;
+        }
+
+        if (str_starts_with($imgUrl, '//')) {
+            $imgUrl = 'https:' . $imgUrl;
+        } elseif (!preg_match('/^https?:\\/\\//i', $imgUrl)) {
+            if ($referer) {
+                $imgUrl = rtrim($referer, '/') . '/' . ltrim($imgUrl, '/');
+            } else {
+                return null;
+            }
+        }
+
+        return $imgUrl;
+    }
+
+    /**
+     * @param array<int,mixed> $rawImages
+     * @return array<int,string>
+     */
+    private function proxyExternalImages(array $rawImages, string $referer): array
+    {
+        $photos = [];
+        $seen = [];
+
+        foreach ($rawImages as $img) {
+            if (!is_string($img) || strlen($img) < 5) {
+                continue;
+            }
+
+            $normalized = $this->normalizeExternalImageUrl($img, $referer);
+            if (!$normalized) {
+                continue;
+            }
+
+            $key = strtolower($normalized);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+
+            $proxyUrl = url('/proxy/image') . '?u=' . rawurlencode($normalized);
+            if (!empty($referer)) {
+                $proxyUrl .= '&r=' . rawurlencode($referer);
+            }
+            $photos[] = $proxyUrl;
+        }
+
+        return $photos;
+    }
+
+    private function normalizeNumericValue($value): ?int
+    {
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $value);
+        if ($digits === '') {
+            return null;
+        }
+
+        return (int) $digits;
+    }
+
+    private function extractMileageFromText(string $text): ?int
+    {
+        if (preg_match('/([\d\s\.,]+)\s*(км|km|կմ)/iu', $text, $m)) {
+            $digits = preg_replace('/\D+/', '', $m[1] ?? '');
+            if ($digits !== '' && is_numeric($digits)) {
+                return (int) $digits;
+            }
+        }
+
+        return null;
+    }
+
+    private function parseListAmFromSlug(string $url): ?array
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!is_string($path) || $path === '') {
+            return null;
+        }
+
+        $segments = array_values(array_filter(array_map('trim', explode('/', $path))));
+        $last = end($segments) ?: '';
+        $last = preg_replace('/[^a-z0-9\\-]+/i', '-', $last);
+        $last = trim($last, '-');
+        if ($last === '') {
+            return null;
+        }
+
+        $parts = array_values(array_filter(explode('-', $last)));
+        if (empty($parts)) {
+            return null;
+        }
+
+        $title = implode(' ', $parts);
+        [$year, $make, $model] = $this->extractListAmVehicleFromTitle($title);
+
+        return [
+            'make' => $make ?: 'Неизвестно',
+            'model' => $model ?: 'Неизвестно',
+            'year' => $year ?: (int) date('Y'),
+            'mileage' => null,
+            'exterior_color' => null,
+            'transmission' => 'automatic',
+            'fuel_type' => 'gasoline',
+            'engine_displacement_cc' => null,
+            'body_type' => null,
+            'photos' => [],
+            'source_auction_url' => $url,
+            'auction_ends_at' => null,
+            'buy_now_price' => null,
+            'buy_now_currency' => null,
+            'current_bid_price' => null,
+            'current_bid_currency' => null,
+            'operational_status' => null,
+        ];
     }
 
     private function shouldForceRetry(?array $result): ?string

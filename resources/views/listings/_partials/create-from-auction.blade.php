@@ -5,7 +5,7 @@
 
         <div class="mb-6">
             <p class="text-gray-600 mb-4">
-                {{ __('Вставьте ссылку на автомобиль с поддерживаемого аукциона Copart.') }}
+                {{ __('Вставьте ссылку на автомобиль с Copart.') }}
                 {{ __('Система автоматически извлечет основные данные об автомобиле.') }}
             </p>
         </div>
@@ -72,12 +72,26 @@ document.addEventListener('DOMContentLoaded', function() {
         generic: @json(__('Произошла ошибка')),
         request: @json(__('Произошла ошибка при обработке запроса')),
     };
+    const allowedHosts = ['copart.com'];
 
     fetchButton.addEventListener('click', async function() {
         const url = urlInput.value.trim();
 
         if (!url) {
             showError(messages.empty);
+            return;
+        }
+
+        // Простая клиентская проверка домена
+        try {
+            const host = new URL(url).hostname.toLowerCase();
+            const ok = allowedHosts.some((domain) => host === domain || host.endsWith('.' + domain));
+            if (!ok) {
+                showError(@json(__('Поддерживаются только ссылки с Copart.')));
+                return;
+            }
+        } catch (e) {
+            showError(messages.generic);
             return;
         }
 

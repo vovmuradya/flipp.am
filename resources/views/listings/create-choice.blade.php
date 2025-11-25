@@ -8,6 +8,7 @@
                 </p>
             </div>
             <div class="create-choice__grid">
+                {{-- Слева: обычное объявление --}}
                 <a href="{{ route('listings.create') }}" class="create-choice__card">
                     <div class="create-choice__icon">
                         <i class="fa-solid fa-file-lines"></i>
@@ -22,6 +23,22 @@
                     </span>
                 </a>
 
+                {{-- Центр: импорт с внешнего сайта (List.am) --}}
+                <a href="{{ route('listings.create-from-external') }}" class="create-choice__card">
+                    <div class="create-choice__icon">
+                        <i class="fa-solid fa-globe"></i>
+                    </div>
+                    <h3 class="create-choice__card-title">{{ __('Объявление с другого сайта') }}</h3>
+                    <p class="create-choice__card-text">
+                        {{ __('Вставьте ссылку с List.am — подтянем фото и параметры, а вы сразу отредактируете под себя.') }}
+                    </p>
+                    <span class="create-choice__cta">
+                        {{ __('Перейти к импорту') }}
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </span>
+                </a>
+
+                {{-- Справа: импорт с Copart --}}
                 <a href="{{ route('listings.create-from-auction') }}" class="create-choice__card create-choice__card--auction">
                     <div class="create-choice__icon">
                         <i class="fa-solid fa-gavel"></i>

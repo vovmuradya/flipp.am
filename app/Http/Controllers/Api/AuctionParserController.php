@@ -12,6 +12,7 @@ class AuctionParserController extends Controller
 {
     private const ALLOWED_AUCTION_DOMAINS = [
         'copart.com',
+        'list.am',
     ];
 
     /**
@@ -29,7 +30,7 @@ class AuctionParserController extends Controller
             return response()->json([
                 'success' => false,
                 'fallback' => true,
-                'message' => 'Поддерживаются только ссылки с аукциона Copart.',
+                'message' => 'Поддерживаются только ссылки с Copart или List.am.',
                 'data' => [
                     'source_auction_url' => $url
                 ]
@@ -95,6 +96,10 @@ class AuctionParserController extends Controller
             return 'copart';
         }
 
+        if (str_contains($url, 'list.am')) {
+            return 'listam';
+        }
+
         return null;
     }
 
@@ -124,6 +129,10 @@ class AuctionParserController extends Controller
     {
         if ($type === 'copart') {
             return $this->parseCopart($url);
+        }
+
+        if ($type === 'listam') {
+            return $this->parseListAm($url);
         }
 
         return null;
@@ -158,6 +167,50 @@ class AuctionParserController extends Controller
             ];
         } catch (\Exception $e) {
             Log::error('Copart parsing failed: ' . $e->getMessage());
+            return [
+                'make' => null,
+                'model' => null,
+                'year' => null,
+                'mileage' => null,
+                'body_type' => null,
+                'transmission' => null,
+                'fuel_type' => null,
+                'engine_displacement_cc' => null,
+                'exterior_color' => null,
+                'source_auction_url' => $url,
+                'photos' => [],
+            ];
+        }
+    }
+
+    /**
+     * Парсинг List.am с использованием AuctionParserService
+     */
+    private function parseListAm(string $url): array
+    {
+        try {
+            $service = app(\App\Services\AuctionParserService::class);
+            $data = $service->parseFromUrl($url, aggressive: false);
+
+            if ($data && !empty($data['make'])) {
+                return $data;
+            }
+
+            return [
+                'make' => null,
+                'model' => null,
+                'year' => null,
+                'mileage' => null,
+                'body_type' => null,
+                'transmission' => null,
+                'fuel_type' => null,
+                'engine_displacement_cc' => null,
+                'exterior_color' => null,
+                'source_auction_url' => $url,
+                'photos' => [],
+            ];
+        } catch (\Exception $e) {
+            Log::error('List.am parsing failed: ' . $e->getMessage());
             return [
                 'make' => null,
                 'model' => null,

@@ -48,7 +48,9 @@ Route::get('/media/{media}/{conversion?}', [MediaController::class, 'show'])
 Route::middleware('auth')->group(function () {
     Route::get('/listings/create/choose', [ListingController::class, 'createChoice'])->name('listings.create-choice');
     Route::get('/listings/create-from-auction', [ListingController::class, 'createFromAuction'])->name('listings.create-from-auction');
+    Route::get('/listings/create-from-external', [ListingController::class, 'createFromExternal'])->name('listings.create-from-external');
     Route::post('/listings/import-auction', [ListingController::class, 'importAuctionListing'])->name('listings.import-auction');
+    Route::post('/listings/import-external', [ListingController::class, 'importExternalListing'])->name('listings.import-external');
 
     Route::resource('listings', ListingController::class)->only(['create', 'store', 'edit', 'update', 'destroy']);
 
