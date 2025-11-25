@@ -203,9 +203,12 @@
                         return;
                     }
 
+                    // Явно отправляем форму после показа индикатора (чтобы не требовался второй клик)
+                    event.preventDefault();
                     loadingModal?.classList.remove('d-none');
                     submitButton?.setAttribute('disabled', 'disabled');
                     submitButton?.classList.add('disabled');
+                    form.submit();
                 });
             });
         </script>

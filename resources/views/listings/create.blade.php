@@ -290,7 +290,7 @@
                                     }
                                 }
                                 $proxyBase = route('proxy.image', [], false);
-                                $trimParam = 'trim_top=18';
+                                $trimParam = 'trim_top=20';
                                 $finalPhotos[] = $proxyBase . '?u=' . rawurlencode($upstream) . ($auctionRef ? ('&r=' . rawurlencode($auctionRef)) : '') . '&' . $trimParam;
                             }
                         }

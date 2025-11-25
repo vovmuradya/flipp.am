@@ -1618,8 +1618,8 @@ a:hover {
 
 .create-choice__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
 }
 
 .create-choice__card {
@@ -1693,7 +1693,7 @@ a:hover {
 
 @media (min-width: 768px) {
     .create-choice__card {
-        padding: 18px;
+        padding: 16px;
     }
 }
 
