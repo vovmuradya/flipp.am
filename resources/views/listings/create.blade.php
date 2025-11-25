@@ -559,21 +559,6 @@
                                 $prefillPreview[__('Լյուկ')] = $val ? $yesLabel : $noLabel;
                             }
                         @endphp
-                        @if(!empty($prefillPreview))
-                            <div class="alert alert-info mb-4">
-                                <div class="fw-semibold mb-2">{{ __('Լրացված տվյալներ') }}</div>
-                                <div class="row g-2">
-                                    @foreach($prefillPreview as $label => $value)
-                                        <div class="col-sm-6">
-                                            <div class="d-flex justify-content-between">
-                                                <span class="text-muted">{{ $label }}</span>
-                                                <span class="fw-semibold">{{ $value }}</span>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
                     @endif
 
                     @if ($errors->any())
@@ -995,7 +980,7 @@
                             </div>
                         @endif
 
-                        @if(! $ad || !($copartSource ?? false))
+                        @if(! $ad)
                             @include('listings.partials.region-dropdown', [
                                 'regions' => $regions,
                                 'selectedRegion' => old('region_id'),
