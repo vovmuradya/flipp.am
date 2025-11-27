@@ -104,3 +104,6 @@ Route::post('/listings/{listing}/favorite', [FavoriteController::class, 'toggle'
 
 Route::get('/listings/{listing}', [ListingController::class, 'show'])->name('listings.show');
 require __DIR__.'/auth.php';
+
+// Страница настроек дилера
+Route::get('/settings/dealer', [App\Http\Controllers\DealerController::class, 'edit'])->name('dealer.settings')->middleware('auth');
