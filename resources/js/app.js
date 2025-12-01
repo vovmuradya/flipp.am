@@ -154,14 +154,10 @@ onDocumentReady(() => {
         };
 
         const realPanWidth = () => state.panelWidth + state.gap;
+        const hasLoop = () => realPanels.length > 1 && state.loopLength > 0;
 
         const normalizeLoopScroll = (value) => {
-            if (!panels.length) {
-                return value;
-            }
-
-            const hasLoop = realPanels.length > 1 && state.loopLength > 0;
-            if (!hasLoop) {
+            if (!hasLoop()) {
                 return Math.min(state.maxBound, Math.max(state.minBound, value));
             }
 
@@ -169,17 +165,25 @@ onDocumentReady(() => {
             const loopEnd = loopStart + state.loopLength;
             const buffer = state.step || 1;
 
-            if (value < loopStart - buffer) {
+            if (value <= loopStart - buffer) {
                 return value + state.loopLength;
             }
-            if (value > loopEnd - buffer) {
+            if (value >= loopEnd) {
                 return value - state.loopLength;
             }
 
             return value;
         };
 
-        const clampScroll = (value) => normalizeLoopScroll(value);
+        const clampScroll = (value) => {
+            if (!hasLoop()) {
+                return Math.min(state.maxBound, Math.max(state.minBound, value));
+            }
+            const span = state.step || 1;
+            const min = state.loopStart - span; // allow entering the prepended clone
+            const max = state.loopStart + state.loopLength + span; // allow entering the appended clone
+            return Math.min(max, Math.max(min, value));
+        };
 
         let momentumId = null;
         let momentumLastTime = null;
@@ -246,7 +250,7 @@ onDocumentReady(() => {
             }
 
             const rawTarget = viewport.scrollLeft + direction * state.step;
-            const target = clampScroll(rawTarget);
+            const target = hasLoop() ? clampScroll(rawTarget) : Math.min(state.maxBound, Math.max(state.minBound, rawTarget));
 
             if (Math.abs(target - viewport.scrollLeft) < 1) {
                 return;

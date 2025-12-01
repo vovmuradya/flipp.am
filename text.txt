@@ -24,7 +24,8 @@ git push
 
 serverum
 cd /home/admin/web/idrom.am/public_html
-git pull --rebase
+git pull --ff-only
+
 npm ci && npm run build
 
 git pull origin main
