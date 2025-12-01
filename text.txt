@@ -17,7 +17,10 @@ git pull
 git rev-parse HEAD
 
 localum
-git pull --rebase
+git add .
+git commit -m "Update"
+git push
+
 
 serverum
 cd /home/admin/web/idrom.am/public_html
