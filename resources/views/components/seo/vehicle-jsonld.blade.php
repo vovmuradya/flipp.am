@@ -45,7 +45,8 @@
 
     $photos = [];
     if ($listing->relationLoaded('media')) {
-        foreach ($listing->getMedia(['images', 'auction_photos']) as $media) {
+        $mediaItems = $listing->media->whereIn('collection_name', ['images', 'auction_photos']);
+        foreach ($mediaItems as $media) {
             $photos[] = route('media.show', ['media' => $media->id]);
         }
     }

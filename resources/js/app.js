@@ -364,7 +364,6 @@ onDocumentReady(() => {
                 return;
             }
 
-            event.preventDefault();
             stopMomentumScroll();
 
             isPointerDragging = true;

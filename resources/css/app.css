@@ -51,7 +51,7 @@ a:hover {
 }
 
 .brand-section--fullwidth {
-    padding: 32px 0;
+    padding: 0;
 }
 
 .brand-container--fluid {
@@ -1073,6 +1073,27 @@ a:hover {
     .listing-grid--compact {
         --listing-card-min-width: 200px;
     }
+
+    /* Buy-now карточка на мобиле во всю ширину (без боковых полей контейнера) */
+    .brand-listing-card--buy-now {
+        width: calc(100% + 40px);
+        margin-left: -20px;
+        margin-right: -20px;
+    }
+
+    /* Прячем регион под заголовком для buy-now карточек на мобиле */
+    .brand-listing-card--buy-now .brand-listing-card__meta {
+        display: none;
+    }
+
+    /* Делаем фото выше, чтобы крупнее показывать контент в buy-now карточках */
+    .brand-listing-card--buy-now .brand-listing-card__media {
+        height: 210px;
+    }
+
+    .brand-listing-card--buy-now .brand-listing-card__media img {
+        height: 210px;
+    }
 }
 
 .brand-listing-card {
@@ -1323,6 +1344,21 @@ a:hover {
     .brand-slider .brand-listing-card__media img {
         min-height: auto;
         height: 150px;
+    }
+
+    .brand-slider .brand-listing-card__content {
+        padding: 8px 10px 10px;
+    }
+
+    .brand-slider .brand-listing-card__content > * {
+        display: none;
+    }
+
+    .brand-slider .brand-listing-card__title {
+        display: -webkit-box;
+        font-size: 12px;
+        margin: 0;
+        line-height: 1.2;
     }
 
     .brand-listing-card__content {

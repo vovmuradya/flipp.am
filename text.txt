@@ -17,12 +17,13 @@ git pull
 git rev-parse HEAD
 
 localum
-git add .
-git commit -m "Full update"
-git push origin main
+git pull --rebase
 
 serverum
 cd /home/admin/web/idrom.am/public_html
+git pull --rebase
+npm ci && npm run build
+
 git pull origin main
 php artisan config:clear
 php artisan cache:clear

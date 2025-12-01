@@ -6,7 +6,7 @@
     @endphp
     <section class="brand-section {{ $isFullWidth ? 'brand-section--fullwidth' : '' }}">
         @if(!$onlyRegular && !$onlyAuctions && $featuredListings->isNotEmpty())
-            <div class="brand-slider brand-slider--fullwidth mt-5" data-slider="auction">
+            <div class="brand-slider brand-slider--fullwidth" data-slider="auction">
                 <div class="brand-slider__header">
                     <div>
                         <h3 class="brand-slider__title">{{ __('Актуальные автомобили') }}</h3>
