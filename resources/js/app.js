@@ -94,7 +94,8 @@ onDocumentReady(() => {
             panelWidth: 0,
             peek: 0,
             step: 0,
-            totalScroll: 0,
+            loopStart: 0,
+            loopLength: 0,
             minBound: 0,
             maxBound: 0,
             visibleCards: VISIBLE_FULL_CARDS_DESKTOP,
@@ -136,25 +137,20 @@ onDocumentReady(() => {
             slider.style.setProperty('--brand-slider-card-width', `${cardWidth}px`);
             applyPeekSpacing();
 
-            state.totalScroll = Math.max(0, track.scrollWidth - viewport.clientWidth);
             state.minBound = 0;
-            state.maxBound = state.totalScroll;
+            state.maxBound = Math.max(0, track.scrollWidth - viewport.clientWidth);
+
+            const firstReal = realPanels[0];
+            state.loopStart = firstReal ? firstReal.offsetLeft : 0;
+            state.loopLength = realPanWidth() * realPanels.length;
 
             updateNavState();
         };
 
         const updateNavState = () => {
-            const tolerance = 2;
-            const availableScroll = state.maxBound - state.minBound;
-            const hasScroll = availableScroll > tolerance;
-
-            if (prevBtn) {
-                prevBtn.disabled = !hasScroll || viewport.scrollLeft <= state.minBound + tolerance;
-            }
-
-            if (nextBtn) {
-                nextBtn.disabled = !hasScroll || viewport.scrollLeft >= state.maxBound - tolerance;
-            }
+            const hasScroll = realPanels.length > 1;
+            prevBtn && (prevBtn.disabled = !hasScroll);
+            nextBtn && (nextBtn.disabled = !hasScroll);
         };
 
         const realPanWidth = () => state.panelWidth + state.gap;
@@ -163,22 +159,23 @@ onDocumentReady(() => {
             if (!panels.length) {
                 return value;
             }
-            const totalWidth = track.scrollWidth;
-            if (totalWidth <= 0) {
-                return value;
+
+            const hasLoop = realPanels.length > 1 && state.loopLength > 0;
+            if (!hasLoop) {
+                return Math.min(state.maxBound, Math.max(state.minBound, value));
             }
 
-            const length = realPanWidth() * realPanels.length;
-            if (length <= 0) {
-                return value;
+            const loopStart = state.loopStart;
+            const loopEnd = loopStart + state.loopLength;
+            const buffer = state.step || 1;
+
+            if (value < loopStart - buffer) {
+                return value + state.loopLength;
+            }
+            if (value > loopEnd - buffer) {
+                return value - state.loopLength;
             }
 
-            if (value < 0) {
-                return value + length;
-            }
-            if (value > length) {
-                return value - length;
-            }
             return value;
         };
 
@@ -228,7 +225,8 @@ onDocumentReady(() => {
                 velocity -= decel;
 
                 const velocityMagnitude = Math.abs(velocity);
-                const reachedEdge = nextScroll === state.minBound || nextScroll === state.maxBound;
+                const hasLoop = realPanels.length > 1 && state.loopLength > 0;
+                const reachedEdge = !hasLoop && (nextScroll === state.minBound || nextScroll === state.maxBound);
                 if (velocityMagnitude < MIN_VELOCITY || elapsed >= MAX_DURATION || reachedEdge) {
                     stopMomentumScroll();
                     updateNavState();
@@ -278,6 +276,10 @@ onDocumentReady(() => {
 
             rafId = window.requestAnimationFrame(() => {
                 rafId = null;
+                const normalized = normalizeLoopScroll(viewport.scrollLeft);
+                if (normalized !== viewport.scrollLeft) {
+                    viewport.scrollLeft = normalized;
+                }
                 updateNavState();
             });
         };
@@ -433,7 +435,8 @@ onDocumentReady(() => {
 
             const centerOffset = Math.max(state.visibleCards - VISIBLE_FULL_CARDS_MOBILE, 0);
             const initialIndex = centerOffset > 0 ? Math.floor(centerOffset / 2) : 0;
-            const target = clampScroll(initialIndex * state.step + state.minBound);
+            const targetBase = state.loopStart || 0;
+            const target = clampScroll(targetBase + initialIndex * state.step);
 
             viewport.scrollLeft = target;
 
