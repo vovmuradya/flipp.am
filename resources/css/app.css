@@ -48,6 +48,17 @@ a:hover {
     .brand-container {
         padding: 0;
     }
+
+    .brand-surface {
+        padding: 0;
+        background: #fff;
+        box-shadow: 0 12px 28px rgba(18, 18, 18, 0.12);
+        border-radius: 12px;
+    }
+
+    .listing-grid {
+        gap: 0;
+    }
 }
 
 .brand-section--fullwidth {
@@ -402,7 +413,7 @@ a:hover {
 /*. brand-section--fullwidth adjustments removed - ensure surfaces only change where needed */
 
 .brand-section {
-    padding: 48px 0;
+    padding: 0 0 48px;
 }
 
 .auth-body {
@@ -1041,7 +1052,7 @@ a:hover {
     background: var(--brand-white);
     border-radius: 18px;
     box-shadow: 0 20px 40px rgba(18, 18, 18, 0.06);
-    padding: 24px;
+    padding: 0;
 }
 
 .listing-grid {
@@ -1067,11 +1078,11 @@ a:hover {
 
 @media (max-width: 575.98px) {
     .listing-grid {
-        --listing-card-min-width: 220px;
+        --listing-card-min-width: 100%;
     }
 
     .listing-grid--compact {
-        --listing-card-min-width: 200px;
+        --listing-card-min-width: 100%;
     }
 
     /* Buy-now карточка на мобиле во всю ширину (без боковых полей контейнера) */
@@ -1145,8 +1156,8 @@ a:hover {
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
     margin-bottom: clamp(40px, 6vw, 90px);
-    padding-top: clamp(16px, 3vw, 40px);
-    padding-bottom: clamp(32px, 5vw, 80px);
+    padding-top: clamp(12px, 2vw, 24px);
+    padding-bottom: 0;
     overflow: visible;
 }
 
@@ -1207,7 +1218,7 @@ a:hover {
 
 .brand-slider__track {
     display: flex;
-    gap: var(--brand-slider-gap);
+    gap: 0;
     align-items: stretch;
     user-select: none;
 }
@@ -1274,6 +1285,10 @@ a:hover {
 .brand-slider__nav-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+.brand-slider__nav-btn.splide__arrow::before {
+    display: none;
 }
 
 .brand-slider__track > * {
@@ -1730,6 +1745,176 @@ a:hover {
 @media (min-width: 768px) {
     .create-choice__card {
         padding: 16px;
+    }
+}
+
+@media (max-width: 767px) {
+    .create-choice__grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .create-choice__card {
+        padding: 16px;
+        border-radius: 16px;
+        gap: 12px;
+    }
+
+    .create-choice__icon {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+        border-radius: 14px;
+    }
+
+    .create-choice__card-title {
+        font-size: 16px;
+    }
+
+    .create-choice__card-text {
+        font-size: 13px;
+    }
+
+    .create-choice__cta {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 767px) {
+    /* Карточки в listing-grid делаем квадратными на всю ширину */
+    .listing-grid .brand-listing-card {
+        position: relative;
+        padding: 0;
+        border: none;
+        background: transparent;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: hidden;
+    }
+
+    .listing-grid .brand-listing-card__media {
+        aspect-ratio: 1 / 1;
+        height: auto;
+        min-height: 0;
+        width: 100%;
+        border-radius: 0;
+    }
+
+    .listing-grid .brand-listing-card__media img {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+    }
+
+    .listing-grid .brand-listing-card__content {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 8px 10px 10px;
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.8) 100%);
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-end;
+        gap: 2px;
+    }
+
+    .listing-grid .brand-listing-card__title {
+        margin: 0;
+        font-size: 17px;
+        line-height: 1.25;
+        color: #fff;
+    }
+
+    .listing-grid .brand-listing-card__price {
+        margin: 0;
+        font-size: 15px;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0;
+    }
+
+    .listing-grid .brand-listing-card__price-label {
+        display: none;
+    }
+
+    .listing-grid .brand-listing-card__price-value {
+        color: #fff;
+        font-weight: 700;
+    }
+
+    .listing-grid .brand-listing-card__meta,
+    .listing-grid .brand-listing-card__status,
+    .listing-grid .brand-listing-card__bid-line,
+    .listing-grid .brand-listing-card__bid-label,
+    .listing-grid .brand-listing-card__bid-value,
+    .listing-grid .brand-listing-card__timer[data-slider-timer] {
+        display: none;
+    }
+}
+
+@media (max-width: 767px) {
+    /* Мобильный вид в слайдере: только фото и название, без цены/ставки */
+    .brand-slider .brand-listing-card {
+        position: relative;
+        padding: 0;
+        border: none;
+        background: transparent;
+        border-radius: 14px;
+        box-shadow: 0 12px 28px rgba(18, 18, 18, 0.12);
+        overflow: hidden;
+    }
+
+    .brand-slider .brand-listing-card__media {
+        aspect-ratio: 1 / 1;
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        border-radius: 14px;
+    }
+
+    .brand-slider .brand-listing-card__media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .brand-slider .brand-listing-card__content {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 8px 10px 10px;
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.85) 100%);
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-end;
+        gap: 2px;
+    }
+
+    .brand-slider .brand-listing-card__title {
+        margin: 0;
+        font-size: 17px;
+        line-height: 1.25;
+        color: #fff;
+    }
+
+    .brand-slider .brand-listing-card__price,
+    .brand-slider .brand-listing-card__price-label,
+    .brand-slider .brand-listing-card__price-value,
+    .brand-slider .brand-listing-card__meta,
+    .brand-slider .brand-listing-card__status,
+    .brand-slider .brand-listing-card__bid-line,
+    .brand-slider .brand-listing-card__bid-label,
+    .brand-slider .brand-listing-card__bid-value,
+    .brand-slider .brand-listing-card__timer[data-slider-timer] {
+        display: none;
     }
 }
 

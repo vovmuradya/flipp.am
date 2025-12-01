@@ -6,60 +6,31 @@
     @endphp
     <section class="brand-section {{ $isFullWidth ? 'brand-section--fullwidth' : '' }}">
         @if(!$onlyRegular && !$onlyAuctions && $featuredListings->isNotEmpty())
-            <div class="brand-slider brand-slider--fullwidth" data-slider="auction">
-                <div class="brand-slider__header">
-                    <div>
-                        <h3 class="brand-slider__title">{{ __('Актуальные автомобили') }}</h3>
-                        <p class="brand-slider__subtitle">{{ __('Смешанная подборка из аукционов и частных объявлений.') }}</p>
-                    </div>
-                </div>
-
-                <div class="brand-slider__viewport" data-slider-viewport>
-                    <div class="brand-slider__track" data-slider-track>
+            <div class="brand-slider brand-slider--fullwidth splide" data-slider="auction">
+                <div class="brand-slider__viewport splide__track" data-slider-viewport>
+                    <ul class="brand-slider__track splide__list" data-slider-track>
                         @foreach($featuredListings as $listing)
                             @php
                                 $isAuction = $listing->isFromAuction();
                                 $expiresAt = $isAuction ? optional($listing->vehicleDetail)->auction_ends_at : null;
                             @endphp
-                            <div class="brand-slider__panel">
+                            <li class="brand-slider__panel splide__slide">
                                 <x-listing.card
                                     :listing="$listing"
                                     :expires="$expiresAt"
                                 />
-                            </div>
+                            </li>
                         @endforeach
-                    </div>
+                    </ul>
                 </div>
 
-                <div class="brand-slider__nav brand-slider__nav--floating">
-                    <button type="button" class="brand-slider__nav-btn" data-slider-prev aria-label="{{ __('Предыдущие аукционные объявления') }}" disabled>
+                <div class="brand-slider__nav brand-slider__nav--floating splide__arrows">
+                    <button type="button" class="brand-slider__nav-btn splide__arrow splide__arrow--prev" data-slider-prev aria-label="{{ __('Предыдущие аукционные объявления') }}">
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
-                    <button type="button" class="brand-slider__nav-btn" data-slider-next aria-label="{{ __('Следующие аукционные объявления') }}">
+                    <button type="button" class="brand-slider__nav-btn splide__arrow splide__arrow--next" data-slider-next aria-label="{{ __('Следующие аукционные объявления') }}">
                         <i class="fa-solid fa-chevron-right"></i>
                     </button>
-                </div>
-            </div>
-        @endif
-
-        @if(!$onlyRegular && !$onlyAuctions && ($dealers ?? collect())->isNotEmpty())
-            <div class="brand-container mt-5">
-                <div class="brand-slider__header mb-3">
-                    <div>
-                        <h3 class="brand-slider__title">{{ __('dealer.our_dealers') }}</h3>
-                        <p class="brand-slider__subtitle">{{ __('dealer.become') }}</p>
-                    </div>
-                </div>
-                <div class="dealer-logos-grid">
-                    @foreach($dealers as $dealer)
-                        <a href="{{ route('dealers.show', $dealer->slug) }}" class="dealer-logo-card">
-                            @if($dealer->logo)
-                                <img src="{{ $dealer->logo }}" alt="{{ $dealer->company_name }}" loading="lazy">
-                            @else
-                                <div class="dealer-logo-placeholder">{{ $dealer->company_name }}</div>
-                            @endif
-                        </a>
-                    @endforeach
                 </div>
             </div>
         @endif

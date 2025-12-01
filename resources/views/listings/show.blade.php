@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div class="py-12">
+    <div class="py-12 listing-page">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
@@ -146,16 +146,6 @@
                                         <span aria-hidden="true">&rarr;</span>
                                     </button>
                                 </div>
-
-                                <template x-if="images.length > 1">
-                                    <div class="listing-slider__thumbs mt-3" x-cloak>
-                                        <template x-for="(img, idx) in images" :key="idx">
-                                            <button type="button" class="listing-slider__thumb" :class="{ 'is-active': idx === index }" @click="go(idx)">
-                                                <img :src="img" :alt="'{{ addslashes($listing->title) }} - ' + @js(__('фото')) + ' ' + (idx + 1)" @@error="handleError($event)">
-                                            </button>
-                                        </template>
-                                    </div>
-                                </template>
                             </div>
 
                             <div class="text-gray-600 flex flex-wrap gap-2">
@@ -520,7 +510,7 @@
                     background: #f8fafc;
                     border: 1px solid #e2e8f0;
                     border-radius: 1.25rem;
-                    padding: 1.25rem;
+                    padding: 0.5rem 1rem;
                     min-height: 280px;
                     max-height: 520px;
                     aspect-ratio: 4 / 3;
@@ -534,7 +524,7 @@
                     height: 100%;
                     object-fit: contain;
                     background: #ffffff;
-                    border-radius: 0.85rem;
+                    border-radius: 0.6rem;
                     box-shadow: inset 0 0 30px rgba(15, 23, 42, 0.04);
                 }
                 .listing-slider__nav {
@@ -558,37 +548,40 @@
                 }
                 .listing-slider__nav--prev { left: 1rem; }
                 .listing-slider__nav--next { right: 1rem; }
-                .listing-slider__thumbs {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 0.75rem;
-                }
-                .listing-slider__thumb {
-                    width: 110px;
-                    height: 78px;
-                    border-radius: 0.75rem;
-                    border: 2px solid transparent;
-                    overflow: hidden;
-                    background: #f1f5f9;
-                    padding: 0;
-                    cursor: pointer;
-                    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
-                }
-                .listing-slider__thumb img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    pointer-events: none;
-                }
-                .listing-slider__thumb:hover { transform: translateY(-2px); }
-                .listing-slider__thumb.is-active {
-                    border-color: #4f46e5;
-                    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+                @media (max-width: 640px) {
+                    .listing-slider__viewport {
+                        padding: 0.5rem;
+                        min-height: 240px;
+                        width: 100vw;
+                        margin-left: calc(50% - 50vw);
+                        margin-right: calc(50% - 50vw);
+                        border-radius: 0;
+                    }
+                    .listing-slider__image {
+                        border-radius: 0;
+                    }
+                    .listing-slider__nav { width: 38px; height: 38px; }
                 }
                 @media (max-width: 640px) {
-                    .listing-slider__viewport { padding: 0.75rem; min-height: 220px; }
-                    .listing-slider__nav { width: 38px; height: 38px; }
-                    .listing-slider__thumb { width: 86px; height: 62px; }
+                    .listing-page h1,
+                    .listing-page .text-3xl {
+                        font-size: 1.5rem !important;
+                    }
+                    .listing-page .text-4xl {
+                        font-size: 1.75rem !important;
+                    }
+                    .listing-page .text-2xl {
+                        font-size: 1.25rem !important;
+                    }
+                    .listing-page .text-xl {
+                        font-size: 1.125rem !important;
+                    }
+                    .listing-page .text-lg {
+                        font-size: 1rem !important;
+                    }
+                    .listing-page .text-base {
+                        font-size: 0.95rem !important;
+                    }
                 }
             </style>
         @endpush

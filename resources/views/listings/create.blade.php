@@ -587,6 +587,7 @@
                           x-on:submit.prevent="handleSubmit($event)"
                           class="space-y-6">
                         @csrf
+                        <input type="hidden" name="_form_token" value="{{ $formToken ?? session('listing_form_token') }}">
 
                         @unless($ad)
                             <input type="hidden" name="section" :value="selectedType || ''">
@@ -986,30 +987,6 @@
                                 </div>
                             </div>
                         @endif
-<<<<<<< HEAD
-
-                        @unless($isAuctionFlow)
-                            @include('listings.partials.region-dropdown', [
-                                'regions' => $regions,
-                                'selectedRegion' => old('region_id'),
-                                'fieldId' => 'region_id',
-                                'fieldName' => 'region_id',
-                                'label' => __('Регион'),
-                                'required' => true,
-                            ])
-                        @endunless
-
-
-	@unless($isAuctionFlow)
-                        @include('listings.partials.region-dropdown', [
-                            'regions' => $regions,
-                            'selectedRegion' => old('region_id'),
-                            'fieldId' => 'region_id',
-                            'fieldName' => 'region_id',
-                            'label' => __('Регион'),
-                            'required' => true,
-                        ])
-	@endunless
                         @if(! $ad)
                             @php
                                 $imagesError = $errors->has('images') || $errors->has('images.*');

@@ -257,6 +257,9 @@ class ListingController extends Controller
             return $redirect;
         }
 
+        $formToken = (string) Str::uuid();
+        session()->put('listing_form_token', $formToken);
+
         $defaultVehicleCategoryId = VehicleCategoryResolver::resolve();
 
         // ИСПРАВЛЕНО: не используем несуществующий scope active()
@@ -285,18 +288,32 @@ class ListingController extends Controller
             'auctionData',
             'defaultVehicleCategoryId',
             'fromAuctionFlow',
-            'fromExternalFlow'
+            'fromExternalFlow',
+            'formToken'
         ));
     }
 
     /**
      * Страница выбора типа объявления перед созданием
      */
-    public function createChoice()
+    public function createChoice(Request $request)
     {
         if ($redirect = $this->ensurePhoneVerified()) {
             return $redirect;
         }
+
+        // Если пользователь только что открывал выбор объявлений и вернулся назад,
+        // повторный клик по "Создать объявление" отправляем на главную
+        $lastVisitTs = (int) session('create_choice_last_visit', 0);
+        $now = now()->getTimestamp();
+        $cooldownSeconds = 10;
+
+        if ($lastVisitTs && ($now - $lastVisitTs) < $cooldownSeconds) {
+            session()->forget('create_choice_last_visit');
+            return redirect()->route('home');
+        }
+
+        session(['create_choice_last_visit' => $now]);
 
         return view('listings.create-choice');
     }
@@ -705,6 +722,15 @@ class ListingController extends Controller
     {
         if ($redirect = $this->ensurePhoneVerified()) {
             return $redirect;
+        }
+
+        $sessionToken = $request->session()->pull('listing_form_token');
+        $incomingToken = $request->input('_form_token');
+        if (!$sessionToken || !$incomingToken || !hash_equals($sessionToken, $incomingToken)) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['form' => __('Форма уже была отправлена или устарела. Обновите страницу.')]);
         }
 
         try {

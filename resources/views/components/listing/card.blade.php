@@ -150,6 +150,7 @@
                 data-expires="{{ $expiresIso }}"
                 data-prefix="{{ __('Осталось') }}"
                 data-expired-text="{{ __('Лот завершён') }}"
+                data-slider-timer
             >
                 <span data-countdown-text>
                     @if($isExpired)
