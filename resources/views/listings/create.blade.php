@@ -1,3 +1,6 @@
+@php
+    $isAuctionFlow = request()->boolean('from_auction') || old('vehicle.is_from_auction') == 1;
+@endphp
 @extends('layouts.app')
 
 @section('content')
@@ -983,6 +986,7 @@
                                 </div>
                             </div>
                         @endif
+<<<<<<< HEAD
 
                         @unless($isAuctionFlow)
                             @include('listings.partials.region-dropdown', [
@@ -995,6 +999,17 @@
                             ])
                         @endunless
 
+
+	@unless($isAuctionFlow)
+                        @include('listings.partials.region-dropdown', [
+                            'regions' => $regions,
+                            'selectedRegion' => old('region_id'),
+                            'fieldId' => 'region_id',
+                            'fieldName' => 'region_id',
+                            'label' => __('Регион'),
+                            'required' => true,
+                        ])
+	@endunless
                         @if(! $ad)
                             @php
                                 $imagesError = $errors->has('images') || $errors->has('images.*');
