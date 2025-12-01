@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\RefreshCopartCurrentBids::class,
         \App\Console\Commands\BackfillAuctionPhotos::class,
         \App\Console\Commands\ExpireEndedAuctions::class,
+        \App\Console\Commands\RecalculatePricingAndTrust::class,
     ];
 
     /**
@@ -45,6 +46,11 @@ class Kernel extends ConsoleKernel
             ->everyTenMinutes()
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/auction-expire.log'));
+
+        $schedule->command('listings:recalculate-pricing --limit=500')
+            ->dailyAt('03:00')
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/pricing-recalc.log'));
     }
 
     /**

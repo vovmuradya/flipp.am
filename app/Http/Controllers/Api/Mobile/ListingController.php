@@ -177,6 +177,14 @@ class ListingController extends Controller
             'price_asc' => $query->orderBy('price', 'asc'),
             'price_desc' => $query->orderBy('price', 'desc'),
             'created_at_asc' => $query->orderBy('created_at', 'asc'),
+            'trust' => $query
+                ->orderByDesc(
+                    \App\Models\User::select('seller_score')
+                        ->whereColumn('users.id', 'listings.user_id')
+                )
+                ->orderBy('price_anomaly')
+                ->orderByDesc('imv_value')
+                ->orderByDesc('price_badge'),
             default => $query->orderBy('created_at', 'desc'),
         };
     }

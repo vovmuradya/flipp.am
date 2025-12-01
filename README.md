@@ -75,6 +75,17 @@ If you still need to paste cookies manually, `php artisan copart:update-cookies`
 
 > **Heads-up:** Copart теперь выдаёт нужные cookies (ak_bmsc, bm_sv, Incapsula) только после полноценной загрузки страницы в браузере. Поэтому скрипт требует установленного Chromium (Puppeteer ставит его автоматически) и базовые зависимости `libnss3`, `libatk1.0-0`, `libx11-xcb1` и т.д. На прод-сервере, где запрещён доступ к GUI, этого всё равно достаточно — Chromium запускается в режиме `--no-sandbox`.
 
+## Safe Deal / Call Masking (каркасы)
+
+- Эскроу: API `/api/mobile/escrow/*` (create/index/capture/release), модель `escrow_transactions` и сервис `EscrowService`. Провайдер задаётся через `ESCROW_PROVIDER` (`stub` по умолчанию), секрет вебхука — `ESCROW_WEBHOOK_SECRET`.
+- Поддерживаемые провайдеры (каркас): `idram` (`IDRAM_ESCROW_URL/IDRAM_ESCROW_KEY`), `telcell` (`TELCELL_ESCROW_URL/TELCELL_ESCROW_KEY`), или `stub`.
+- Call masking: API `/api/mobile/calls/start` и `/api/mobile/calls/end`, таблица `call_sessions`, сервис `CallMaskingService`. Требуется интеграция с телефонией для реального прокси-номера и записи звонков.
+
+## Programmatic SEO
+- Лендинги по комбинациям фильтров: `/pseo/{path}` (например, `/pseo/diesel/toyota/camry/under-10000`).
+- Sitemap доступен по `/sitemap.xml`, включает последние объявления и pSEO-комбинации.
+- JSON-LD Schema.org `Vehicle` подключён на странице объявления.
+
 ## Android mobile client
 
 The `mobile-app/` folder now contains a starter Jetpack Compose application that consumes the `/api/mobile/*` endpoints exposed by this Laravel backend. Open the folder in Android Studio (Iguana or newer), sync Gradle, and run the `app` module. By default it points to `http://10.0.2.2:8000/` so that the Android emulator can talk to `php artisan serve`. Adjust `BuildConfig.API_BASE_URL` inside `app/build.gradle.kts` if you need a different host.

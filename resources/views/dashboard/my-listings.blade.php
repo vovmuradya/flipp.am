@@ -109,9 +109,31 @@
                                 <p class="card-text text-muted small mb-1">
                                     {{ $listing->region?->localized_name ?? __('Регион не указан') }}
                                 </p>
-                                <p class="card-text fw-semibold mb-2">
+                                <p class="card-text fw-semibold mb-1">
                                     {{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}
                                 </p>
+                                @if($listing->out_the_door_price)
+                                    <p class="card-text text-muted small mb-1">
+                                        {{ __('Итого (OTD):') }} {{ number_format($listing->out_the_door_price, 0, '.', ' ') }} {{ $listing->currency }}
+                                    </p>
+                                @endif
+                                @if($listing->price_badge)
+                                    @php
+                                        $labels = [
+                                            'great' => __('Great Deal'),
+                                            'fair' => __('Fair Deal'),
+                                            'overpriced' => __('Overpriced'),
+                                            'unknown' => __('Цена не оценена'),
+                                        ];
+                                        $label = $labels[$listing->price_badge] ?? $listing->price_badge;
+                                    @endphp
+                                    <span class="badge rounded-pill text-bg-dark">
+                                        {{ $label }}
+                                        @if($listing->price_anomaly)
+                                            <span class="ms-1 text-warning-emphasis text-uppercase small">{{ __('Проверить') }}</span>
+                                        @endif
+                                    </span>
+                                @endif
                                 <p class="card-text text-muted small mt-auto mb-2">
                                     {{ __('Добавлено: :date', ['date' => $listing->created_at->format('d.m.Y')]) }}
                                 </p>

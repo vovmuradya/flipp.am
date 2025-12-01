@@ -16,6 +16,10 @@ data class ListingDto(
     val status: String?,
     @Json(name = "listing_type") val listingType: String?,
     val price: PriceDto?,
+    @Json(name = "price_badge") val priceBadge: String?,
+    @Json(name = "price_anomaly") val priceAnomaly: Boolean?,
+    @Json(name = "imv_value") val imvValue: Double?,
+    @Json(name = "out_the_door_price") val outTheDoorPrice: Double?,
     @Json(name = "is_buy_now_available") val isBuyNowAvailable: Boolean?,
     @Json(name = "buy_now_price") val buyNowPrice: Double?,
     @Json(name = "buy_now_currency") val buyNowCurrency: String?,
@@ -45,6 +49,7 @@ data class SellerDto(
     val name: String?,
     val phone: String?,
     val role: String?,
+    @Json(name = "seller_score") val sellerScore: Double?,
 )
 
 data class VehicleDto(

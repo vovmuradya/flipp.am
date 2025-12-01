@@ -16,14 +16,18 @@ class ListingRequest extends FormRequest
     public function rules()
     {
         $maxImages = auth()->user()?->getMaxPhotosPerListing() ?? 6;
+        $isAuctionFlow = $this->boolean('from_auction') || $this->input('vehicle.is_from_auction') == 1;
 
         $rules = [
             'title' => ['required', 'string', 'min:3', 'max:255'],
             'description' => ['required', 'string', 'min:20', 'max:5000'],
             'price' => ['required', 'numeric', 'min:0', 'max:999999999'],
+            'out_the_door_price' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'currency' => ['nullable', 'string', Rule::in(['USD', 'AMD', 'RUB'])],
             'category_id' => ['required', 'exists:categories,id'],
-            'region_id' => ['nullable', 'exists:regions,id'],
+            'region_id' => $isAuctionFlow
+                ? ['nullable', 'exists:regions,id']
+                : ['required', 'exists:regions,id'],
             'images' => ['nullable', 'array', 'max:'.$maxImages],
             'images.*' => ['image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
             'custom_fields' => ['sometimes', 'array'],
@@ -32,10 +36,6 @@ class ListingRequest extends FormRequest
             // ТЗ v2.1: listing_type
             'listing_type' => ['sometimes', 'in:vehicle,parts'],
         ];
-
-        if ($this->boolean('from_auction') || $this->input('vehicle.is_from_auction') == 1) {
-            $rules['region_id'] = ['nullable', 'exists:regions,id'];
-        }
 
         $listing = $this->route('listing');
         if (in_array($this->method(), ['PUT','PATCH']) && $listing && method_exists($listing, 'isFromAuction') && $listing->isFromAuction()) {
@@ -79,6 +79,7 @@ class ListingRequest extends FormRequest
             'price.numeric' => 'Цена должна быть числом',
             'price.min' => 'Цена не может быть отрицательной',
             'category_id.required' => 'Выберите категорию',
+            'region_id.required' => 'Выберите регион',
 
             'vehicle.make.required' => 'Марка обязательна.',
             'vehicle.model.required' => 'Модель обязательна.',

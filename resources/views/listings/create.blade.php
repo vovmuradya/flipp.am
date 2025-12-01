@@ -984,14 +984,16 @@
                             </div>
                         @endif
 
-                        @include('listings.partials.region-dropdown', [
-                            'regions' => $regions,
-                            'selectedRegion' => old('region_id'),
-                            'fieldId' => 'region_id',
-                            'fieldName' => 'region_id',
-                            'label' => __('Регион'),
-                            'required' => true,
-                        ])
+                        @unless($isAuctionFlow)
+                            @include('listings.partials.region-dropdown', [
+                                'regions' => $regions,
+                                'selectedRegion' => old('region_id'),
+                                'fieldId' => 'region_id',
+                                'fieldName' => 'region_id',
+                                'label' => __('Регион'),
+                                'required' => true,
+                            ])
+                        @endunless
 
                         @if(! $ad)
                             @php

@@ -82,6 +82,12 @@ private fun ListingPrice(listing: Listing) {
         val currency = price.currency ?: "USD"
         price.amount?.let { amount -> String.format("%,.0f %s", amount, currency) }
     }
+    val otdText = listing.outTheDoorPrice?.let { otd ->
+        val currency = otd.currency ?: listing.price?.currency ?: "USD"
+        otd.amount?.let { amount -> String.format("OTD: %,.0f %s", amount, currency) }
+    }
+    val badge = listing.priceBadge ?: "—"
+    val sellerScore = listing.sellerScore?.let { "Trust: ${it.toInt()}" }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -99,6 +105,40 @@ private fun ListingPrice(listing: Listing) {
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+
+    otdText?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Сделка: $badge",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (listing.priceAnomaly) {
+            Text(
+                text = "Проверить",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        sellerScore?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
     }

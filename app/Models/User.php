@@ -29,6 +29,10 @@ class User extends Authenticatable
         'provider_token',
         'provider_refresh_token',
         'is_dealer',
+        'seller_score',
+        'seller_score_calculated_at',
+        'kyc_status',
+        'kyc_verified_at',
     ];
 
     protected $hidden = [
@@ -47,6 +51,9 @@ class User extends Authenticatable
             'phone_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_dealer' => 'boolean',
+            'seller_score' => 'float',
+            'seller_score_calculated_at' => 'datetime',
+            'kyc_verified_at' => 'datetime',
         ];
     }
 

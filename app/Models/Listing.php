@@ -26,6 +26,11 @@ class Listing extends Model implements HasMedia
         'slug',
         'description',
         'price',
+        'imv_value',
+        'out_the_door_price',
+        'price_badge',
+        'price_anomaly',
+        'price_analysis',
         'currency',
         'status',
         'views_count',
@@ -42,6 +47,8 @@ class Listing extends Model implements HasMedia
         return [
             'promoted_until' => 'datetime',
             'last_bumped_at' => 'datetime',
+            'price_anomaly' => 'boolean',
+            'price_analysis' => 'array',
             'auction_photo_urls' => 'array',
             'refreshed_at' => 'datetime',
         ];
@@ -170,7 +177,7 @@ class Listing extends Model implements HasMedia
     public function toSearchableArray(): array
     {
         // Загружаем связи, чтобы избежать N+1
-        $this->loadMissing(['customFieldValues.field', 'vehicleDetail']);
+        $this->loadMissing(['customFieldValues.field', 'vehicleDetail', 'user']);
 
         $searchableData = [
             'id'                => $this->id,
@@ -184,6 +191,11 @@ class Listing extends Model implements HasMedia
             'listing_type'      => $this->listing_type,
             'created_timestamp' => optional($this->created_at)->timestamp,
             'is_from_auction'   => $this->isFromAuction(),
+            'imv_value'         => $this->imv_value ? (float) $this->imv_value : null,
+            'out_the_door_price'=> $this->out_the_door_price ? (float) $this->out_the_door_price : null,
+            'price_badge'       => $this->price_badge,
+            'price_anomaly'     => (bool) $this->price_anomaly,
+            'seller_score'      => optional($this->user)->seller_score,
         ];
 
         // Поля автомобиля (ТЗ v2.1)

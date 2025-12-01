@@ -23,6 +23,10 @@ class ListingResource extends JsonResource
                 'amount' => $this->price !== null ? (float) $this->price : null,
                 'currency' => $this->currency,
             ],
+            'price_badge' => $this->price_badge,
+            'price_anomaly' => (bool) $this->price_anomaly,
+            'imv_value' => $this->imv_value !== null ? (float) $this->imv_value : null,
+            'out_the_door_price' => $this->out_the_door_price !== null ? (float) $this->out_the_door_price : null,
             'is_buy_now_available' => $vehicle?->buy_now_price !== null,
             'buy_now_price' => $vehicle?->buy_now_price !== null ? (float) $vehicle->buy_now_price : null,
             'buy_now_currency' => $vehicle?->buy_now_currency,
@@ -42,6 +46,7 @@ class ListingResource extends JsonResource
                     'name' => $this->user?->name,
                     'phone' => $this->user?->phone,
                     'role' => $this->user?->role,
+                    'seller_score' => $this->user?->seller_score,
                 ];
             }),
             'vehicle' => $vehicle ? [

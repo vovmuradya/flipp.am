@@ -18,6 +18,8 @@ use App\Http\Controllers\DealerProfileController;
 use App\Http\Controllers\DealerPaymentController;
 use App\Http\Controllers\DealerListController;
 use App\Http\Controllers\ListingRefreshController;
+use App\Http\Controllers\ProgrammaticSeoController;
+use App\Http\Controllers\SitemapController;
 
 /*
 |--------------------------------------------------------------------------
@@ -107,3 +109,11 @@ require __DIR__.'/auth.php';
 
 // Страница настроек дилера
 Route::get('/settings/dealer', [App\Http\Controllers\DealerController::class, 'edit'])->name('dealer.settings')->middleware('auth');
+
+// Programmatic SEO landing pages (генератор лендингов по комбинациям фильтров)
+Route::get('/pseo/{path?}', [ProgrammaticSeoController::class, 'show'])
+    ->where('path', '.*')
+    ->name('pseo.show');
+
+// Sitemap (pSEO + последние объявления)
+Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.index');

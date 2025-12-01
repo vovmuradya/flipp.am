@@ -24,6 +24,9 @@ use App\Support\VehicleAttributeOptions;
 use App\Models\CarBrand;
 use App\Support\SearchQueryHelper;
 use App\Models\DealerProfile;
+use App\Services\Pricing\ImvService;
+use App\Services\SellerScoreService;
+use App\Models\User;
 class ListingController extends Controller
 {
     private const ALLOWED_AUCTION_DOMAINS = [
@@ -106,6 +109,20 @@ class ListingController extends Controller
 
         if ($request->filled('currency')) {
             $query->where('currency', strtoupper($request->currency));
+        }
+
+        // ===== сортировка ===== //
+        $sort = $request->string('sort')->lower();
+        if ($sort === 'trust') {
+            $query->orderByDesc(
+                User::select('seller_score')
+                    ->whereColumn('users.id', 'listings.user_id')
+            );
+            $query->orderBy('price_anomaly');
+            $query->orderByDesc('price_badge');
+            $query->orderByDesc('imv_value');
+        } else {
+            $query->latest();
         }
 
         // ===== фильтры по vehicleDetail ===== //
@@ -705,17 +722,24 @@ class ListingController extends Controller
 
             $isFromAuction = $request->boolean('from_auction') || (int) $request->input('vehicle.is_from_auction', 0) === 1;
 
+            $outTheDoor = $request->filled('out_the_door_price') && is_numeric($request->out_the_door_price)
+                ? (float) $request->out_the_door_price
+                : null;
+
+            $regionId = ($request->filled('region_id') && is_numeric($request->input('region_id')))
+                ? (int)$request->input('region_id')
+                : ($isFromAuction ? $this->resolveDefaultRegionId() : null);
+
             $listingData = [
                 'user_id' => Auth::id(),
                 'title' => $request->title,
                 'slug' => $slug,
                 'description' => $request->description,
                 'price' => $request->price,
+                'out_the_door_price' => $outTheDoor,
                 'currency' => strtoupper($request->input('currency', 'USD')),
                 'category_id' => $request->category_id,
-                'region_id' => ($request->filled('region_id') && is_numeric($request->input('region_id')))
-                    ? (int)$request->input('region_id')
-                    : null,
+                'region_id' => $regionId,
                 'status' => 'active',
                 'language' => $request->input('language', app()->getLocale()),
             ];
@@ -861,6 +885,10 @@ class ListingController extends Controller
                     ImportAuctionPhotos::dispatch($listing->id, $photoUrls);
                 }
             }
+
+            // Пересчет IMV/бейджей
+            $this->applyPricing($listing);
+            $this->updateSellerScore($listing);
 
             DB::commit();
 
@@ -1161,13 +1189,14 @@ class ListingController extends Controller
             DB::beginTransaction();
 
             if ($listing->isFromAuction()) {
-                // Для аукционных — только цена и описание
-                $listing->update($request->only(['price', 'description']));
+                // Для аукционных — только цена, OTD и описание
+                $listing->update($request->only(['price', 'out_the_door_price', 'description']));
             } else {
                 $update = [
                     'title' => $request->title,
                     'description' => $request->description,
                     'price' => $request->price,
+                    'out_the_door_price' => $request->input('out_the_door_price'),
                     'category_id' => $request->category_id,
                     'region_id' => ($request->filled('region_id') && is_numeric($request->input('region_id')))
                         ? (int)$request->input('region_id')
@@ -1213,8 +1242,12 @@ class ListingController extends Controller
                 } else {
                     ImportAuctionPhotos::dispatchSync($listing->id, $photoUrls);
                 }
+                }
             }
-        }
+
+            // Пересчет IMV/бейджей
+            $this->applyPricing($listing);
+            $this->updateSellerScore($listing);
 
             DB::commit();
 
@@ -1303,5 +1336,54 @@ class ListingController extends Controller
             ->filter()
             ->values()
             ->all();
+    }
+
+    /**
+     * Обновляет IMV/бейджи/аномалии на основе текущего состояния listing.
+     */
+    private function applyPricing(Listing $listing): void
+    {
+        try {
+            $service = app(ImvService::class);
+            $result = $service->analyze($listing);
+
+            $listing->fill([
+                'imv_value' => $result['imv_value'] ?? null,
+                'price_badge' => $result['price_badge'] ?? null,
+                'price_anomaly' => $result['price_anomaly'] ?? false,
+                'price_analysis' => $result['price_analysis'] ?? null,
+            ]);
+
+            $listing->save();
+        } catch (\Throwable $e) {
+            Log::warning('Pricing calculation failed', [
+                'listing_id' => $listing->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Обновляет seller_score пользователя после публикации/обновления объявления.
+     */
+    private function updateSellerScore(Listing $listing): void
+    {
+        try {
+            $service = app(SellerScoreService::class);
+            $service->update($listing->user, $listing);
+        } catch (\Throwable $e) {
+            Log::warning('Seller score calculation failed', [
+                'user_id' => $listing->user_id,
+                'listing_id' => $listing->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function resolveDefaultRegionId(): ?int
+    {
+        return Cache::remember('default_region_id', 3600, function () {
+            return Region::query()->orderBy('id')->value('id');
+        });
     }
 }

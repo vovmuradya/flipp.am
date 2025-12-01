@@ -171,6 +171,32 @@
                                         <span>{{ __('Цена объявления') }}</span>
                                         <strong>{{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}</strong>
                                     </li>
+                                    @if($listing->out_the_door_price)
+                                        <li>
+                                            <span>{{ __('Итого (OTD)') }}</span>
+                                            <strong>{{ number_format($listing->out_the_door_price, 0, '.', ' ') }} {{ $listing->currency }}</strong>
+                                        </li>
+                                    @endif
+                                    @if($listing->price_badge)
+                                        @php
+                                            $labels = [
+                                                'great' => __('Great Deal'),
+                                                'fair' => __('Fair Deal'),
+                                                'overpriced' => __('Overpriced'),
+                                                'unknown' => __('Цена не оценена'),
+                                            ];
+                                            $label = $labels[$listing->price_badge] ?? $listing->price_badge;
+                                        @endphp
+                                        <li>
+                                            <span>{{ __('Оценка цены') }}</span>
+                                            <strong>
+                                                {{ $label }}
+                                                @if($listing->price_anomaly)
+                                                    <span class="text-warning ms-2 text-uppercase small">{{ __('Проверить') }}</span>
+                                                @endif
+                                            </strong>
+                                        </li>
+                                    @endif
                                 </ul>
                                 <div class="auction-card__actions">
                                     <a href="{{ route('listings.show', $listing) }}" class="btn btn-brand-gradient">

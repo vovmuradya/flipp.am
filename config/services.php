@@ -69,4 +69,14 @@ return [
         'default_sender' => env('MSGRUSH_DEFAULT_SENDER', '0000'),
     ],
 
+    'escrow' => [
+        'provider' => env('ESCROW_PROVIDER', 'stub'), // idram|telcell|bank|stub
+        'webhook_secret' => env('ESCROW_WEBHOOK_SECRET'),
+        'sandbox' => env('ESCROW_SANDBOX', true),
+        'idram_base_url' => env('IDRAM_ESCROW_URL', 'https://api.idram.am'),
+        'idram_api_key' => env('IDRAM_ESCROW_KEY'),
+        'telcell_base_url' => env('TELCELL_ESCROW_URL', 'https://api.telcell.am'),
+        'telcell_api_key' => env('TELCELL_ESCROW_KEY'),
+    ],
+
 ];

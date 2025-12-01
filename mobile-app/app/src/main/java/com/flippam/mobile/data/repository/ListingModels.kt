@@ -15,12 +15,16 @@ data class Listing(
     val status: String?,
     val location: String?,
     val price: Money?,
+    val outTheDoorPrice: Money?,
+    val priceBadge: String?,
+    val priceAnomaly: Boolean,
     val buyNowPrice: Money?,
     val vehicleSummary: String?,
     val mileage: Int?,
     val previewPhoto: String?,
     val isFavorite: Boolean,
     val favoritesCount: Int,
+    val sellerScore: Double?,
 )
 
 data class ListingQuery(
@@ -34,7 +38,7 @@ data class ListingQuery(
     val isCopart: Boolean? = null,
     val page: Int = 1,
     val perPage: Int = 20,
-    val sort: String? = null,
+    val sort: String? = "trust",
 )
 
 internal fun ListingDto.toDomain(): Listing {
@@ -52,6 +56,9 @@ internal fun ListingDto.toDomain(): Listing {
         status = status,
         location = locationLabel,
         price = price?.let { Money(it.amount, it.currency) },
+        outTheDoorPrice = outTheDoorPrice?.let { Money(it, price?.currency) },
+        priceBadge = priceBadge,
+        priceAnomaly = priceAnomaly ?: false,
         buyNowPrice = if (buyNowPrice != null || buyNowCurrency != null) {
             Money(buyNowPrice, buyNowCurrency)
         } else null,
@@ -60,6 +67,7 @@ internal fun ListingDto.toDomain(): Listing {
         previewPhoto = preview,
         isFavorite = isFavorite ?: false,
         favoritesCount = favoritesCount ?: 0,
+        sellerScore = seller?.sellerScore,
     )
 }
 

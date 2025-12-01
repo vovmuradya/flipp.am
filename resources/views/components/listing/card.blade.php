@@ -115,6 +115,16 @@
         ? ($buyNowCurrency ?? 'USD')
         : ($listing->currency ?? $buyNowCurrency ?? 'USD');
     $isBuyNowPrimary = $isBuyNowAvailable && $displayPrice === $buyNowPrice;
+
+    $badgeMap = [
+        'great' => ['label' => __('Great Deal'), 'class' => 'bg-emerald-500'],
+        'fair' => ['label' => __('Fair Deal'), 'class' => 'bg-sky-500'],
+        'overpriced' => ['label' => __('Overpriced'), 'class' => 'bg-amber-500'],
+        'unknown' => ['label' => __('Цена не оценена'), 'class' => 'bg-slate-500'],
+    ];
+    $priceBadge = $listing->price_badge ?? null;
+    $priceBadgeMeta = $priceBadge ? ($badgeMap[$priceBadge] ?? null) : null;
+    $outTheDoor = $listing->out_the_door_price;
 @endphp
 
 <div class="brand-listing-card{{ $isBuyNowAvailable ? ' brand-listing-card--buy-now' : '' }}">
@@ -185,6 +195,19 @@
                     {{ $displayPrice !== null ? number_format($displayPrice, 0, '.', ' ') . ' ' . $displayCurrency : __('Цена уточняется') }}
                 </span>
             </p>
+            @if($outTheDoor)
+                <div class="text-sm text-slate-600">
+                    {{ __('Итого (OTD):') }} {{ number_format($outTheDoor, 0, '.', ' ') }} {{ $displayCurrency }}
+                </div>
+            @endif
+            @if($priceBadgeMeta)
+                <div class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-white {{ $priceBadgeMeta['class'] }}">
+                    {{ $priceBadgeMeta['label'] }}
+                    @if($listing->price_anomaly)
+                        <span class="ml-1 text-[10px] uppercase tracking-wide">{{ __('Проверить') }}</span>
+                    @endif
+                </div>
+            @endif
             @if($currentBidPrice !== null)
                 <div class="brand-listing-card__bid-line">
                     <span class="brand-listing-card__bid-label">{{ __('Текущая ставка') }}</span>

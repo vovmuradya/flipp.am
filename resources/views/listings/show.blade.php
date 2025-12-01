@@ -175,6 +175,15 @@
                                 $currentBidPrice = $vehicleDetail?->current_bid_price;
                                 $currentBidCurrency = $vehicleDetail?->current_bid_currency ?: $displayCurrency;
                                 $currentBidFetchedAt = $vehicleDetail?->current_bid_fetched_at;
+                                $outTheDoor = $listing->out_the_door_price;
+                                $priceBadge = $listing->price_badge;
+                                $priceBadgeLabels = [
+                                    'great' => __('Great Deal'),
+                                    'fair' => __('Fair Deal'),
+                                    'overpriced' => __('Overpriced'),
+                                    'unknown' => __('Цена не оценена'),
+                                ];
+                                $priceBadgeLabel = $priceBadge ? ($priceBadgeLabels[$priceBadge] ?? $priceBadge) : null;
                             @endphp
 
                             <div class="flex flex-col gap-1">
@@ -189,6 +198,19 @@
                                     @endif
                                 </span>
                             </div>
+                            @if($outTheDoor)
+                                <div class="mt-2 text-base text-slate-700">
+                                    {{ __('Итоговая стоимость (OTD):') }} <strong>{{ number_format($outTheDoor, 0, '.', ' ') }} {{ $displayCurrency }}</strong>
+                                </div>
+                            @endif
+                            @if($priceBadgeLabel)
+                                <div class="mt-2 inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+                                    {{ $priceBadgeLabel }}
+                                    @if($listing->price_anomaly)
+                                        <span class="bg-amber-400 text-slate-900 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide">{{ __('Проверить цену') }}</span>
+                                    @endif
+                                </div>
+                            @endif
                             @if($isBuyNowAvailable)
                                 <div class="mt-3 inline-flex flex-wrap items-baseline gap-3 rounded-xl bg-amber-50 px-4 py-3 text-amber-800">
                                     <span class="text-xs font-semibold uppercase tracking-wide">{{ __('Купить сейчас') }}</span>
@@ -631,3 +653,7 @@
         @endpush
     @endonce
 </x-app-layout>
+
+@push('head')
+    @include('components.seo.vehicle-jsonld', ['listing' => $listing])
+@endpush

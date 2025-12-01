@@ -16,6 +16,8 @@ use App\Http\Controllers\Api\Mobile\FavoriteController as MobileFavoriteControll
 use App\Http\Controllers\Api\Mobile\ListingController as MobileListingController;
 use App\Http\Controllers\Api\Mobile\MyListingController as MobileMyListingController;
 use App\Http\Controllers\Api\Mobile\ProfileController as MobileProfileController;
+use App\Http\Controllers\Api\Payments\EscrowController;
+use App\Http\Controllers\Api\Calls\CallMaskingController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -54,6 +56,20 @@ Route::prefix('mobile')
             Route::get('/auth/me', [MobileAuthController::class, 'me'])->name('auth.me');
             Route::post('/auth/logout', [MobileAuthController::class, 'logout'])->name('auth.logout');
             Route::post('/auth/refresh', [MobileAuthController::class, 'refreshToken'])->name('auth.refresh');
+
+            // Safe Deal / Escrow (каркас)
+            Route::post('/escrow/create', [EscrowController::class, 'create'])->name('escrow.create');
+            Route::get('/escrow', [EscrowController::class, 'index'])->name('escrow.index');
+            Route::post('/escrow/capture', [EscrowController::class, 'capture'])->name('escrow.capture');
+            Route::post('/escrow/release', [EscrowController::class, 'release'])->name('escrow.release');
+            Route::post('/escrow/webhook', [EscrowController::class, 'webhook'])
+                ->withoutMiddleware('auth:sanctum')
+                ->middleware('escrow.webhook')
+                ->name('escrow.webhook');
+
+            // Call Masking (каркас)
+            Route::post('/calls/start', [CallMaskingController::class, 'start'])->name('calls.start');
+            Route::post('/calls/end', [CallMaskingController::class, 'end'])->name('calls.end');
 
             Route::get('/profile', [MobileProfileController::class, 'show'])->name('profile.show');
             Route::put('/profile', [MobileProfileController::class, 'update'])->name('profile.update');

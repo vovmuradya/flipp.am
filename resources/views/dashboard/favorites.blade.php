@@ -56,8 +56,30 @@
                                         <span>{{ __('Категория:') }} {{ $catName }}</span>
                                     </div>
                                     <div class="text-lg font-bold text-gray-800 mt-2">
-                                        ${{ number_format($listing->price, 0) }}
+                                        {{ number_format($listing->price, 0) }} {{ $listing->currency }}
                                     </div>
+                                    @if($listing->out_the_door_price)
+                                        <div class="text-sm text-slate-600">
+                                            {{ __('Итого (OTD):') }} {{ number_format($listing->out_the_door_price, 0) }} {{ $listing->currency }}
+                                        </div>
+                                    @endif
+                                    @if($listing->price_badge)
+                                        @php
+                                            $labels = [
+                                                'great' => __('Great Deal'),
+                                                'fair' => __('Fair Deal'),
+                                                'overpriced' => __('Overpriced'),
+                                                'unknown' => __('Цена не оценена'),
+                                            ];
+                                            $label = $labels[$listing->price_badge] ?? $listing->price_badge;
+                                        @endphp
+                                        <div class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white mt-1">
+                                            {{ $label }}
+                                            @if($listing->price_anomaly)
+                                                <span class="bg-amber-400 text-slate-900 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide">{{ __('Проверить цену') }}</span>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                             {{-- Кнопка для удаления из избранного --}}

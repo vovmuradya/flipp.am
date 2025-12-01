@@ -81,6 +81,25 @@
                 ])
             @else
                 <div class="brand-surface">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+                        <h3 class="h5 mb-0">{{ __('Объявления') }}</h3>
+                        <form method="GET" class="d-flex align-items-center gap-2">
+                            @foreach(request()->except('sort') as $key => $value)
+                                @if(is_array($value))
+                                    @foreach($value as $val)
+                                        <input type="hidden" name="{{ $key }}[]" value="{{ $val }}">
+                                    @endforeach
+                                @else
+                                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                                @endif
+                            @endforeach
+                            <label for="sort" class="text-muted small mb-0">{{ __('Сортировка') }}</label>
+                            <select name="sort" id="sort" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="latest" {{ request('sort') === 'latest' ? 'selected' : '' }}>{{ __('Сначала новые') }}</option>
+                                <option value="trust" {{ request('sort') === 'trust' ? 'selected' : '' }}>{{ __('По доверию (Seller Score)') }}</option>
+                            </select>
+                        </form>
+                    </div>
                     <div class="listing-grid">
                     @forelse ($listings as $listing)
                         <x-listing.card :listing="$listing" />
