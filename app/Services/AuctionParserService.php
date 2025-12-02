@@ -56,7 +56,7 @@ class AuctionParserService
 
             $result = $this->parseListAm($url);
             if ($result !== null) {
-                Cache::put($cacheKey, $result, now()->addMinutes(10));
+                Cache::put($cacheKey, $result, now()->addMinutes(60));
             }
 
             return $result;
@@ -976,7 +976,16 @@ class AuctionParserService
         try {
             Log::info('🔍 Parsing List.am URL: ' . $url);
 
-            $payload = $this->fetchListAmViaHeadless($url);
+            $payload = $this->parseListAmStatic($url);
+
+            $needsHeadless = !is_array($payload) || count($payload['images'] ?? []) < 1;
+            if ($needsHeadless) {
+                $headlessPayload = $this->fetchListAmViaHeadless($url);
+                if (is_array($headlessPayload)) {
+                    $payload = $headlessPayload;
+                }
+            }
+
             if (!is_array($payload)) {
                 Log::warning('⚠️ List.am headless returned no payload', ['url' => $url]);
                 return $this->parseListAmFromSlug($url);
@@ -1080,6 +1089,117 @@ class AuctionParserService
         }
 
         return false;
+    }
+
+    private function parseListAmStatic(string $url): ?array
+    {
+        try {
+            $response = Http::withHeaders([
+                'User-Agent' => config('services.listam.user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
+                'Accept-Language' => 'ru,en;q=0.9',
+                'Referer' => 'https://www.list.am/',
+            ])
+                ->timeout(12)
+                ->get($url);
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $html = $response->body();
+            if (!is_string($html) || trim($html) === '') {
+                return null;
+            }
+
+            if (stripos($html, 'cf-browser-verification') !== false || stripos($html, 'challenge-platform') !== false) {
+                return null;
+            }
+
+            $title = $this->extractMetaContent($html, 'og:title')
+                ?: $this->matchFirst($html, ['/\\b<h1[^>]*>([^<]+)<\\/h1>/i']);
+            $description = $this->extractMetaContent($html, 'og:description')
+                ?: $this->matchFirst($html, ['/<div[^>]+itemprop=["\']description["\'][^>]*>(.*?)<\\/div>/is']);
+
+            $price = $this->matchFirst($html, [
+                '/property=["\']product:price:amount["\'][^>]+content=["\']([^"\']+)["\']/i',
+                '/itemprop=["\']price["\'][^>]+content=["\']([^"\']+)["\']/i',
+                '/itemprop=["\']price["\'][^>]*>([^<]+)/i',
+            ]);
+            $currency = $this->matchFirst($html, [
+                '/property=["\']product:price:currency["\'][^>]+content=["\']([^"\']+)["\']/i',
+                '/itemprop=["\']priceCurrency["\'][^>]+content=["\']([^"\']+)["\']/i',
+            ]);
+
+            $images = [];
+            $seen = [];
+            $pushImage = function (?string $value) use (&$images, &$seen, $url) {
+                if (!is_string($value)) {
+                    return;
+                }
+                $normalized = $this->normalizeExternalImageUrl($value, $url);
+                if (!$normalized || !$this->isLikelyListAmPhoto($normalized)) {
+                    return;
+                }
+                $key = strtolower($normalized);
+                if (isset($seen[$key])) {
+                    return;
+                }
+                $seen[$key] = true;
+                $images[] = $normalized;
+            };
+
+            $pushImage($this->extractMetaContent($html, 'og:image'));
+
+            if (preg_match_all('/<script[^>]+application\\/ld\\+json[^>]*>(.*?)<\\/script>/is', $html, $matches)) {
+                foreach ($matches[1] as $scriptBody) {
+                    $decoded = json_decode(trim($scriptBody), true);
+                    if (!is_array($decoded)) {
+                        continue;
+                    }
+
+                    $candidates = array_is_list($decoded) ? $decoded : [$decoded];
+                    foreach ($candidates as $item) {
+                        if (!is_array($item)) {
+                            continue;
+                        }
+                        $imagesField = $item['images'] ?? $item['image'] ?? null;
+                        if (is_string($imagesField)) {
+                            $pushImage($imagesField);
+                        } elseif (is_array($imagesField)) {
+                            foreach ($imagesField as $img) {
+                                $pushImage(is_string($img) ? $img : null);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (preg_match_all('/<img[^>]+src=["\']([^"\']+)["\'][^>]*>/i', $html, $imgMatches)) {
+                foreach ($imgMatches[1] as $imgSrc) {
+                    $pushImage($imgSrc);
+                }
+            }
+
+            $mileage = null;
+            if (is_string($description) && $description !== '') {
+                $mileage = $this->extractMileageFromText($description);
+            }
+            if ($mileage === null) {
+                $mileage = $this->extractMileageFromText($html);
+            }
+
+            return [
+                'title' => $title ?: null,
+                'description' => $description ?: null,
+                'price' => $price ?: null,
+                'currency' => $currency ?: null,
+                'mileage' => $mileage,
+                'images' => $images,
+            ];
+        } catch (\Throwable $e) {
+            Log::debug('List.am static parse failed', ['url' => $url, 'error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     private function fetchListAmViaHeadless(string $url): ?array
@@ -1223,6 +1343,23 @@ class AuctionParserService
         }
 
         return $imgUrl;
+    }
+
+    private function isLikelyListAmPhoto(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST) ?: '';
+        $path = parse_url($url, PHP_URL_PATH) ?: '';
+
+        $host = is_string($host) ? strtolower($host) : '';
+        $path = is_string($path) ? strtolower($path) : '';
+
+        if ($host === '' || !str_contains($host, 'list.am')) {
+            return false;
+        }
+
+        return (bool) preg_match('/\\/(f|r)\\/\\d+\\/\\d+\\.(jpe?g|png|webp)$/i', $path)
+            || (bool) preg_match('/\\/images\\/\\d+\\/\\d+\\.(jpe?g|png|webp)$/i', $path)
+            || (bool) preg_match('/\\/mphotos\\/.+\\.(jpe?g|png|webp)$/i', $path);
     }
 
     /**

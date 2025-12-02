@@ -122,7 +122,7 @@ async function main() {
         });
 
         await page.goto(targetUrl, {
-            waitUntil: 'networkidle2',
+            waitUntil: 'domcontentloaded',
             timeout: 60000,
         });
 
@@ -130,15 +130,16 @@ async function main() {
         await page.evaluate(async () => {
             await new Promise((resolve) => {
                 let totalHeight = 0;
-                const distance = 500;
+                const distance = 600;
+                const maxHeight = Math.min(document.body.scrollHeight, 5000);
                 const timer = setInterval(() => {
                     window.scrollBy(0, distance);
                     totalHeight += distance;
-                    if (totalHeight >= document.body.scrollHeight) {
+                    if (totalHeight >= maxHeight) {
                         clearInterval(timer);
                         resolve();
                     }
-                }, 100);
+                }, 80);
             });
         });
 
@@ -148,16 +149,16 @@ async function main() {
             const mainImg = await page.$(mainImageSelector);
             if (mainImg) {
                 await mainImg.click({ delay: 50 });
-                for (let i = 0; i < 25; i++) {
+                for (let i = 0; i < 12; i++) {
                     await page.keyboard.press('ArrowRight');
-                    await sleep(120);
+                    await sleep(90);
                 }
             }
         } catch (_) {
             // best effort
         }
 
-        await sleep(700);
+        await sleep(450);
 
         const raw = await page.evaluate((itemId) => {
             const textContent = (selector) => {
