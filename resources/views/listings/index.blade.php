@@ -4,7 +4,7 @@
         $onlyAuctions = $onlyAuctions ?? false;
         $isFullWidth = $onlyRegular || $onlyAuctions;
     @endphp
-    <section class="brand-section {{ $isFullWidth ? 'brand-section--fullwidth' : '' }}">
+    <section class="brand-section {{ $isFullWidth ? 'brand-section--fullwidth mt-4' : '' }}">
         @if(!$onlyRegular && !$onlyAuctions && $featuredListings->isNotEmpty())
             <div class="brand-slider brand-slider--fullwidth splide" data-slider="auction">
                 <div class="brand-slider__viewport splide__track" data-slider-viewport>

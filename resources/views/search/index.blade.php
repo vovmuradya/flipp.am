@@ -8,7 +8,7 @@
 @endphp
 
 <x-app-layout>
-    <section class="brand-section brand-section--fullwidth">
+    <section class="brand-section brand-section--fullwidth mt-4">
         <div class="brand-container brand-container--fluid">
             @include('listings.partials.vehicle-search', [
                 'listings' => $listings,
