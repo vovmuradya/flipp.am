@@ -9,7 +9,7 @@
     $collapsibleId = $collapsibleId ?? 'vehicle-filter-collapsible-' . uniqid();
 @endphp
 
-<div class="vehicle-filter-card {{ $fullWidth ?? false ? 'vehicle-filter-card--fullwidth' : 'brand-surface sticky-top px-3 py-3' }}"
+<div class="vehicle-filter-card {{ $fullWidth ?? false ? 'vehicle-filter-card--fullwidth' : 'brand-surface sticky-top' }} px-3 py-3"
      data-filter-card
      @if(empty($fullWidth)) style="top: 90px; z-index: 1;" @endif>
     <form method="{{ $formMethod }}"

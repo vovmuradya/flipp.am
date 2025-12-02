@@ -26,7 +26,7 @@ git push
 serverum
 cd /home/admin/web/idrom.am/public_html
 git pull --ff-only
-
+php artisan view:clear
 npm ci && npm run build
 
 git pull origin main
