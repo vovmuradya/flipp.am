@@ -1,100 +1,124 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Редактирование аукционного объявления') }}
-        </h2>
-    </x-slot>
+    <section class="brand-section">
+        <div class="brand-container">
+            <div class="brand-section__header">
+                <h2 class="brand-section__title">{{ __('Редактирование аукционного объявления') }}</h2>
+                <p class="brand-section__subtitle">
+                    {{ __('Можно изменить цену и описание. Данные лота с аукциона остаются только для чтения.') }}
+                </p>
+            </div>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 bg-white border-b border-gray-200">
+            <div class="brand-surface p-4 p-md-5">
+                @if ($errors->any())
+                    <div class="alert alert-danger mb-4" role="alert">
+                        <p class="fw-semibold mb-2">{{ __('Обнаружены ошибки:') }}</p>
+                        <ul class="mb-0 ps-3">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
-                    @if ($errors->any())
-                        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
-                            <p class="font-bold">{{ __('Обнаружены ошибки:') }}</p>
-                            <ul>
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
+                <form action="{{ route('auction-listings.update', $listing) }}" method="POST" class="d-flex flex-column gap-4">
+                    @csrf
+                    @method('PUT')
+
+                    <div class="d-flex flex-column gap-1">
+                        <label for="title" class="brand-form-label">{{ __('Заголовок') }}</label>
+                        <input
+                            type="text"
+                            id="title"
+                            value="{{ $listing->title }}"
+                            readonly
+                            class="brand-form-control"
+                        >
+                    </div>
+
+                    @if($listing->vehicleDetail)
+                        <div class="p-3 p-md-4 rounded-4" style="background: rgba(17,24,39,0.04); border: 1px solid rgba(17,24,39,0.08);">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                                <div>
+                                    <p class="profile-card__eyebrow mb-1">{{ __('Характеристики') }}</p>
+                                    <h4 class="h6 fw-semibold mb-0">{{ __('Нередактируемые поля из аукциона') }}</h4>
+                                </div>
+                                @if($listing->vehicleDetail->source_auction_url)
+                                    <a href="{{ $listing->vehicleDetail->source_auction_url }}" target="_blank" class="btn btn-brand-outline btn-sm">
+                                        {{ __('Посмотреть на аукционе') }}
+                                    </a>
+                                @endif
+                            </div>
+                            <dl class="row mb-0 small">
+                                <dt class="col-6 col-md-3 text-muted">{{ __('Марка') }}</dt>
+                                <dd class="col-6 col-md-3">{{ $listing->vehicleDetail->make }}</dd>
+
+                                <dt class="col-6 col-md-3 text-muted">{{ __('Модель') }}</dt>
+                                <dd class="col-6 col-md-3">{{ $listing->vehicleDetail->model }}</dd>
+
+                                <dt class="col-6 col-md-3 text-muted">{{ __('Год') }}</dt>
+                                <dd class="col-6 col-md-3">{{ $listing->vehicleDetail->year }}</dd>
+
+                                <dt class="col-6 col-md-3 text-muted">{{ __('Пробег') }}</dt>
+                                <dd class="col-6 col-md-3">{{ number_format($listing->vehicleDetail->mileage) }} {{ __('км') }}</dd>
+                            </dl>
                         </div>
                     @endif
 
-                    <form action="{{ route('auction-listings.update', $listing) }}" method="POST">
-                        @csrf
-                        @method('PUT')
+                    <div class="d-flex flex-column gap-2">
+                        <label for="price" class="brand-form-label">{{ __('Цена (AMD)') }}</label>
+                        <input
+                            type="number"
+                            name="price"
+                            id="price"
+                            value="{{ old('price', $listing->price) }}"
+                            required
+                            class="brand-form-control"
+                        >
+                        @error('price')
+                            <p class="profile-form__error">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-                        <div class="space-y-6">
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900">{{ __('Основная информация') }}</h3>
-                                <p class="text-sm text-gray-500">{{ __('Вы можете изменить только цену и описание для аукционного объявления.') }}</p>
-                            </div>
+                    <div class="d-flex flex-column gap-2">
+                        <label for="description" class="brand-form-label">{{ __('Описание') }}</label>
+                        <textarea
+                            name="description"
+                            id="description"
+                            rows="5"
+                            required
+                            class="brand-form-control"
+                            style="min-height: 140px;"
+                        >{{ old('description', $listing->description) }}</textarea>
+                        @error('description')
+                            <p class="profile-form__error">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-                            <!-- Title (read-only) -->
-                            <div>
-                                <label for="title" class="block text-sm font-medium text-gray-700">{{ __('Заголовок') }}</label>
-                                <input type="text" id="title" value="{{ $listing->title }}" readonly class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed">
-                            </div>
-
-                            <!-- Vehicle Details (read-only) -->
-                            @if($listing->vehicleDetail)
-                                <div class="p-4 bg-gray-50 rounded-lg border">
-                                    <h4 class="font-medium text-gray-800 mb-2">{{ __('Характеристики (нередактируемые)') }}</h4>
-                                    <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                                        <dt class="text-gray-500">{{ __('Марка:') }}</dt><dd class="text-gray-900">{{ $listing->vehicleDetail->make }}</dd>
-                                        <dt class="text-gray-500">{{ __('Модель:') }}</dt><dd class="text-gray-900">{{ $listing->vehicleDetail->model }}</dd>
-                                        <dt class="text-gray-500">{{ __('Год:') }}</dt><dd class="text-gray-900">{{ $listing->vehicleDetail->year }}</dd>
-                                        <dt class="text-gray-500">{{ __('Пробег:') }}</dt><dd class="text-gray-900">{{ number_format($listing->vehicleDetail->mileage) }} {{ __('км') }}</dd>
-                                    </dl>
-                                    <a href="{{ $listing->vehicleDetail->source_auction_url }}" target="_blank" class="text-blue-600 hover:underline text-sm mt-2 inline-block">{{ __('Посмотреть на аукционе') }}</a>
+                    <div class="d-flex flex-column gap-2">
+                        <label class="brand-form-label">{{ __('Фотографии') }}</label>
+                        <div class="row g-3">
+                            @forelse($listing->getMedia('images') as $media)
+                                <div class="col-6 col-md-3">
+                                    <div class="ratio ratio-4x3 rounded-3 overflow-hidden border">
+                                        <img src="{{ $media->getUrl('thumb') }}" alt="{{ __('Фото') }}" class="w-100 h-100 object-fit-cover">
+                                    </div>
                                 </div>
-                            @endif
-
-                            <!-- Price (editable) -->
-                            <div>
-                                <label for="price" class="block text-sm font-medium text-gray-700">{{ __('Цена (AMD)') }}</label>
-                                <input type="number" name="price" id="price" value="{{ old('price', $listing->price) }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                @error('price')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            <!-- Description (editable) -->
-                            <div>
-                                <label for="description" class="block text-sm font-medium text-gray-700">{{ __('Описание') }}</label>
-                                <textarea name="description" id="description" rows="5" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('description', $listing->description) }}</textarea>
-                                @error('description')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            <!-- Images (read-only) -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">{{ __('Фотографии') }}</label>
-                                <div class="mt-2 grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    @forelse($listing->getMedia('images') as $media)
-                                        <div class="relative">
-                                            <img src="{{ $media->getUrl('thumb') }}" alt="{{ __('Фото') }}" class="w-full h-32 object-cover rounded-lg">
-                                        </div>
-                                    @empty
-                                        <p class="text-gray-500 col-span-full">{{ __('Фотографии отсутствуют.') }}</p>
-                                    @endforelse
-                                </div>
-                            </div>
+                            @empty
+                                <p class="text-muted mb-0">{{ __('Фотографии отсутствуют.') }}</p>
+                            @endforelse
                         </div>
+                    </div>
 
-                        <div class="mt-8 flex justify-end space-x-3">
-                            <a href="{{ route('dashboard.my-auctions') }}" class="bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300">
-                                {{ __('Отмена') }}
-                            </a>
-                            <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
-                                {{ __('Сохранить изменения') }}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    <div class="d-flex flex-wrap gap-2 justify-content-end pt-2">
+                        <a href="{{ route('dashboard.my-auctions') }}" class="btn btn-brand-outline">
+                            {{ __('Отмена') }}
+                        </a>
+                        <button type="submit" class="btn btn-brand-gradient">
+                            {{ __('Сохранить изменения') }}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
-    </div>
+    </section>
 </x-app-layout>

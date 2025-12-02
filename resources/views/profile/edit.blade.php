@@ -9,6 +9,21 @@
         </div>
     </x-slot>
 
+    @php
+        $nameParts = array_values(array_filter(explode(' ', trim($user->name ?? '')), fn ($part) => $part !== ''));
+        $firstName = $nameParts[0] ?? '';
+        $lastName = $nameParts[1] ?? '';
+        $avatarUrl = null;
+        if ($user->avatar) {
+            $avatarUrl = \Illuminate\Support\Str::startsWith($user->avatar, ['http://', 'https://'])
+                ? $user->avatar
+                : \Illuminate\Support\Facades\Storage::url($user->avatar);
+        }
+        if (!$avatarUrl) {
+            $avatarUrl = 'https://ui-avatars.com/api/?name=' . urlencode($user->name ?? 'User') . '&background=111827&color=ffffff';
+        }
+    @endphp
+
     <section class="brand-section profile-page">
         <div class="brand-container space-y-6">
             @if (session('error'))
@@ -20,7 +35,7 @@
                 </div>
             @endif
 
-            <div class="profile-page__hero brand-surface">
+            <div class="profile-page__hero brand-surface p-4 p-md-4">
                 <div>
                     <p class="profile-page__hero-label">{{ __('profile.authorized_as') }}</p>
                     <h2 class="profile-page__hero-title">{{ $user->name }}</h2>
@@ -39,7 +54,7 @@
             </div>
 
             <div class="profile-page__grid">
-                <div class="brand-surface profile-card">
+                <div class="brand-surface profile-card p-4 p-md-4">
                     <div class="profile-card__header">
                         <div>
                             <p class="profile-card__eyebrow">{{ __('profile.main_info') }}</p>
@@ -53,22 +68,37 @@
                         @endif
                     </div>
 
-                    <form method="post" action="{{ route('profile.update') }}" class="profile-form">
+                    <form method="post" action="{{ route('profile.update') }}" class="profile-form" enctype="multipart/form-data">
                         @csrf
                         @method('patch')
 
                         <div class="profile-form__group">
-                            <label for="profile_name" class="brand-form-label">{{ __('profile.name') }}</label>
+                            <label for="profile_first_name" class="brand-form-label">{{ __('Имя') }}</label>
                             <input
                                 type="text"
-                                id="profile_name"
-                                name="name"
-                                value="{{ old('name', $user->name) }}"
+                                id="profile_first_name"
+                                name="first_name"
+                                value="{{ old('first_name', $firstName) }}"
                                 class="brand-form-control"
                                 required
-                                autocomplete="name"
+                                autocomplete="given-name"
                             >
-                            @error('name')
+                            @error('first_name')
+                                <p class="profile-form__error">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="profile-form__group">
+                            <label for="profile_last_name" class="brand-form-label">{{ __('Фамилия') }}</label>
+                            <input
+                                type="text"
+                                id="profile_last_name"
+                                name="last_name"
+                                value="{{ old('last_name', $lastName) }}"
+                                class="brand-form-control"
+                                autocomplete="family-name"
+                            >
+                            @error('last_name')
                                 <p class="profile-form__error">{{ $message }}</p>
                             @enderror
                         </div>
@@ -89,6 +119,29 @@
                             @enderror
                         </div>
 
+                        <div class="profile-form__group">
+                            <label class="brand-form-label d-flex align-items-center gap-3">
+                                <span>{{ __('Аватар') }}</span>
+                                <span class="badge text-bg-light">{{ __('Необязательно') }}</span>
+                            </label>
+                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                <img src="{{ $avatarUrl }}" alt="{{ $user->name }}" class="rounded-circle" style="width: 72px; height: 72px; object-fit: cover;">
+                                <div class="flex-grow-1">
+                                    <input
+                                        type="file"
+                                        name="avatar"
+                                        id="profile_avatar"
+                                        class="form-control"
+                                        accept="image/*"
+                                    >
+                                    <p class="profile-form__hint mb-0">{{ __('Загрузите квадратное изображение, до 2 МБ.') }}</p>
+                                    @error('avatar')
+                                        <p class="profile-form__error">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="profile-form__actions">
                             <button type="submit" class="btn-brand-gradient">
                                 {{ __('profile.save_changes') }}
@@ -99,7 +152,7 @@
                 </div>
 
 
-                <div class="brand-surface profile-card" data-phone-card>
+                <div class="brand-surface profile-card p-4 p-md-4" data-phone-card>
                     <div class="profile-card__header">
                         <div>
                             <p class="profile-card__eyebrow">{{ __('profile.listing_security') }}</p>
@@ -157,7 +210,7 @@
             </div>
 
             <div class="profile-page__grid">
-                <div class="brand-surface profile-card">
+                <div class="brand-surface profile-card p-4 p-md-4">
                     <div class="profile-card__header">
                         <div>
                             <p class="profile-card__eyebrow">{{ __('profile.dealer_section') }}</p>
@@ -200,7 +253,7 @@
             </div>
 
             <div class="profile-page__grid profile-page__grid--stacked">
-                <div class="brand-surface profile-card">
+                <div class="brand-surface profile-card p-4 p-md-4">
                     <div class="profile-card__header">
                         <div>
                             <p class="profile-card__eyebrow">{{ __('profile.security') }}</p>
@@ -270,7 +323,7 @@
                     </form>
                 </div>
 
-                <div class="brand-surface profile-card profile-card--danger">
+                <div class="brand-surface profile-card profile-card--danger p-4 p-md-4">
                     <div class="profile-card__header">
                         <div>
                             <p class="profile-card__eyebrow">{{ __('profile.danger_zone') }}</p>

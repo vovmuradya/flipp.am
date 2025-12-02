@@ -146,6 +146,17 @@
                                         <span aria-hidden="true">&rarr;</span>
                                     </button>
                                 </div>
+                                <div class="listing-thumbs" x-show="images.length > 1" x-cloak>
+                                    <template x-for="(thumb, idx) in images" :key="idx">
+                                        <button type="button"
+                                                class="listing-thumb"
+                                                :class="{ 'is-active': idx === index }"
+                                                @click="go(idx)"
+                                                aria-label="{{ __('Миниатюра фото') }}">
+                                            <img :src="thumb" alt="{{ $listing->title }}" @@error="handleError($event)">
+                                        </button>
+                                    </template>
+                                </div>
                             </div>
 
                             <div class="text-gray-600 flex flex-wrap gap-2">
@@ -404,86 +415,6 @@
                                 </div>
                             @endif
 
-                            @auth
-                                <div class="border-t pt-6" id="contactSeller">
-                                    <h3 class="text-xl font-bold mb-4">{{ __('Связаться с продавцом') }}</h3>
-                                    @if(auth()->id() === $listing->user_id)
-                                        <p class="text-gray-500">{{ __('Это ваше объявление.') }}</p>
-                                    @else
-                                        @if(session('success_message'))
-                                            <div class="mb-4 text-green-600 font-semibold">{{ session('success_message') }}</div>
-                                        @endif
-                                        <form action="{{ route('listings.messages.store', $listing) }}" method="POST">
-                                            @csrf
-                                            <div>
-                                                <textarea name="body" rows="4" class="w-full border-gray-300 rounded-md" placeholder="{{ __('Напишите ваше сообщение...') }}" required minlength="10"></textarea>
-                                                @error('body')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
-                                            </div>
-                                            <div class="mt-4">
-                                                <x-primary-button>{{ __('Отправить сообщение') }}</x-primary-button>
-                                            </div>
-                                        </form>
-                                    @endif
-                                </div>
-                            @else
-                                <div class="border-t pt-6" id="contactSeller">
-                                    <h3 class="text-xl font-bold mb-4">{{ __('Связаться с продавцом') }}</h3>
-                                    <p class="text-gray-500 mb-4">{{ __('Войдите в аккаунт, чтобы написать продавцу.') }}</p>
-                                    <a href="{{ route('login') }}" class="btn btn-outline-secondary">{{ __('Войти') }}</a>
-                                </div>
-                            @endauth
-
-                            <div class="border-t pt-6">
-                                <h3 class="text-xl font-bold mb-4">{{ __('Отзывы о продавце') }}</h3>
-                                <div class="space-y-4">
-                                    @forelse($listing->reviews as $review)
-                                        <div class="border-b pb-2">
-                                            <div class="flex items-center mb-1">
-                                                <span class="font-semibold">{{ $review->reviewer->name ?? __('Анонимный пользователь') }}</span>
-                                                <div class="ml-2 flex text-yellow-400">
-                                                    @for ($i = 0; $i < $review->rating; $i++)
-                                                        ★
-                                                    @endfor
-                                                </div>
-                                            </div>
-                                            <p class="text-gray-700">{{ $review->comment }}</p>
-                                            <p class="text-xs text-gray-500 mt-1">{{ $review->created_at->format('d.m.Y') }}</p>
-                                        </div>
-                                    @empty
-                                        <p class="text-gray-500">{{ __('Отзывов пока нет.') }}</p>
-                                    @endforelse
-                                </div>
-
-                                @auth
-                                    @if(auth()->id() !== $listing->user_id && !$listing->reviews->contains('reviewer_id', auth()->id()))
-                                        <div class="mt-6">
-                                            <h4 class="text-lg font-semibold mb-2">{{ __('Оставить отзыв') }}</h4>
-                                            <form action="{{ route('listings.reviews.store', $listing) }}" method="POST">
-                                                @csrf
-                                                <input type="hidden" name="rating" value="0">
-                                                <div class="flex items-center space-x-1 text-gray-400 flex-row-reverse justify-end">
-                                                    @for($i=5; $i>=1; $i--)
-                                                        <input type="radio" name="rating" value="{{ $i }}" class="hidden peer" id="rate-{{ $i }}">
-                                                        <label for="rate-{{ $i }}" class="text-2xl cursor-pointer peer-hover:text-yellow-400 peer-checked:text-yellow-400">★</label>
-                                                    @endfor
-                                                    <label class="mr-2">{{ __('Оценка:') }}</label>
-                                                </div>
-                                                @error('rating')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
-
-                                                <div class="mt-4">
-                                                    <textarea name="comment" rows="4" class="w-full border-gray-300 rounded-md" placeholder="{{ __('Напишите ваш отзыв...') }}" required minlength="10"></textarea>
-                                                    @error('comment')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
-                                                </div>
-
-                                                <div class="mt-4">
-                                                    <x-primary-button>{{ __('Отправить отзыв') }}</x-primary-button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    @endif
-                                @endauth
-                            </div>
-
                             @if($relatedListings->isNotEmpty())
                                 <div class="border-t pt-6">
                                     <h3 class="text-2xl font-bold mb-6">{{ __('Похожие объявления') }}</h3>
@@ -558,15 +489,62 @@
                         border-radius: 0;
                     }
                     .listing-slider__image {
-                        border-radius: 0;
-                    }
-                    .listing-slider__nav { width: 38px; height: 38px; }
+                    border-radius: 0;
                 }
-                @media (max-width: 640px) {
-                    .listing-page h1,
-                    .listing-page .text-3xl {
-                        font-size: 1.5rem !important;
-                    }
+                .listing-slider__nav { width: 38px; height: 38px; }
+            }
+            .listing-slider {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 110px;
+                gap: 12px;
+                align-items: start;
+            }
+            .listing-thumbs {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                max-height: 520px;
+                overflow-y: auto;
+                padding: 4px 2px;
+            }
+            .listing-thumb {
+                border: 1px solid #e5e7eb;
+                border-radius: 10px;
+                overflow: hidden;
+                width: 100%;
+                aspect-ratio: 4 / 3;
+                background: #fff;
+                padding: 2px;
+                transition: all 0.18s ease;
+            }
+            .listing-thumb img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                border-radius: 8px;
+            }
+            .listing-thumb.is-active {
+                border-color: #e32b2b;
+                box-shadow: 0 8px 20px rgba(227, 43, 43, 0.18);
+            }
+            @media (max-width: 640px) {
+                .listing-slider {
+                    grid-template-columns: 1fr;
+                }
+                .listing-thumbs {
+                    flex-direction: row;
+                    max-height: none;
+                    overflow-y: visible;
+                    overflow-x: auto;
+                }
+                .listing-thumb {
+                    width: 82px;
+                    height: 62px;
+                }
+                .listing-page h1,
+                .listing-page .text-3xl {
+                    font-size: 1.5rem !important;
+                }
                     .listing-page .text-4xl {
                         font-size: 1.75rem !important;
                     }

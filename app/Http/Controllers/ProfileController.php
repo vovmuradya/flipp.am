@@ -35,9 +35,29 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $data = $request->validated();
 
-        $request->user()->save();
+        $fullName = trim(($data['first_name'] ?? '') . ' ' . ($data['last_name'] ?? ''));
+        if ($fullName === '') {
+            $fullName = $request->user()->name;
+        }
+
+        $user = $request->user();
+        $user->name = $fullName;
+        $user->email = $data['email'];
+
+        if ($request->hasFile('avatar')) {
+            $avatarPath = $request->file('avatar')->store('avatars/' . $user->id, 'public');
+
+            // удалить старый аватар, если он был сохранён на диске
+            if ($user->avatar && !str_starts_with($user->avatar, 'http')) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar);
+            }
+
+            $user->avatar = $avatarPath;
+        }
+
+        $user->save();
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }

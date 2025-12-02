@@ -3374,6 +3374,11 @@ body {
     margin-top: 6px;
 }
 
+/* Уменьшаем внутренние отступы карточек на странице профиля */
+.profile-page .brand-surface {
+    padding: 1rem !important;
+}
+
 .brand-phone-prefix {
     display: inline-flex;
     align-items: center;
