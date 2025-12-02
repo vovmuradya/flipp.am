@@ -9,7 +9,7 @@
     $collapsibleId = $collapsibleId ?? 'vehicle-filter-collapsible-' . uniqid();
 @endphp
 
-<div class="vehicle-filter-card {{ $fullWidth ?? false ? 'vehicle-filter-card--fullwidth' : 'brand-surface sticky-top' }}"
+<div class="vehicle-filter-card {{ $fullWidth ?? false ? 'vehicle-filter-card--fullwidth' : 'brand-surface sticky-top px-3 py-3' }}"
      data-filter-card
      @if(empty($fullWidth)) style="top: 90px; z-index: 1;" @endif>
     <form method="{{ $formMethod }}"
@@ -194,7 +194,6 @@
             <button type="submit" class="btn btn-brand-gradient flex-1">{{ __('Применить') }}</button>
             <a href="{{ $resetUrl }}" class="btn btn-brand-outline flex-1 text-center">{{ __('Сбросить') }}</a>
         </div>
-        <button type="button" class="btn btn-link p-0 text-decoration-underline" data-filter-close-mobile>{{ __('Скрыть фильтры') }}</button>
         </div>
 
     </form>

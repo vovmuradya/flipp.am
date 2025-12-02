@@ -51,7 +51,7 @@
                     'fullWidth' => true,
                 ])
             @else
-                <div class="brand-surface">
+                <div class="brand-surface px-3 px-md-4 py-3">
                     <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
                         <h3 class="h5 mb-0">{{ __('Объявления') }}</h3>
                         <form method="GET" class="d-flex align-items-center gap-2">
