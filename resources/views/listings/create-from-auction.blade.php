@@ -8,7 +8,7 @@
                 </p>
             </div>
 
-            <div class="brand-surface">
+            <div class="brand-surface px-4 px-lg-5 py-4">
                 <div class="row g-5 align-items-start">
                     <div class="col-lg-6">
                         <div class="d-flex flex-column gap-3">

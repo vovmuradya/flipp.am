@@ -17,6 +17,7 @@ git pull
 git rev-parse HEAD
 
 localum
+./vendor/bin/sail up -d
 git add .
 git commit -m "Update"
 git push
