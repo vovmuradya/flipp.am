@@ -38,6 +38,11 @@ class CopartCookieManager
      */
     public function refreshCookies(): ?string
     {
+        if (!config('services.copart.headless_enabled', true)) {
+            Log::info('CopartCookieManager: headless disabled via config, skipping refresh');
+            return $this->getCookieHeader();
+        }
+
         $script = base_path('scraper/fetch-copart-cookies.cjs');
         if (! is_file($script)) {
             Log::warning('CopartCookieManager: fetch script missing', ['path' => $script]);

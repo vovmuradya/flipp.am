@@ -552,14 +552,7 @@ class ListingController extends Controller
 
             $title = trim(implode(' ', $titleParts));
 
-            $descriptionText = trim((string) ($parsed['description'] ?? ''));
-            $descriptionLines = $descriptionText !== ''
-                ? [$descriptionText]
-                : [
-                    'Սա արտահայտված հայտարարություն է այլ կայքից։ Խնդրում ենք ստուգել տվյալները եւ լրացնել բացակայող դաշտերը:',
-                    '',
-                    'Ссылка на источник: ' . $vehicle['source_auction_url'],
-                ];
+            $description = trim((string) ($parsed['description'] ?? ''));
 
             $categoryId = $this->resolveVehicleCategoryId();
             if (!$categoryId) {
@@ -570,7 +563,7 @@ class ListingController extends Controller
 
             $payload = [
                 'title' => $title,
-                'description' => implode("\n", $descriptionLines),
+                'description' => $description,
                 'price' => $vehicle['buy_now_price'] ?? null,
                 'category_id' => $categoryId,
                 'auction_url' => $url,

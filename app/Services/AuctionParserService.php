@@ -292,6 +292,11 @@ class AuctionParserService
      */
     private function fetchCopartLotViaHeadless(string $lotId): ?array
     {
+        if (!config('services.copart.headless_enabled', true)) {
+            Log::info('Copart headless skipped by config');
+            return null;
+        }
+
         $script = base_path('scraper/fetch-copart-lot.cjs');
         if (!is_file($script)) {
             Log::warning('Copart headless script missing', ['script' => $script]);

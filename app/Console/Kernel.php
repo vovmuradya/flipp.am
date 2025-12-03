@@ -27,20 +27,21 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('copart:refresh-cookies --silent')
-            ->everyFiveMinutes()
-            ->withoutOverlapping()
-            ->appendOutputTo(storage_path('logs/copart-cookies.log'));
+        // Отключено из-за ограничений хостинга (нет возможности запускать headless/browser)
+        // $schedule->command('copart:refresh-cookies --silent')
+        //     ->everyFiveMinutes()
+        //     ->withoutOverlapping()
+        //     ->appendOutputTo(storage_path('logs/copart-cookies.log'));
 
-        $schedule->command('copart:refresh-current-bids --limit=150')
-            ->everyTwoHours()
-            ->withoutOverlapping()
-            ->appendOutputTo(storage_path('logs/copart-bids.log'));
+        // $schedule->command('copart:refresh-current-bids --limit=150')
+        //     ->everyTwoHours()
+        //     ->withoutOverlapping()
+        //     ->appendOutputTo(storage_path('logs/copart-bids.log'));
 
-        $schedule->command('auctions:backfill-photos --limit=20')
-            ->everyFiveMinutes()
-            ->withoutOverlapping()
-            ->appendOutputTo(storage_path('logs/auction-backfill.log'));
+        // $schedule->command('auctions:backfill-photos --limit=20')
+        //     ->everyFiveMinutes()
+        //     ->withoutOverlapping()
+        //     ->appendOutputTo(storage_path('logs/auction-backfill.log'));
 
         $schedule->command('listings:expire-ended-auctions --limit=200')
             ->everyTenMinutes()

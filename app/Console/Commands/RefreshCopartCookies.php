@@ -30,6 +30,11 @@ class RefreshCopartCookies extends Command
 
     public function handle(): int
     {
+        if (!config('services.copart.headless_enabled', true)) {
+            $this->warn('Copart headless fetch is disabled via config, skipping cookie refresh.');
+            return self::SUCCESS;
+        }
+
         $script = base_path('scraper/fetch-copart-cookies.cjs');
 
         if (! is_file($script)) {

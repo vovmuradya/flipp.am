@@ -91,9 +91,11 @@ class ProxyController extends Controller
         $copartCookieHeader = str_contains($host, 'copart.com') ? $this->getCopartCookieHeader() : null;
         $iaaiCookies = str_contains($host, 'iaai') ? $this->getIaaiCookies() : [];
 
+        $useCopartResolve = str_contains($host, 'copart.com');
+
         try {
             // Функция для выполнения запроса с общими заголовками
-            $doRequest = function(string $targetUrl) use ($referer, $copartCookieHeader, $iaaiCookies, $origin, $configuredUserAgent) {
+            $doRequest = function(string $targetUrl) use ($referer, $copartCookieHeader, $iaaiCookies, $origin, $configuredUserAgent, $useCopartResolve) {
                 $headers = [
                     'User-Agent' => $configuredUserAgent,
                     'Accept' => 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
@@ -128,7 +130,9 @@ class ProxyController extends Controller
                     'verify' => false,
                     'http_errors' => false,
                 ];
-                $options = $this->appendCopartCurlResolve($options);
+                if ($useCopartResolve) {
+                    $options = $this->appendCopartCurlResolve($options);
+                }
 
                 $http = Http::timeout(25)
                     ->withHeaders($headers)
@@ -300,6 +304,7 @@ class ProxyController extends Controller
 
         $host = strtolower(parse_url($targetUrl, PHP_URL_HOST) ?? '');
         $isIaai = str_contains($host, 'iaai');
+        $isCopart = str_contains($host, 'copart.com');
 
         $command = [
             'curl',
@@ -314,11 +319,13 @@ class ProxyController extends Controller
             '-',
         ];
 
-        $resolveRaw = config('services.copart.resolve');
-        if (is_string($resolveRaw) && trim($resolveRaw) !== '') {
-            foreach (array_filter(array_map('trim', explode(',', $resolveRaw))) as $resolve) {
-                $command[] = '--resolve';
-                $command[] = $resolve;
+        if ($isCopart) {
+            $resolveRaw = config('services.copart.resolve');
+            if (is_string($resolveRaw) && trim($resolveRaw) !== '') {
+                foreach (array_filter(array_map('trim', explode(',', $resolveRaw))) as $resolve) {
+                    $command[] = '--resolve';
+                    $command[] = $resolve;
+                }
             }
         }
 

@@ -47,6 +47,7 @@ return [
         'referer' => env('COPART_REFERER', 'https://www.copart.com/'),
         'origin' => env('COPART_ORIGIN', 'https://www.copart.com'),
         'aggressive' => env('COPART_AGGRESSIVE', true),
+        'headless_enabled' => env('COPART_HEADLESS_ENABLED', true),
         'min_photos' => env('COPART_MIN_PHOTOS', 8),
         'default_lot_ttl_days' => env('COPART_DEFAULT_LOT_TTL_DAYS', 30),
     ],
