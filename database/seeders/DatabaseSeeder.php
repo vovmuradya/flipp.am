@@ -28,7 +28,6 @@ class DatabaseSeeder extends Seeder
             CarModelSeeder::class,     // <-- ДОБАВЬТЕ ЭТУ СТРОКУ
             CarGenerationSeeder::class,
             DemoDataSeeder::class,
-            HighlightedListingSeeder::class,
         ]);
     }
 }

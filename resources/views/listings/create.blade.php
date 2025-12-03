@@ -470,14 +470,8 @@
 
                     @if($ad && empty($finalPhotos))
                         <div class="alert alert-warning">
-                            {{ __('Не удалось получить фотографии для этой ссылки. Проверьте корректность URL или попробуйте снова.') }}
+                            {{ __('Не удалось получить фотографии для этой ссылки. Проверьте корректность URL или попробуйте снова. Вы можете продолжить и добавить фото вручную.') }}
                         </div>
-                        <div class="d-flex justify-content-end mt-3">
-                            <a href="{{ route('listings.create-from-external') }}" class="btn btn-brand-outline">
-                                {{ __('Вернуться к импорту') }}
-                            </a>
-                        </div>
-                        @php return; @endphp
                     @endif
 
                     @if($ad)

@@ -12,6 +12,8 @@ use Symfony\Component\Process\Process;
 use App\Services\CopartCookieManager;
 class AuctionParserService
 {
+    // Hard cap so пользователь не ждёт слишком долго
+    private const COPART_MAX_DURATION_SECONDS = 22;
     private ?string $copartCookieString = null;
     private ?array $copartCookieArray = null;
     private bool $copartBlocked = false;
@@ -296,7 +298,8 @@ class AuctionParserService
             return null;
         }
 
-        $process = new Process(['node', $script, $lotId], base_path(), null, null, 120);
+        // Keep headless attempt shorter to avoid user waiting too long on the import screen
+        $process = new Process(['node', $script, $lotId], base_path(), null, null, 20);
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -329,6 +332,16 @@ class AuctionParserService
                 ? trim($decoded['cookies'])
                 : null,
         ];
+    }
+
+    private function isPuppeteerAvailable(): bool
+    {
+        $path = env('PUPPETEER_EXECUTABLE_PATH');
+        if (is_string($path) && trim($path) !== '' && is_file(trim($path))) {
+            return true;
+        }
+
+        return false;
     }
 
     private function applyCopartCookieOverride(?string $cookieString): void
@@ -379,7 +392,7 @@ class AuctionParserService
         $options['http_errors'] = false;
 
         try {
-            $response = Http::timeout(20)
+            $response = Http::timeout(12)
                 ->withHeaders($headers)
                 ->withOptions($options)
                 ->get($url);
@@ -437,7 +450,7 @@ class AuctionParserService
 
         $command = $this->buildCurlCommand($url, $headers);
         $process = new Process($command);
-        $process->setTimeout(25);
+        $process->setTimeout(15);
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -475,7 +488,7 @@ class AuctionParserService
         $options['http_errors'] = false;
 
         try {
-            $response = Http::timeout(20)
+            $response = Http::timeout(12)
                 ->withHeaders($headers)
                 ->withOptions($options)
                 ->get($url);
@@ -524,7 +537,7 @@ class AuctionParserService
 
         $command = $this->buildCurlCommand($url, $headers);
         $process = new Process($command);
-        $process->setTimeout(25);
+        $process->setTimeout(15);
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -552,7 +565,7 @@ class AuctionParserService
             '--silent',
             '--show-error',
             '--max-time',
-            '20',
+            '15',
         ];
 
         foreach ($this->getCopartResolveList() as $resolve) {
@@ -576,12 +589,20 @@ class AuctionParserService
     private function parseCopart(string $url, bool $aggressive = true): ?array
     {
         $attempt = 0;
+        $startedAt = microtime(true);
         $normalizedUrl = $this->normalizeCopartUrl($url) ?? $url;
         $normalizedTried = ($normalizedUrl === $url);
         $currentUrl = $url;
         $result = null;
 
         while ($attempt < 3) {
+            if ((microtime(true) - $startedAt) > self::COPART_MAX_DURATION_SECONDS) {
+                Log::warning('⏱️ Copart parse aborted due to time cap', [
+                    'elapsed' => round(microtime(true) - $startedAt, 2),
+                    'attempt' => $attempt + 1,
+                ]);
+                break;
+            }
             $this->copartBlocked = false;
             $result = $this->parseCopartAttempt($currentUrl, $aggressive);
 
@@ -1479,26 +1500,6 @@ class AuctionParserService
 
         if ($this->copartBlocked) {
             return 'copart-blocked';
-        }
-
-        $photos = $result['photos'] ?? [];
-        $photoCount = is_array($photos) ? count($photos) : 0;
-
-        if ($photoCount === 0) {
-            return 'no-photos';
-        }
-
-        if ($photoCount < $this->minCopartPhotos()) {
-            return 'insufficient-photos';
-        }
-
-        if (empty($result['engine_displacement_cc'])) {
-            return 'missing-engine';
-        }
-
-        $color = (string) ($result['exterior_color'] ?? '');
-        if ($color === '' || strcasecmp($color, 'Неизвестно') === 0) {
-            return 'missing-color';
         }
 
         return null;

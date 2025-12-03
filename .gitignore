@@ -13,6 +13,7 @@
 /.zed
 /auth.json
 /node_modules
+/scraper/node_modules
 # Держим production-сборку Vite в репозитории, чтобы SPA работало без dev-сервера
 !/public/build
 /public/hot
@@ -25,3 +26,5 @@ Homestead.yaml
 Thumbs.db
 .aider*
 storage/
+.cache/
+/scraper/.cache/

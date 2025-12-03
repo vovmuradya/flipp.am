@@ -10,7 +10,8 @@ class CopartCookieManager
 {
     public const CACHE_KEY = 'copart.dynamic_cookies';
     private const MIN_COOKIE_PAIRS = 7;
-    private const MAX_ATTEMPTS = 4;
+    private const MAX_ATTEMPTS = 2;
+    private const FETCH_TIMEOUT = 60;
 
     private bool $browserChecked = false;
 
@@ -50,7 +51,8 @@ class CopartCookieManager
         }
 
         for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
-            $process = new Process(['node', $script], base_path(), $env ?: null, null, 180);
+            // Ограничиваем время ожидания, чтобы не блокировать запросы
+            $process = new Process(['node', $script], base_path(), $env ?: null, null, self::FETCH_TIMEOUT);
             $process->run();
 
             if (! $process->isSuccessful()) {

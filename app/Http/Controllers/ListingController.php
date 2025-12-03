@@ -380,20 +380,15 @@ class ListingController extends Controller
             return back()
                 ->withInput()
                 ->withErrors([
-                    'auction_url' => 'Поддерживаются только ссылки с аукциона Copart.',
+                    'auction_url' => __('listing.auction_url_copart_only'),
                 ]);
         }
 
         try {
-            set_time_limit(60);
+            // Ограничиваем время, чтобы пользователь не ждал слишком долго
+            set_time_limit(45);
 
             $parsed = $service->parseFromUrl($url, aggressive: (bool) config('services.copart.aggressive', false));
-
-            if (!$parsed && $service->wasCopartBlocked()) {
-                return back()
-                    ->withInput()
-                    ->with('auction_error', 'Copart временно ограничил выдачу. Подождите пару секунд и попробуйте снова — мы уже обновляем cookies автоматически.');
-            }
 
             if (!$parsed) {
                 $parsed = $this->fallbackAuctionData($url);
@@ -402,7 +397,9 @@ class ListingController extends Controller
             if (!$parsed || empty($parsed['make']) || empty($parsed['model'])) {
                 return back()
                     ->withInput()
-                    ->with('auction_error', 'Не удалось найти данные по этому лоту. Проверьте ссылку и попробуйте снова.');
+                    ->with('auction_error', $service->wasCopartBlocked()
+                        ? __('listing.auction_copart_rate_limited')
+                        : __('listing.auction_not_found'));
             }
 
             $vehicle = [
@@ -463,7 +460,7 @@ class ListingController extends Controller
             if (!$categoryId) {
                 return back()
                     ->withInput()
-                    ->with('auction_error', 'Категории для транспортных объявлений не настроены. Обратитесь к администратору.');
+                    ->with('auction_error', __('listing.listing_categories_missing'));
             }
 
             $payload = [
@@ -484,7 +481,7 @@ class ListingController extends Controller
 
             return back()
                 ->withInput()
-                ->with('auction_error', 'Не удалось загрузить данные с аукциона. Попробуйте ещё раз или заполните форму вручную.');
+                ->with('auction_error', __('listing.auction_load_failed'));
         }
     }
 
@@ -504,7 +501,7 @@ class ListingController extends Controller
             return back()
                 ->withInput()
                 ->withErrors([
-                    'auction_url' => 'Поддерживаются только ссылки с List.am.',
+                    'auction_url' => __('listing.external_url_listam_only'),
                 ]);
         }
 
@@ -520,7 +517,7 @@ class ListingController extends Controller
             if (!$parsed || empty($parsed['make']) || empty($parsed['model'])) {
                 return back()
                     ->withInput()
-                    ->with('auction_error', __('Не удалось найти данные по этой ссылке. Проверьте URL и попробуйте снова.'));
+                    ->with('auction_error', __('listing.external_not_found'));
             }
 
             $vehicle = [
@@ -568,7 +565,7 @@ class ListingController extends Controller
             if (!$categoryId) {
                 return back()
                     ->withInput()
-                    ->with('auction_error', 'Категории для транспортных объявлений не настроены. Обратитесь к администратору.');
+                    ->with('auction_error', __('listing.listing_categories_missing'));
             }
 
             $payload = [
@@ -589,7 +586,7 @@ class ListingController extends Controller
 
             return back()
                 ->withInput()
-                ->with('auction_error', 'Не удалось загрузить данные с этого сайта. Попробуйте ещё раз или заполните форму вручную.');
+                ->with('auction_error', __('listing.external_load_failed'));
         }
     }
 
