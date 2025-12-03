@@ -62,7 +62,16 @@ async function fetchJsonOverPage(page, suffix) {
 async function main() {
     const browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-blink-features=AutomationControlled',
+            '--disable-dev-shm-usage',
+            '--single-process',
+            '--no-zygote',
+            '--disable-gpu',
+        ],
     });
 
     try {

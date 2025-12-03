@@ -44,9 +44,9 @@ class CopartCookieManager
         }
 
         $env = [];
-        $executable = env('PUPPETEER_EXECUTABLE_PATH');
-        if (is_string($executable) && trim($executable) !== '') {
-            $env['PUPPETEER_EXECUTABLE_PATH'] = trim($executable);
+        $executable = $this->detectPuppeteerExecutable();
+        if ($executable) {
+            $env['PUPPETEER_EXECUTABLE_PATH'] = $executable;
         }
 
         for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
@@ -105,6 +105,36 @@ class CopartCookieManager
         Log::warning('CopartCookieManager: unable to fetch cookies after retries');
 
         return $this->getCookieHeader();
+    }
+
+    /**
+     * Пытается определить путь до встроенного Chromium Puppeteer, если он не задан в .env.
+     */
+    private function detectPuppeteerExecutable(): ?string
+    {
+        $envPath = env('PUPPETEER_EXECUTABLE_PATH');
+        if (is_string($envPath) && trim($envPath) !== '') {
+            return trim($envPath);
+        }
+
+        try {
+            $probe = new Process(
+                ['node', '-e', "console.log(require('puppeteer').executablePath())"],
+                base_path(),
+                null,
+                null,
+                20
+            );
+            $probe->run();
+            if ($probe->isSuccessful()) {
+                $path = trim($probe->getOutput());
+                return $path !== '' ? $path : null;
+            }
+        } catch (\Throwable $e) {
+            Log::debug('CopartCookieManager: cannot detect puppeteer executable', ['error' => $e->getMessage()]);
+        }
+
+        return null;
     }
 
     private function shouldInstallBrowser(?string $stderr): bool
