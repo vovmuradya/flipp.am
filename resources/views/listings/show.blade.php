@@ -489,58 +489,54 @@
                         border-radius: 0;
                     }
                     .listing-slider__image {
-                    border-radius: 0;
+                        border-radius: 0;
+                    }
+                    .listing-slider__nav { width: 38px; height: 38px; }
                 }
-                .listing-slider__nav { width: 38px; height: 38px; }
-            }
-            .listing-slider {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) 110px;
-                gap: 12px;
-                align-items: start;
-            }
-            .listing-thumbs {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                max-height: 520px;
-                overflow-y: auto;
-                padding: 4px 2px;
-            }
-            .listing-thumb {
-                border: 1px solid #e5e7eb;
-                border-radius: 10px;
-                overflow: hidden;
-                width: 100%;
-                aspect-ratio: 4 / 3;
-                background: #fff;
-                padding: 2px;
-                transition: all 0.18s ease;
-            }
-            .listing-thumb img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                border-radius: 8px;
-            }
-            .listing-thumb.is-active {
-                border-color: #e32b2b;
-                box-shadow: 0 8px 20px rgba(227, 43, 43, 0.18);
-            }
-            @media (max-width: 640px) {
                 .listing-slider {
-                    grid-template-columns: 1fr;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
                 }
                 .listing-thumbs {
-                    flex-direction: row;
-                    max-height: none;
-                    overflow-y: visible;
+                    display: flex;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                    max-width: 100%;
                     overflow-x: auto;
+                    padding: 4px 2px;
                 }
                 .listing-thumb {
-                    width: 82px;
-                    height: 62px;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    width: 110px;
+                    height: 82px;
+                    background: #fff;
+                    padding: 2px;
+                    transition: all 0.18s ease;
+                    flex: 0 0 auto;
                 }
+                .listing-thumb img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    border-radius: 8px;
+                }
+                .listing-thumb.is-active {
+                    border-color: #e32b2b;
+                    box-shadow: 0 8px 20px rgba(227, 43, 43, 0.18);
+                }
+                @media (max-width: 640px) {
+                    .listing-thumbs {
+                        flex-wrap: nowrap;
+                        overflow-x: auto;
+                        gap: 8px;
+                    }
+                    .listing-thumb {
+                        width: 88px;
+                        height: 66px;
+                    }
                 .listing-page h1,
                 .listing-page .text-3xl {
                     font-size: 1.5rem !important;
