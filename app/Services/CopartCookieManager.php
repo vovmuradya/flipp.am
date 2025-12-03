@@ -43,8 +43,14 @@ class CopartCookieManager
             return null;
         }
 
+        $env = [];
+        $executable = env('PUPPETEER_EXECUTABLE_PATH');
+        if (is_string($executable) && trim($executable) !== '') {
+            $env['PUPPETEER_EXECUTABLE_PATH'] = trim($executable);
+        }
+
         for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
-            $process = new Process(['node', $script], base_path(), null, null, 150);
+            $process = new Process(['node', $script], base_path(), $env ?: null, null, 180);
             $process->run();
 
             if (! $process->isSuccessful()) {
