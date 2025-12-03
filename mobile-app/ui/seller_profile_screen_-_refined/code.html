@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Seller Profile Screen</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#ec3713",
+              "background-light": "#f8f6f6",
+              "background-dark": "#221310",
+            },
+            fontFamily: {
+              "display": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="relative mx-auto flex h-auto min-h-screen w-full max-w-md flex-col bg-background-light dark:bg-background-dark dark group/design-root overflow-x-hidden">
+<!-- Top App Bar -->
+<div class="flex items-center justify-between p-4 pb-2 bg-background-light dark:bg-background-dark sticky top-0 z-10">
+<button class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-zinc-900 dark:text-white">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</button>
+<h1 class="flex-1 text-center text-lg font-bold leading-tight tracking-[-0.015em] text-zinc-900 dark:text-white">Seller Profile</h1>
+<button class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-zinc-900 dark:text-white">
+<span class="material-symbols-outlined text-2xl">more_horiz</span>
+</button>
+</div>
+<!-- Profile Header -->
+<div class="flex flex-col p-4">
+<div class="flex w-full flex-col gap-4 @[520px]:flex-row @[520px]:items-center @[520px]:justify-between">
+<div class="flex items-center gap-4">
+<div class="h-24 w-24 min-w-[96px] shrink-0 rounded-full bg-cover bg-center bg-no-repeat" data-alt="Profile picture of Alex Morgan" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDb6WErx7ZCM43nU9SsWU0vXjcqDml-WEQ2UfrWI47LppW2ShDX6B2gmJ6arFwQ-f5cCvAShdIxpx4zrnUkC-B5bYqsF0ZGrPil7uH7mGfKKAdgWli6offcVrrc6vVTJWaekYYU6DUl5BLJ8Fvxiq9aGr8nBdR6AtzSRh7Hnbi6jsBDL_KdYXel1dGKMukI1gfqesx9C4WcWV_PJryw_qDtylFuPDccERmMSSTcUX47R6CExLwX6_KAO9iTJx0gvBT7GK-lWiWjDA");'></div>
+<div class="flex flex-col justify-center">
+<p class="text-[22px] font-bold leading-tight tracking-[-0.015em] text-zinc-900 dark:text-white">Alex Morgan</p>
+<p class="text-base font-normal leading-normal text-zinc-600 dark:text-zinc-400">Los Angeles, CA</p>
+<p class="text-base font-normal leading-normal text-zinc-600 dark:text-zinc-400">Member since 2021</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Reaction Bar -->
+<div class="flex flex-wrap gap-4 px-4 py-2">
+<div class="flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-2xl text-amber-400" style="font-variation-settings: 'FILL' 1;">star</span>
+<p class="text-[13px] font-bold leading-normal tracking-[0.015em] text-zinc-600 dark:text-zinc-400">4.8 (120 reviews)</p>
+</div>
+</div>
+<!-- Button Group -->
+<div class="flex justify-stretch">
+<div class="flex flex-1 flex-wrap justify-between gap-3 px-4 py-3">
+<button class="flex h-12 flex-1 min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-primary px-5 text-base font-bold leading-normal tracking-[0.015em] text-white">
+<span class="truncate">Message Seller</span>
+</button>
+<button class="flex h-12 flex-1 min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-zinc-200 dark:bg-zinc-800 px-5 text-base font-bold leading-normal tracking-[0.015em] text-zinc-900 dark:text-white">
+<span class="truncate">Call Seller</span>
+</button>
+</div>
+</div>
+<!-- Divider -->
+<div class="px-4 py-2">
+<hr class="border-zinc-200 dark:border-zinc-800"/>
+</div>
+<!-- Section Header -->
+<div class="flex items-center justify-between px-4 pb-3 pt-5">
+<h2 class="text-[22px] font-bold leading-tight tracking-[-0.015em] text-zinc-900 dark:text-white">Active Listings</h2>
+<button class="text-base font-semibold text-primary">View all</button>
+</div>
+<!-- Listings -->
+<div class="flex flex-col gap-6 px-4 pb-8">
+<!-- Car Card 1 -->
+<div class="flex w-full flex-col overflow-hidden rounded-xl bg-white dark:bg-zinc-900 shadow-sm">
+<div class="relative">
+<div class="aspect-video w-full bg-cover bg-center bg-no-repeat" data-alt="Sleek silver Porsche 911 parked on a city street at dusk" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB_3IAch5hbt6Z6PlHhk565Cpbmjhpb_IOF-X5Jnxw7h8D-7bzDiqTAEjSbD9aADdogTpbXmg0I52AUthP7vyLTGBdbas7A7PD7_e_eme5OFuUp5ijYAzgX27GOkVjdySA3C-NjShRXJ5eLgn5NA-fUVWoAzDVHKac1-sSCTfUepS-7M6IBU2mBBSUVhQe0Cq3Q-QmFEo3wUCNkkbF2pBRCVVU1FV4l0XUjfi8Dj1YUYIFpZDMMB_xBqKxb1-w-gQHzmJpq7DbPGw');"></div>
+<button class="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm">
+<span class="material-symbols-outlined text-2xl">favorite_border</span>
+</button>
+</div>
+<div class="flex flex-col gap-1 p-4">
+<div class="flex items-start justify-between">
+<p class="text-lg font-bold text-zinc-900 dark:text-white">2022 Porsche 911 Carrera</p>
+<p class="text-lg font-bold text-primary">$152,000</p>
+</div>
+<div class="flex items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
+<span>1,500 mi</span>
+<span>•</span>
+<span>Los Angeles, CA</span>
+</div>
+</div>
+</div>
+<!-- Car Card 2 -->
+<div class="flex w-full flex-col overflow-hidden rounded-xl bg-white dark:bg-zinc-900 shadow-sm">
+<div class="relative">
+<div class="aspect-video w-full bg-cover bg-center bg-no-repeat" data-alt="Red Tesla Model S charging in a modern garage" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBAp2uNZOeFnE11NyKc5xba7ucoq50EAn-8qm0-HsPvqhX7VQti1ApbacePbFB8GUV5agj7qAjuSu6Za7Vf0ub1t8AUP0-EUunfl34RMEYcmo_GBzVF3n4RkWVKhESKT3wlVD64iq5TgVdqouk8lLcYMDM1PevrL9dEm6B468hY3Wmi3rh5IiY2n3SCtY2Eag7bpdCarKyZdr7eiefRwJWmf_dnDtnm69rPn4g08i2pV-4hsXxF5i7DAhrAfMqXRS4fuYJ_KEy6RA');"></div>
+<button class="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm">
+<span class="material-symbols-outlined text-2xl">favorite_border</span>
+</button>
+</div>
+<div class="flex flex-col gap-1 p-4">
+<div class="flex items-start justify-between">
+<p class="text-lg font-bold text-zinc-900 dark:text-white">2023 Tesla Model S</p>
+<p class="text-lg font-bold text-primary">$74,990</p>
+</div>
+<div class="flex items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
+<span>5,000 mi</span>
+<span>•</span>
+<span>Los Angeles, CA</span>
+</div>
+</div>
+</div>
+<!-- Car Card 3 -->
+<div class="flex w-full flex-col overflow-hidden rounded-xl bg-white dark:bg-zinc-900 shadow-sm">
+<div class="relative">
+<div class="aspect-video w-full bg-cover bg-center bg-no-repeat" data-alt="Front view of a white Audi R8 against a dark background" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDieEt9aDi90Kp4WFiYYhIIyJ08z3vxhYLgkvjbEvUqbU5EKs5wdT01aUe4OPg7raFh0ZcDYZcZz1FadgPbbrVQIRIZBZEvgwmvbua9_4jaD3arV4RgL1J3fuLixatJyMjh9MxW8_iD-3SsvKbykidNBt0QgCQ7tqrB5kdmUBxlBfZaKH5W8CUTY3hPuUs6gMHYo2JtVtqkEQDyGn2foWhsa1T-p1KrtYsmeewX1ScUyfECByyBUWFdKqNlcd9FfypYQ-1fVzYi1w');"></div>
+<button class="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm">
+<span class="material-symbols-outlined text-2xl text-primary" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+</div>
+<div class="flex flex-col gap-1 p-4">
+<div class="flex items-start justify-between">
+<p class="text-lg font-bold text-zinc-900 dark:text-white">2021 Audi R8</p>
+<p class="text-lg font-bold text-primary">$185,500</p>
+</div>
+<div class="flex items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
+<span>8,200 mi</span>
+<span>•</span>
+<span>Los Angeles, CA</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body></html>

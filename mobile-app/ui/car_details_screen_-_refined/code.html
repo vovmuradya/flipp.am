@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Car Details Screen - Refined</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24
+      }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#ec3713",
+              "background-light": "#f8f6f6",
+              "background-dark": "#221310",
+            },
+            fontFamily: {
+              "display": ["Manrope", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+<!-- Top App Bar -->
+<div class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm">
+<div class="flex items-center justify-between p-4 pb-2">
+<button class="flex items-center justify-center h-12 w-12 rounded-full text-white">
+<span class="material-symbols-outlined text-white">arrow_back_ios_new</span>
+</button>
+<div class="flex h-12 w-12 items-center justify-end">
+<button class="flex h-12 w-12 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-transparent text-white">
+<span class="material-symbols-outlined text-primary">favorite</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Header Image Carousel -->
+<div class="@container">
+<div class="@[480px]:px-4 @[480px]:py-3">
+<div class="bg-cover bg-center flex flex-col justify-end overflow-hidden @[480px]:rounded-lg min-h-80" data-alt="Side profile view of a modern sports car" style='background-image: linear-gradient(0deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0) 25%), url("https://lh3.googleusercontent.com/aida-public/AB6AXuCMBsFsolkDyrVsRKVHDBKHM8L5fCnJZYHG6TZmEaTUqjb4n8sIHh16Hapn2NWcroriTG9uE9Z1-_ixkibwkjg4JxFcbY6JONRsPTuW6eLPNPXHRhSP1p7658dLnb6Qsdn5eqAtmqNmCxNk1_kH4eMxtz1BBx8tR7VARyQy3KgdTKN0S-dhkEWdc0aMLgW6GiWMmcspMWgdVepWqTAnKTabcIkYk6uztzGBIkrj_Y6FhZdB7iKwtY5s1R5O6cmWieJvSdMjOsGGtw");'>
+<div class="flex justify-center gap-2 p-5">
+<div class="h-1.5 w-4 rounded-full bg-primary"></div>
+<div class="size-1.5 rounded-full bg-white/50"></div>
+<div class="size-1.5 rounded-full bg-white/50"></div>
+<div class="size-1.5 rounded-full bg-white/50"></div>
+<div class="size-1.5 rounded-full bg-white/50"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Headline & Price -->
+<h1 class="text-white tracking-light text-[32px] font-bold leading-tight px-4 text-left pb-1 pt-6">Porsche 911 Carrera S</h1>
+<h2 class="text-primary text-[28px] font-bold leading-tight tracking-[-0.015em] px-4 text-left pb-3">$150,000</h2>
+<!-- Tab Navigation -->
+<div class="px-4 py-4">
+<div class="flex w-full space-x-2 rounded-lg bg-white/5 p-1">
+<button class="flex-1 rounded-md py-2.5 text-sm font-medium leading-5 text-white bg-primary shadow">Details</button>
+<button class="flex-1 rounded-md py-2.5 text-sm font-medium leading-5 text-white/70 hover:bg-white/[0.12] hover:text-white">Features</button>
+<button class="flex-1 rounded-md py-2.5 text-sm font-medium leading-5 text-white/70 hover:bg-white/[0.12] hover:text-white">Seller Info</button>
+</div>
+</div>
+<!-- Description List / Specifications -->
+<div class="p-4 grid grid-cols-2 gap-x-4">
+<div class="flex flex-col gap-1 border-t border-solid border-t-white/10 py-4">
+<p class="text-white/60 text-sm font-normal leading-normal">Year</p>
+<p class="text-white text-base font-medium leading-normal">2023</p>
+</div>
+<div class="flex flex-col gap-1 border-t border-solid border-t-white/10 py-4">
+<p class="text-white/60 text-sm font-normal leading-normal">Mileage</p>
+<p class="text-white text-base font-medium leading-normal">5,000 mi</p>
+</div>
+<div class="flex flex-col gap-1 border-t border-solid border-t-white/10 py-4">
+<p class="text-white/60 text-sm font-normal leading-normal">Transmission</p>
+<p class="text-white text-base font-medium leading-normal">Automatic</p>
+</div>
+<div class="flex flex-col gap-1 border-t border-solid border-t-white/10 py-4">
+<p class="text-white/60 text-sm font-normal leading-normal">Engine</p>
+<p class="text-white text-base font-medium leading-normal">3.0L H6 Turbo</p>
+</div>
+<div class="flex flex-col gap-1 border-t border-solid border-t-white/10 py-4">
+<p class="text-white/60 text-sm font-normal leading-normal">Exterior Color</p>
+<p class="text-white text-base font-medium leading-normal">Gentian Blue</p>
+</div>
+<div class="flex flex-col gap-1 border-t border-solid border-t-white/10 py-4">
+<p class="text-white/60 text-sm font-normal leading-normal">Interior Color</p>
+<p class="text-white text-base font-medium leading-normal">Black Leather</p>
+</div>
+</div>
+<!-- Location Map -->
+<div class="px-4 py-4">
+<h3 class="text-white text-xl font-bold leading-tight pb-3">Location</h3>
+<div class="relative w-full h-48 rounded-lg overflow-hidden">
+<img alt="A map showing the location of the car in Miami, FL" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhRQs2Af2QoWCs7k4JtGxA3Re4nwqK_brDBkuNrSbUG1B0YGVU9e6uylvaAPHmz-1GI7FG_nsUnIXRMGK3LA389tThCMdpKmipbD9QLO00UmhW70bB0IU0bcRN2bdVTbR0V5_1YAWnBNg_cN9O4mNT8jr5CZl4hVeX9v3l-o7RFEqAjtcuRpVYcESkatExYl2Kk7mxsCmYfr0KsUUxHrj6DnZiNOMUjq2jouuKKs9Cuvq95Wnqn_0FtoQ9uhsiRQqzn3AN4hjkiA"/>
+<div class="absolute inset-0 bg-black/30"></div>
+<div class="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-lg bg-background-dark/80 p-3 backdrop-blur-sm">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">location_on</span>
+<span class="text-white font-medium">Miami, FL</span>
+</div>
+<button class="text-primary font-bold text-sm">Get Directions</button>
+</div>
+</div>
+</div>
+<div class="h-24"><!-- Spacer for FAB --></div>
+<!-- Floating Action Bar -->
+<div class="fixed bottom-0 left-0 right-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm p-4 border-t border-white/10">
+<div class="flex items-center justify-center gap-4">
+<button class="flex-1 text-center rounded-lg border-2 border-primary py-3 text-base font-bold text-primary transition-colors hover:bg-primary/10">Make an Offer</button>
+<button class="flex-1 text-center rounded-lg bg-primary py-3.5 text-base font-bold text-white transition-colors hover:bg-primary/90">Contact Seller</button>
+</div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Car Listing Screen</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#EF4444", // Red from the logo
+            "background-light": "#F9FAFB", // Light Gray for light mode
+            "background-dark": "#111111", // Very dark gray for dark mode
+          },
+          fontFamily: {
+            display: ["Poppins", "sans-serif"],
+          },
+          borderRadius: {
+            DEFAULT: "0.75rem", // 12px
+          },
+        },
+      },
+    };
+  </script>
+<style>
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="max-w-sm mx-auto bg-background-light dark:bg-background-dark">
+<div class="flex flex-col h-screen">
+<header class="sticky top-0 z-20 px-4 pt-12 pb-4 bg-background-light dark:bg-background-dark">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<svg fill="none" height="24" viewBox="0 0 32 32" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M22.8214 9.17855C25.5893 11.9464 25.5893 16.4285 22.8214 19.1964C20.0536 21.9643 15.5714 21.9643 12.8036 19.1964C11.5 17.8928 10.7857 16.2143 10.5357 14.5357H21.4643C22.0536 14.5357 22.5 14.125 22.5 13.5357C22.5 12.9464 22.0536 12.5357 21.4643 12.5357H9.21429C9.03571 12.5357 8.85714 12.5714 8.71429 12.6428C8.32143 12.8214 8.03571 13.2321 8.03571 13.6785C8.03571 13.7857 8.03571 13.8571 8.07143 13.9643C8.42857 17.5714 10.3929 20.8214 13.5357 22.8214C15.9286 24.5357 18.9643 25.0714 21.8214 24.3214C22.3571 24.1785 22.6429 23.6071 22.5 23.0714C22.3214 22.5357 21.75 22.25 21.2143 22.3928C18.8929 23.0357 16.4286 22.5714 14.5 21.1071C10.75 18.2857 10.75 13.25 14.5 10.4285C18.25 7.60712 23.2857 7.60712 27.0357 10.4285C27.5714 10.8214 28.25 10.7143 28.6429 10.1785C29.0357 9.64283 28.9286 8.92855 28.3929 8.53569C25.3214 6.21426 21.2143 5.49998 17.3929 6.32141C13.5714 7.14283 10.3571 9.42855 8.53571 12.5C7.39286 14.4285 6.96429 16.6428 7.32143 18.8214C7.42857 19.3928 6.96429 19.8928 6.39286 19.7857C5.82143 19.6785 5.53571 19.0714 5.64286 18.5C5.25 15.8928 5.75 13.2857 7.07143 11.0357C9.32143 7.21426 13.3929 4.99998 17.8214 4.99998C19.5357 4.99998 21.25 5.35712 22.8214 6.07141V6.07141" fill="#EF4444"></path>
+<path d="M22.8214 6.07141C22.2857 6.28569 21.9643 6.85712 22.1786 7.39283C22.3929 7.92855 22.9643 8.24998 23.5 8.03569C23.6786 7.96426 23.8571 7.89283 24.0357 7.82141C24.5714 7.57141 24.7857 6.96426 24.5357 6.42855C24.2857 5.89283 23.6786 5.67855 23.1429 5.92855C23.0357 5.96426 22.9286 6.03569 22.8214 6.07141Z" fill="#F97316"></path>
+</svg>
+<span class="text-xl font-bold text-gray-800 dark:text-gray-200">drom.am</span>
+</div>
+<button class="relative p-2 text-gray-600 dark:text-gray-400">
+<span class="material-icons">notifications</span>
+<span class="absolute top-2 right-2 flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+</button>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto pb-24">
+<section class="pl-4 pb-4">
+<div class="flex overflow-x-auto space-x-4 no-scrollbar py-2">
+<div class="flex-shrink-0 w-64 rounded-lg overflow-hidden relative shadow-lg">
+<img alt="Grey Aston Martin DB11" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCG2YPzg0jnAGO-RrRh5-3WsQiXk6c31stdedeF5WoXxFOnicjhusLa2ySUkOrWwqwwiBmEYbLp18T3OxyMX5BHiYSQowPdOr7xPuc4I_yNiLwTr5zPchX6U2OOZah8NygujK7r4FiBjsVH6ECkjNFPvU1P3PHWzaCHQ6B3bV1X3ugr6OKwDhYzB8GzG4NOWS0MBBUtxNSl_TXraOcXhlKpXP2C6TzSRNnh9QPdtpgKKbnbM25I11gx-BozWsfeAHAjTV_dB_KAOw"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+<div class="absolute top-3 left-3 flex space-x-2">
+<span class="bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">Featured</span>
+</div>
+<button class="absolute top-3 right-3 text-red-500">
+<span class="material-icons text-white">favorite</span>
+</button>
+<div class="absolute bottom-0 left-0 p-4 w-full">
+<h3 class="text-white font-bold">Aston Martin DB11</h3>
+<p class="text-white text-sm">21 500 USD</p>
+</div>
+</div>
+<div class="flex-shrink-0 w-64 rounded-lg overflow-hidden relative shadow-lg">
+<img alt="Green Lamborghini Huracan ST" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAgMuxUr2cuNPdrzt9ujZN1iwYwMjfjt_nLCQPn6u_pjvQBaBP8tk3FKeQJB088sG6uMYlO8Rj8x968I0HHJvAwuOAoT6RkEddc_bvhwHfACbBeBuX3U-R1kUqBDrT9_8zeYanyifUmeHfog0HvDcHfBWbuKBp_7y2vG5oKiaWt5JdO9n9YFAjCPcWQx7FaJtF76ik11OtIt9yiUG7rRyoCa3nV3VAaEYdSYGpG93lWIzzoaNcuspcgyTeao1q7D_WZ2KVYbI8xZg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+<div class="absolute top-3 left-3 flex space-x-2">
+<span class="bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">Featured</span>
+<span class="bg-amber-400 text-black text-xs font-semibold px-2 py-1 rounded">Featured</span>
+</div>
+<div class="absolute bottom-0 left-0 p-4 w-full">
+<h3 class="text-white font-bold">Lamborghini H...</h3>
+<p class="text-white text-sm">156 780 USD</p>
+</div>
+</div>
+</div>
+<div class="flex justify-center mt-4 space-x-2">
+<span class="block w-2.5 h-2.5 bg-primary rounded-full"></span>
+<span class="block w-2.5 h-2.5 bg-gray-300 dark:bg-gray-600 rounded-full"></span>
+<span class="block w-2.5 h-2.5 bg-gray-300 dark:bg-gray-600 rounded-full"></span>
+<span class="block w-2.5 h-2.5 bg-gray-300 dark:bg-gray-600 rounded-full"></span>
+</div>
+</section>
+<section class="px-4 py-4 flex justify-between items-center">
+<span class="text-sm font-medium text-primary">Сортировка</span>
+<button class="flex items-center space-x-2 px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-md">
+<span class="text-sm text-gray-700 dark:text-gray-300">Сначала новые</span>
+<span class="material-icons text-sm text-gray-500 dark:text-gray-400">expand_more</span>
+</button>
+</section>
+<section class="px-4 space-y-4">
+<div class="flex bg-gray-100 dark:bg-gray-800/50 rounded-lg p-3 space-x-4 items-center">
+<img alt="Blue Mercedes-Benz E-Class" class="w-28 h-20 object-cover rounded-md" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCl7t6drlq0BMlPSbPX16xicGxJsR5IfAyCtpWhsIETgkajMuHdq8brQZAQhkv-gXXtXot8UNcPzwkL2xrqNnZmcCGYUmgA-NCW-2vW4j7AfXMclBdPT5gH4vvLVqZv2UTPpxF9lVudL8ehzqmMu8Jt0JPcj0QejcfsU8yAUq7zsJTLn8tHlxr9l13lEpCSYmN6G7c8qyGY2AlGb1nGKZgPl1xNpSdE71tINXkOrfsdnH_eT-vkP4-yngAqRuqRcem6diN-5AevzQ"/>
+<div class="flex-1">
+<h4 class="font-semibold text-gray-800 dark:text-gray-200">Mercedes-Benz E-Class</h4>
+<p class="text-primary font-bold mt-1">21 500 USD</p>
+</div>
+<button class="text-primary/70">
+<span class="material-icons">favorite_border</span>
+</button>
+</div>
+<div class="flex bg-gray-100 dark:bg-gray-800/50 rounded-lg p-3 space-x-4 items-center">
+<img alt="Green Lamborghini HURACAN ST" class="w-28 h-20 object-cover rounded-md" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC30W1ZJZPf-VXxyUw5SD1yvMOS5fv_23_yNNJfymdfN91WDIpxVzmb9EgR4MZCdUlik4f8AUmo46vlRuZfK9-AU18kSsFAlMFhhW2qXH9YXJwSRuiW2mgu6dZAZQbU2dZ8RhxomwxTbR9DnKkfG7dAyeUIDxld5BwBS8pKZ-VQebKUcsydwSz5v17sYzxM1b1n9uLuG3AOm6rQkKY0qIjgNXw0jZPoUAHuD2cX68XG0NqhbUHq-3IeFczY9SGGuPFywC_PcRjFHQ"/>
+<div class="flex-1">
+<h4 class="font-semibold text-gray-800 dark:text-gray-200">Lamborghini HURACÁN ST</h4>
+<p class="text-primary font-bold mt-1">156 780 USD</p>
+</div>
+<button class="text-primary/70">
+<span class="material-icons">favorite_border</span>
+</button>
+</div>
+<div class="flex bg-gray-100 dark:bg-gray-800/50 rounded-lg p-3 space-x-4 items-center">
+<img alt="Grey Aston Martin Vantage" class="w-28 h-20 object-cover rounded-md" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCf-6bTxOtWN2njOTvHptv-hmKHfqg5jIHayYBk32MUfH0ciC1-wXoYozQ5sEE0U8WOB3kiUrTdtYegH388oY_leykihVFTn7S6gjBEDXaB-Y8X6ykWdMy-cQTJ-BnY0naizVEoEWsvIDKf-7QiZkMCgvNu60AVbM3VYg2lG0PmNixZSlojAoMbWC4ZAymzslS1LmP6iiLX02c24OSA8Z5uSay_IqNdatJf2rCHwOGI0BOkymon8nb3vuhNLNqs5G4u9cF2OJnaFg"/>
+<div class="flex-1">
+<h4 class="font-semibold text-gray-800 dark:text-gray-200">Aston Martin Vantage</h4>
+<p class="text-primary font-bold mt-1">250 000 USD</p>
+</div>
+<button class="text-primary/70">
+<span class="material-icons">favorite_border</span>
+</button>
+</div>
+<div class="flex bg-gray-100 dark:bg-gray-800/50 rounded-lg p-3 space-x-4 items-center">
+<img alt="White KIA FORTE EX" class="w-28 h-20 object-cover rounded-md" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAye14a4IzaEX2lZgeMvFF1luk48VAmPAl0mqRMk2RrquWhUT-DEhVxIHkjZnh19mD0bP40u6TqW1tTaIFM17t_yQy4I9bBgsmn7JqpCpEAFUS99WYwLM_QPteGsXEO-NRjxg3dl9C7DtZyDEu-6TMOAjHdWPL6n9StrENdFMcrHxWk1DcGoC6dWibXH1pTJx92Xa50wRmSjVQJzDuDSToI9hUX3hW8oRfmgGuo1sYofE8lF4G6srvkStL-YlE4q5bbqAA6vBCeeQ"/>
+<div class="flex-1">
+<h4 class="font-semibold text-gray-800 dark:text-gray-200">KIA FORTE EX</h4>
+<p class="text-primary font-bold mt-1">5 444 USD</p>
+</div>
+<button class="text-primary/70">
+<span class="material-icons">favorite_border</span>
+</button>
+</div>
+</section>
+</main>
+<nav class="fixed bottom-0 left-0 right-0 max-w-sm mx-auto bg-background-light dark:bg-background-dark border-t border-gray-200 dark:border-gray-800 px-4 py-2">
+<div class="flex justify-around items-center h-16">
+<button class="flex flex-col items-center justify-center text-primary">
+<span class="material-icons">home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+<span class="material-icons">search</span>
+</button>
+<button class="flex items-center justify-center w-12 h-12 rounded-full bg-primary text-white -mt-8 shadow-lg shadow-primary/30">
+<span class="material-icons text-3xl">add</span>
+</button>
+<button class="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+<span class="material-icons">chat_bubble_outline</span>
+</button>
+<button class="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+<span class="material-icons">person_outline</span>
+</button>
+</div>
+</nav>
+</div>
+</div>
+
+</body></html>

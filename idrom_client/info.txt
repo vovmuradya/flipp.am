@@ -1,0 +1,111 @@
+• Основные страницы бэкенда (Laravel) по маршрутам/views:
+                                                                                                                                                                                    
+  - Главная/листинги: / (listings.index) — обычные и аукционные, с слайдером и фильтрами (варианты ?only_regular=1, ?only_auctions=1), пагинация.                                   
+  - Поиск: /search (search.index) — полноэкранная выдача + боковой фильтр.                                                                                                          
+  - Деталка объявления: /listings/{listing} — карточка авто (галерея, характеристики, похожие).                                                                                     
+  - Создание/импорт:                                                                                                                                                                
+      - /listings/create — обычная форма.                                                                                                                                           
+      - /listings/create-from-auction — импорт Copart.                                                                                                                              
+      - /listings/create-from-external — импорт List.am.                                                                                                                            
+      - /listings/create/choose — выбор типа.                                                                                                                                       
+  - Редактирование: /listings/{listing}/edit (обычные), /auction-listings/{id}/edit (аукционные).                                                                                   
+  - Дашборд (после логина):                                                                                                                                                         
+      - /dashboard — обзор.                                                                                                                                                         
+      - /dashboard/my-listings — мои объявления.                                                                                                                                    
+      - /dashboard/my-auctions — мои аукционные.                                                                                                                                    
+      - /dashboard/favorites — избранные.                                                                                                                                           
+  - Профиль: /profile — данные, телефон, смена пароля, удаление аккаунта.                                                                                                           
+  - Дилеры:                                                                                                                                                                         
+      - /dealers — список дилеров.                                                                                                                                                  
+      - /dealers/{slug} — карточка дилера.                                                                                                                                          
+      - /pseo/{path} — лендинги SEO.
+      - /sitemap.xml — карта сайта.
+
+  Если нужен полный список API/мобильных эндпоинтов — скажи, пришлю отдельно.
+
+- Аутентификация:                                                                                                                                                                 
+      - POST /auth/phone/send-code — отправка кода.                                                                                                                                 
+      - POST /auth/register                                                                                                                                                         
+      - POST /auth/login                                                                                                                                                            
+      - GET /auth/me, POST /auth/logout, POST /auth/refresh (требуют Bearer Sanctum).                                                                                               
+  - Профиль/настройки (auth):                                                                                                                                                       
+      - GET /profile, PUT /profile                                                                                                                                                  
+      - GET /notification-settings, PUT /notification-settings                                                                                                                      
+      - GET /devices, POST /devices, DELETE /devices/{device}                                                                                                                       
+  - Избранное (auth):                                                                                                                                                               
+      - GET /favorites                                                                                                                                                              
+      - POST /listings/{listing}/favorite                                                                                                                                           
+      - DELETE /listings/{listing}/favorite                                                                                                                                         
+  - Мои объявления (auth):                                                                                                                                                          
+      - GET /my/listings, GET /my/auctions                                                                                                                                          
+      - POST /listings (создать), PUT /listings/{listing} (обновить), DELETE /listings/{listing} (удалить)                                                                          
+      - POST /listings/{listing}/bump — поднять                                                                                                                                     
+  - Чаты (auth):                                                                                                                                                                    
+      - GET /chats                                                                                                                                                                  
+      - GET /listings/{listing}/messages                                                                                                                                            
+      - POST /listings/{listing}/messages                                                                                                                                           
+      - POST /listings/{listing}/messages/read                                                                                                                                      
+  - Safe Deal / Escrow (каркас, auth):                                                                                                                                              
+      - POST /escrow/create, GET /escrow, POST /escrow/capture, POST /escrow/release                                                                                                
+      - POST /escrow/webhook (без auth, через middleware)                                                                                                                           
+  - Call Masking (каркас, auth):                                                                                                                                                    
+      - GET /categories/{id}/fields
+      - GET /brands, GET /brands/{brand}/models
+      - GET /models/{modelId}/generations
+
+Схема мобильного API по /api/mobile (по коду ListingResource и контроллеру):
+                                                                                                                                                                                    
+  GET /listings (публично, с пагинацией Laravel)                                                                                                                                    
+                                                                                                                                                                                    
+  - Параметры фильтров: q, brand, model, region_id, listing_type, price_from, price_to, year_from, year_to, body_type, transmission, fuel_type, drive_type, engine_from, engine_to, 
+    color, condition, is_copart (bool), only_buy_now (bool), sort (price_asc|price_desc|created_at_asc|trust|latest), per_page (max 50), page.                                      
+  - Ответ: data — массив объявлений, плюс стандартные links/meta пагинации и status: success.                                                                                       
+  - Структура элемента:                                                                                                                                                             
+      - id (int)                                                                                                                                                                    
+      - title (string)                                                                                                                                                              
+      - slug (string)                                                                                                                                                               
+      - status (string)                                                                                                                                                             
+      - listing_type (string)                                                                                                                                                       
+      - price { amount (float|null), currency (string|null) }                                                                                                                       
+      - price_badge (string|null)                                                                                                                                                   
+      - price_anomaly (bool)                                                                                                                                                        
+      - imv_value (float|null)                                                                                                                                                      
+      - out_the_door_price (float|null)                                                                                                                                             
+      - is_buy_now_available (bool)                                                                                                                                                 
+      - buy_now_price (float|null)                                                                                                                                                  
+      - buy_now_currency (string|null)                                                                                                                                              
+      - current_bid_price (float|null)                                                                                                                                              
+      - current_bid_currency (string|null)                                                                                                                                          
+      - current_bid_fetched_at (ISO8601|null)                                                                                                                                       
+      - operational_status (string|null)                                                                                                                                            
+      - region { id, name } или null                                                                                                                                                
+      - seller { id, name, phone, role, seller_score } или null                                                                                                                     
+      - vehicle или null:                                                                                                                                                           
+          - make, model, year, mileage, body_type, transmission, fuel_type,                                                                                                         
+          - engine_displacement_cc, exterior_color,                                                                                                                                 
+          - is_from_auction (bool),                                                                                                                                                 
+          - auction_ends_at (ISO8601|null),                                                                                                                                         
+          - source_auction_url (string|null),                                                                                                                                       
+          - current_bid_price/current_bid_currency/current_bid_fetched_at (дублируются здесь)                                                                                       
+      - photos: { primary: url|null, all: [url...] } (если нет фото — заглушка images/no-image.jpg)                                                                                 
+      - is_favorite (bool)                                                                                                                                                          
+      - favorites_count (int)                                                                                                                                                       
+      - created_at, updated_at (ISO8601)                                                                                                                                            
+                                                                                                                                                                                    
+  GET /listings/{id} (публично) — та же структура, без пагинации.                                                                                                                   
+                                                                                                                                                                                    
+  Требуют Bearer (Sanctum):                                                                                                                                                         
+                                                                                                                                                                                    
+  - /auth/me, /auth/logout, /auth/refresh; профиль /profile (GET/PUT), notification-settings (GET/PUT), devices (GET/POST/DELETE).                                                  
+  - Избранное: GET /favorites, POST /listings/{id}/favorite, DELETE /listings/{id}/favorite.                                                                                        
+  - Мои объявления: GET /my/listings, GET /my/auctions, POST /listings (создать), PUT /listings/{listing}, DELETE /listings/{listing}, POST /listings/{listing}/bump.               
+  - Чаты: GET /chats, GET/POST /listings/{listing}/messages, POST /listings/{listing}/messages/read.                                                                                
+  - Escrow (каркас): POST /escrow/create|capture|release, GET /escrow, webhook /escrow/webhook без auth (middleware escrow.webhook).                                                
+  - Call masking (каркас): POST /calls/start, /calls/end.                                                                                                                           
+                                                                                                                                                                                    
+  Вспомогательные (публично):                                                                                                                                                       
+                                                                                                                                                                                    
+  - Категории/поля: /categories/root, /categories/{id}/children, /categories/{id}/fields.                                                                                           
+  - Бренды/модели/поколения: /brands, /brands/{brand}/models, /models/{modelId}/generations.                                                                                        
+                                                                                                                                                                                    
+  База URL: прод https://idrom.am/api/mobile, локально с эмулятора http://10.0.2.2:8000/api/mobile.         

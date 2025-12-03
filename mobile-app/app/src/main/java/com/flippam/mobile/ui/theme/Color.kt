@@ -2,7 +2,9 @@ package com.flippam.mobile.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val TealPrimary = Color(0xFF006874)
-val TealOnPrimary = Color(0xFFFFFFFF)
-val DarkPrimary = Color(0xFF4FD8EB)
-val DarkOnPrimary = Color(0xFF00363D)
+val PrimaryRed = Color(0xFFEC3713)
+val PrimaryRedDark = Color(0xFFEF4444)
+val BackgroundLight = Color(0xFFF8F6F6)
+val BackgroundDark = Color(0xFF121212)
+val SurfaceDark = Color(0xFF1E1E1E)
+val TextSecondaryDark = Color(0xFFA0A0A0)

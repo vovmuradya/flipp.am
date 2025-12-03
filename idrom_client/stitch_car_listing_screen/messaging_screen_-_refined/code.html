@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Messaging Screen - Refined</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24;
+    }
+  </style>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#ec3713",
+            "background-light": "#f8f6f6",
+            "background-dark": "#221310",
+          },
+          fontFamily: {
+            "display": ["Manrope", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="relative flex h-auto min-h-screen w-full flex-col bg-background-light dark:bg-background-dark group/design-root overflow-x-hidden">
+<!-- Top App Bar -->
+<div class="flex items-center bg-background-light dark:bg-background-dark p-4 pb-2 justify-between sticky top-0 z-10 border-b border-white/10">
+<div class="text-white flex size-12 shrink-0 items-center justify-start">
+<span class="material-symbols-outlined text-gray-400 dark:text-gray-500" style="font-size: 28px;">arrow_back_ios_new</span>
+</div>
+<h2 class="text-gray-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">Messages</h2>
+<div class="flex w-12 items-center justify-end">
+<button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 bg-transparent text-gray-900 dark:text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] min-w-0 p-0">
+<span class="material-symbols-outlined" style="font-size: 28px;">search</span>
+</button>
+</div>
+</div>
+<!-- Spacer -->
+<div class="h-4 bg-background-light dark:bg-background-dark"></div>
+<!-- Conversation List -->
+<div class="flex flex-col gap-1">
+<!-- List Item 1 - Unread -->
+<div class="flex items-center gap-4 bg-background-light dark:bg-background-dark px-4 min-h-[80px] py-2 justify-between">
+<div class="flex items-center gap-4">
+<div class="relative">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-14 w-14" data-alt="Profile picture of Sarah Connor" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBcCgar3vd-EGfHxfSDRTNJChAB9sZsxJandbThSimbUKAWPVL5QumWthExtF--KF9PYaGY2JQL7ntMXKXGF9VrWDX7IbtLgelRbqooGqGR5X1RuNIVZo72V6CuqPFEFAGL3-4KoyLuvbTYQ_IcCNrnxM4X_Mh2MYl3g4IX1sj2whn__x2nX4ZbGgfnkYUmhqvxlU9zaCjt6kxR9B6MY_rwDs51dPJPoLs00vmBZOt9agnehVYIY21IrcEvlxd6MxjZ8lwcn4z9wg");'></div>
+<div class="absolute bottom-0 right-0 size-4 rounded-full bg-green-500 border-2 border-background-dark"></div>
+</div>
+<div class="flex flex-col justify-center">
+<p class="text-gray-900 dark:text-white text-base font-bold leading-normal line-clamp-1">Sarah Connor</p>
+<p class="text-gray-600 dark:text-gray-400 text-sm font-normal leading-normal line-clamp-1">Is the Porsche 911 still available?</p>
+</div>
+</div>
+<div class="shrink-0 flex flex-col items-end gap-1.5">
+<p class="text-gray-500 dark:text-gray-400 text-xs font-normal leading-normal">10:45 AM</p>
+<div class="flex size-6 items-center justify-center rounded-full bg-primary"><p class="text-white text-xs font-bold">2</p></div>
+</div>
+</div>
+<!-- List Item 2 -->
+<div class="flex items-center gap-4 bg-background-light dark:bg-background-dark px-4 min-h-[80px] py-2 justify-between">
+<div class="flex items-center gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-14 w-14" data-alt="Profile picture of John Doe" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDUBTsxg3G1AmFbPoTGnehki1NVjAjYl9ZZ-NJZTDykjT-kkMCp6p5Y2S9Gl0rKfZu4Lp_ZrLmy61GcZhPaRgxu-ejJk6qM-Sk4hp0Q1UaqN0sHxa1MJmXhApg4a4iLEIet12vOAqUQKfFsJQR5oAXuKHHUyxcM3vs4gUl81yGVPmCZCn57Aqcwjg-hVOh59OYJRtjEYAiZlDYGwgSiV98CsUIf0xDLsM8qcZKQezZfW18bzWfHVbgH9KblQGqKE3LTNd-zkmEU7A");'></div>
+<div class="flex flex-col justify-center">
+<p class="text-gray-900 dark:text-white text-base font-bold leading-normal line-clamp-1">John Doe</p>
+<p class="text-gray-600 dark:text-gray-400 text-sm font-normal leading-normal line-clamp-1">Sounds good, I'll be there at 2 PM.</p>
+</div>
+</div>
+<div class="shrink-0"><p class="text-gray-500 dark:text-gray-400 text-xs font-normal leading-normal">9:30 AM</p></div>
+</div>
+<!-- List Item 3 -->
+<div class="flex items-center gap-4 bg-background-light dark:bg-background-dark px-4 min-h-[80px] py-2 justify-between">
+<div class="flex items-center gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-14 w-14" data-alt="Profile picture of Mike Smith" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDhzd6B-_bRxORa-2aRZy6kpFJ9GGg4z27_J0qkzbokWCDdTVsLEFjTk8kmDjiRGBqJEEvon3W-5laNVEcanecaD9aUZmNmohIIpNnlvD6Jq6uKHplB_Hzh_O0WSAidH1xY_qCv_vtzgRwCBLNp5AUf7ZU3wZVXcbwlPp9sdB9e09OtDcTbemWozHyfoC6Vxrk5ZEHnrb7P23wbLvNkf8JHHvgpn6tMPpqaRD8IyPHBuktsAKHMgKqTs1r-hp1R8v-q14yf-7sdkg");'></div>
+<div class="flex flex-col justify-center">
+<p class="text-gray-900 dark:text-white text-base font-bold leading-normal line-clamp-1">Mike Smith</p>
+<p class="text-gray-600 dark:text-gray-400 text-sm font-normal leading-normal line-clamp-1">Great, thanks for the info!</p>
+</div>
+</div>
+<div class="shrink-0"><p class="text-gray-500 dark:text-gray-400 text-xs font-normal leading-normal">Yesterday</p></div>
+</div>
+<!-- List Item 4 -->
+<div class="flex items-center gap-4 bg-background-light dark:bg-background-dark px-4 min-h-[80px] py-2 justify-between">
+<div class="flex items-center gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-14 w-14" data-alt="Profile picture of Emily White" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB2Q-ju9h0fgGDNM6lKn9MJwovcPsFVfxHBFfrQnAzUWUKq_IJ9JVgG_kWlNGNC6y1rVRBkSqAT07rFKEuSiegzXBlRUeuZ7JdUxCIN7XTHrIRBxA6oh_0IbtoUTUw_oxXF5VuiAHsyk3B_SfKQrIrRlUXnrzVcwWcirYmtdSKe8Mzl9VkerssA5_6l_dd86ROUInBO9GWkSohZPGA_PgcU_jtQwPkI-ZjUUhZMXSP_6JzAMG_4JmdQ_u3ioJu3EPGfEroTyd5-Qw");'></div>
+<div class="flex flex-col justify-center">
+<p class="text-gray-900 dark:text-white text-base font-bold leading-normal line-clamp-1">Emily White</p>
+<p class="text-gray-600 dark:text-gray-400 text-sm font-normal leading-normal line-clamp-1">Can I see more photos of the interior?</p>
+</div>
+</div>
+<div class="shrink-0"><p class="text-gray-500 dark:text-gray-400 text-xs font-normal leading-normal">Tuesday</p></div>
+</div>
+</div>
+<!-- Empty State Example (can be uncommented to show) -->
+<!--
+    <div class="flex flex-col items-center justify-center flex-1 p-8 text-center">
+        <span class="material-symbols-outlined text-gray-400 dark:text-gray-600" style="font-size: 64px;">chat_bubble_outline</span>
+        <h3 class="mt-4 text-xl font-bold text-gray-900 dark:text-white">No Messages Yet</h3>
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Your conversations with buyers and sellers will appear here.</p>
+    </div>
+    -->
+</div>
+</body></html>

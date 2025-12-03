@@ -7,9 +7,9 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flippam.mobile.core.ServiceLocator
-import com.flippam.mobile.ui.listings.ListingsScreen
 import com.flippam.mobile.ui.listings.ListingsViewModel
 import com.flippam.mobile.ui.listings.ListingsViewModelFactory
+import com.flippam.mobile.ui.navigation.AppNavGraph
 import com.flippam.mobile.ui.theme.IdromTheme
 
 class MainActivity : ComponentActivity() {
@@ -23,10 +23,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             IdromTheme {
                 val uiState by listingsViewModel.state.collectAsStateWithLifecycle()
-                ListingsScreen(
-                    state = uiState,
-                    onRetry = { listingsViewModel.refreshListings() }
-                )
+                AppNavGraph(listingsState = uiState, onRetryListings = { listingsViewModel.refreshListings() })
             }
         }
     }

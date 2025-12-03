@@ -1,16 +1,24 @@
 # idrom_client
 
-A new Flutter project.
+Мобильное приложение-клиент для idrom.am (стартовый шаблон, структура всех основных экранов).
 
-## Getting Started
+## Как запустить и посмотреть результат
 
-This project is a starting point for a Flutter application.
+1. **Установите Flutter SDK** ([инструкция](https://docs.flutter.dev/get-started/install))
+2. Откройте терминал/консоль в папке с проектом (`/home/vov/flipp-am/idrom_client`).
+3. Установите зависимости:
+   ```bash
+   flutter pub get
+   ```
+4. Откройте эмулятор (Android Studio, либо устройcтво через USB—debug).
+5. Запустите приложение командой:
+   ```bash
+   flutter run
+   ```
+   (приложение соберётся и откроется на эмуляторе/подключённом устройстве)
 
-A few resources to get you started if this is your first Flutter project:
+## Что реализовано сейчас
+- Навигация по основным разделам: Листинги, Поиск, Дашборд, Дилеры, Профиль.
+- Заглушки для всех разделов с названиями и иконками.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Для разработки реальных экранов и подключения к API, расширяйте соответствующие виджеты в `lib/main.dart` и добавляйте новые файлы в `lib/`.

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Edit Profile Screen - Refined</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#ec3713",
+              "background-light": "#f8f6f6",
+              "background-dark": "#121212",
+              "card-dark": "#1E1E1E",
+              "card-light": "#FFFFFF",
+              "text-primary-light": "#121212",
+              "text-primary-dark": "#EAEAEA",
+              "text-secondary-light": "#6B7280",
+              "text-secondary-dark": "#A0A0A0",
+            },
+            fontFamily: {
+              "display": ["Manrope", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.5rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden text-text-primary-light dark:text-text-primary-dark">
+<!-- Top App Bar -->
+<div class="flex sticky top-0 z-10 items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm p-4 justify-between border-b border-white/10">
+<div class="flex w-12 items-center justify-start">
+<span class="material-symbols-outlined text-3xl">chevron_left</span>
+</div>
+<h2 class="text-lg font-bold">Edit Profile</h2>
+<div class="flex w-12 items-center justify-end">
+<p class="text-primary text-base font-bold">Save</p>
+</div>
+</div>
+<main class="flex-1 flex flex-col p-4 space-y-8">
+<!-- Profile Header -->
+<div class="flex w-full flex-col gap-4 items-center pt-4">
+<div class="relative">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-32 w-32 ring-4 ring-primary/30" data-alt="User profile avatar placeholder" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCXKhlObyTxykBPBLsPf1K83oZ-pJK8MmpVhgLuPRuEDgxaZmy2YSxxu78YpO_yz10JPf6-KnwvpmV3WiwBGYUA2rZtEU4bO15mGDaJAwRDXvVhB9olOTxDrvDj6K4h_SbrXCfo_et-DLxxUcLhi7JSnMTgQgzZ39gvRnknreOSck8RSHkvkNoA62YlMyobb1RonL4-3bsQEId3IPjhZBi1HfQckEc0Lj5t82BFTXMa7tw04zXad3grYUhGgSAOJWieTjHCIsC6eQ");'></div>
+<button class="absolute bottom-0 right-0 flex items-center justify-center size-9 bg-primary rounded-full border-2 border-background-dark">
+<span class="material-symbols-outlined text-white text-xl">edit</span>
+</button>
+</div>
+<p class="text-text-secondary-light dark:text-text-secondary-dark text-base font-medium">Change Photo</p>
+</div>
+<!-- Personal Information Form -->
+<div class="flex flex-col gap-4 bg-card-light dark:bg-card-dark p-4 rounded-xl">
+<h3 class="text-lg font-bold text-text-primary-light dark:text-text-primary-dark">Personal Information</h3>
+<!-- Full Name TextField -->
+<label class="flex flex-col flex-1">
+<p class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark pb-2">Full Name</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-primary-light dark:text-text-primary-dark focus:outline-0 focus:ring-2 focus:ring-primary border border-white/10 bg-background-light dark:bg-background-dark h-14 placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark p-4 text-base font-normal" placeholder="Enter your full name" value="John Doe"/>
+</label>
+<!-- Email Address TextField -->
+<label class="flex flex-col flex-1">
+<p class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark pb-2">Email Address</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-secondary-light dark:text-text-secondary-dark focus:outline-0 focus:ring-0 cursor-not-allowed border border-white/10 bg-background-light dark:bg-background-dark/50 h-14 placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark p-4 text-base font-normal" placeholder="Enter your email address" readonly="" value="john.doe@example.com"/>
+</label>
+<!-- Phone Number TextField -->
+<label class="flex flex-col flex-1">
+<p class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark pb-2">Phone Number</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-primary-light dark:text-text-primary-dark focus:outline-0 focus:ring-2 focus:ring-primary border border-white/10 bg-background-light dark:bg-background-dark h-14 placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark p-4 text-base font-normal" placeholder="Enter your phone number" value="+1 (555) 123-4567"/>
+</label>
+<!-- Location TextField -->
+<label class="flex flex-col flex-1">
+<p class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark pb-2">Location</p>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-text-secondary-light dark:text-text-secondary-dark">location_on</span>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-primary-light dark:text-text-primary-dark focus:outline-0 focus:ring-2 focus:ring-primary border border-white/10 bg-background-light dark:bg-background-dark h-14 placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark pl-12 pr-4 text-base font-normal" placeholder="Enter your location" value="San Francisco, CA"/>
+</div>
+</label>
+</div>
+<!-- Security Section -->
+<div class="flex flex-col gap-4 bg-card-light dark:bg-card-dark p-4 rounded-xl">
+<h3 class="text-lg font-bold text-text-primary-light dark:text-text-primary-dark">Security</h3>
+<button class="flex w-full items-center justify-between text-left h-14 px-0">
+<p class="text-base font-medium">Change Password</p>
+<span class="material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark">arrow_forward_ios</span>
+</button>
+</div>
+<div class="flex-grow"></div>
+<!-- Save Changes Button -->
+<div class="pt-4 pb-2">
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-14 px-4 bg-primary text-white text-base font-bold w-full disabled:bg-primary/50 disabled:cursor-not-allowed">
+<span class="truncate">Save Changes</span>
+</button>
+</div>
+</main>
+</div>
+</body></html>
