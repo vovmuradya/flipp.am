@@ -52,6 +52,12 @@ class Kernel extends ConsoleKernel
             ->dailyAt('03:00')
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/pricing-recalc.log'));
+
+        // Обновление тарифов доставки с auctioncars.am
+        $schedule->command('tariffs:update')
+            ->daily()
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/tariffs-update.log'));
     }
 
     /**

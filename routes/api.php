@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\Mobile\MyListingController as MobileMyListingContro
 use App\Http\Controllers\Api\Mobile\ProfileController as MobileProfileController;
 use App\Http\Controllers\Api\Payments\EscrowController;
 use App\Http\Controllers\Api\Calls\CallMaskingController;
+use App\Http\Controllers\ImportCalculatorController;
+use App\Http\Controllers\AuctionCarsCalculatorController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -27,6 +29,15 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::get('/categories/root', [CategoryController::class, 'getRoot']);
 Route::get('/categories/{category}/children', [CategoryController::class, 'getChildren']);
 Route::get('/categories/{category}/fields', [CategoryFieldController::class, 'index']);
+
+// ==================== IMPORT CALCULATOR (SRC.AM) ====================
+Route::post('/import-calculator', [ImportCalculatorController::class, 'calculateImportCost'])
+    ->name('api.import-calculator');
+
+// ==================== COPART CALCULATOR (NO CSRF) ====================
+Route::post('/copart-calculator/calculate', [AuctionCarsCalculatorController::class, 'calculate'])
+    ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class])
+    ->name('api.copart-calculator.calculate');
 
 // ==================== BRANDS & MODELS ====================
 Route::get('/brands', [CarBrandController::class, 'index']);

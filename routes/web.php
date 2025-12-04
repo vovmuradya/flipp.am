@@ -20,6 +20,8 @@ use App\Http\Controllers\DealerListController;
 use App\Http\Controllers\ListingRefreshController;
 use App\Http\Controllers\ProgrammaticSeoController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\AuctionCarsCalculatorController;
+use App\Http\Controllers\CopartCalculatorController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,6 +51,14 @@ Route::get('/proxy/image', [ProxyController::class, 'image'])->name('proxy.image
 Route::get('/media/{media}/{conversion?}', [MediaController::class, 'show'])
     ->where('conversion', '[A-Za-z0-9_\-]+')
     ->name('media.show');
+Route::get('/copart-calculator', function () {
+    return view('calculator.iaa');
+})->name('copart-calculator');
+// Запасной POST без CSRF: если фронт попадёт на веб-мидлварь, 419 не будет
+Route::post('/copart-calculator/calculate', [AuctionCarsCalculatorController::class, 'calculate'])
+    ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class])
+    ->name('copart-calculator.calculate');
+Route::view('/tools/import-calculator', 'tools.import-calculator')->name('tools.import-calculator');
 Route::get('/dealers', [DealerProfileController::class, 'index'])->name('dealers.index');
 Route::get('/dealer/{slug}', [DealerProfileController::class, 'show'])->name('dealers.show');
 Route::post('/payment/dealer/webhook', [DealerPaymentController::class, 'webhook'])->name('dealer.payment.webhook');

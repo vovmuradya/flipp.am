@@ -137,12 +137,12 @@
                                 @keydown.window.arrow-left.prevent="prev()"
                                 @keydown.window.arrow-right.prevent="next()"
                             >
-                                <div class="listing-slider__viewport">
+                                <div class="listing-slider__viewport" @click="window.open(currentImage, '_blank')">
                                     <img :src="currentImage" alt="{{ $listing->title }}" class="listing-slider__image" @@error="handleError($event)">
-                                    <button type="button" class="listing-slider__nav listing-slider__nav--prev" @click="prev()" x-show="images.length > 1" x-cloak aria-label="{{ __('Предыдущее фото') }}">
+                                    <button type="button" class="listing-slider__nav listing-slider__nav--prev" @click.stop="prev()" x-show="images.length > 1" x-cloak aria-label="{{ __('Предыдущее фото') }}">
                                         <span aria-hidden="true">&larr;</span>
                                     </button>
-                                    <button type="button" class="listing-slider__nav listing-slider__nav--next" @click="next()" x-show="images.length > 1" x-cloak aria-label="{{ __('Следующее фото') }}">
+                                    <button type="button" class="listing-slider__nav listing-slider__nav--next" @click.stop="next()" x-show="images.length > 1" x-cloak aria-label="{{ __('Следующее фото') }}">
                                         <span aria-hidden="true">&rarr;</span>
                                     </button>
                                 </div>
@@ -449,6 +449,7 @@
                     align-items: center;
                     justify-content: center;
                     overflow: hidden;
+                    cursor: pointer;
                 }
                 .listing-slider__image {
                     width: 100%;

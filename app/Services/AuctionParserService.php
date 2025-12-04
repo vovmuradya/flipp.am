@@ -397,7 +397,8 @@ class AuctionParserService
         $options['http_errors'] = false;
 
         try {
-            $response = Http::timeout(12)
+            $response = Http::timeout(10)
+                ->retry(1, 500)
                 ->withHeaders($headers)
                 ->withOptions($options)
                 ->get($url);
@@ -493,7 +494,8 @@ class AuctionParserService
         $options['http_errors'] = false;
 
         try {
-            $response = Http::timeout(12)
+            $response = Http::timeout(10)
+                ->retry(1, 500)
                 ->withHeaders($headers)
                 ->withOptions($options)
                 ->get($url);
@@ -1533,14 +1535,15 @@ class AuctionParserService
     private function parseIAAI(string $url): ?array
     {
         try {
-            $response = Http::withHeaders($this->iaaiRequestHeaders($url))
+            $response = Http::timeout(10)
+                ->retry(1, 500)
+                ->withHeaders($this->iaaiRequestHeaders($url))
                 ->withCookies($this->iaaiCookies(), '.iaai.com')
                 ->withOptions([
                     'verify' => false,
                     'allow_redirects' => true,
                     'http_errors' => false,
                 ])
-                ->timeout(15)
                 ->get($url);
 
             if (!$response->successful()) {

@@ -5,6 +5,10 @@
 @tailwind components;
 @tailwind utilities;
 
+[x-cloak] {
+    display: none !important;
+}
+
 @layer base {
     :root {
         --brand-red: #E32B2B;
@@ -413,7 +417,7 @@ a:hover {
 /*. brand-section--fullwidth adjustments removed - ensure surfaces only change where needed */
 
 .brand-section {
-    padding: 0 0 48px;
+    padding: 32px 0 56px;
 }
 
 .auth-body {
@@ -2991,6 +2995,140 @@ as required by the 'navbar-expand-lg' class, overriding any custom conflict.
 
 body {
     overflow-x: hidden;
+}
+
+/* Floating header button */
+.floating-header-btn {
+    position: fixed;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2001;
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 700;
+}
+.floating-header-btn:hover { filter: brightness(1.05); transform: translateY(-52%) scale(1.02); }
+.floating-header-btn:active { transform: translateY(-48%) scale(0.99); }
+.floating-header-btn i { font-size: 18px; }
+.floating-header-btn::after {
+    content: 'Калькулятор';
+    font-size: 14px;
+    white-space: nowrap;
+}
+@media (max-width: 640px) {
+    .floating-header-btn {
+        top: auto;
+        bottom: 16px;
+        transform: none;
+        right: 12px;
+        padding: 12px;
+        border-radius: 12px;
+    }
+    .floating-header-btn::after {
+        content: '';
+    }
+}
+
+/* Modal for calculator */
+.calc-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 2000;
+}
+.calc-modal {
+    background: #fff;
+    border-radius: 16px;
+    max-width: 1200px;
+    width: min(80vw, 1200px);
+    padding: 18px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.calc-modal__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+.calc-modal__title { margin: 0; font-size: 1.1rem; font-weight: 700; }
+.calc-modal__subtitle { margin: 2px 0 0; color: #6b7280; font-size: 0.95rem; }
+.calc-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 8px;
+}
+.calc-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.calc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.95rem;
+    color: #374151;
+}
+.calc-field input {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 0.95rem;
+}
+.calc-field input[type="number"] {
+    -moz-appearance: textfield;
+}
+.calc-field input[type="number"]::-webkit-outer-spin-button,
+.calc-field input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.calc-modal__footer {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+.calc-primary {
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+.calc-ghost {
+    background: #f3f4f6;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+.calc-result-box {
+    margin-top: 10px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px;
 }
 
 .home-filter__form {

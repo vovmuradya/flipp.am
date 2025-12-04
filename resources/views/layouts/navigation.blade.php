@@ -266,3 +266,193 @@
         </div>
     </div>
 </nav>
+
+<div x-data="{ openCalc: false }">
+    <button type="button" class="floating-header-btn" aria-label="{{ __('Калькулятор') }}" @click="openCalc = true">
+        <i class="fa-solid fa-calculator"></i>
+    </button>
+
+    <div class="calc-modal-backdrop" x-cloak x-show="openCalc" x-transition.opacity @click.self="openCalc = false">
+        <div class="calc-modal" x-transition style="width:min(80vw,1200px);max-width:1200px;">
+            <div class="calc-modal__header">
+                <div>
+                    <p class="calc-modal__title">{{ __('Կալկուլյատոր մաքսի և մատակարարման') }}</p>
+                    <p class="calc-modal__subtitle">{{ __('Վերցնում ենք данные Copart և считаем расходы') }}</p>
+                </div>
+                <button type="button" class="calc-close" @click="openCalc = false" aria-label="{{ __('Закрыть') }}">×</button>
+            </div>
+            <form class="calc-modal__body" id="mini-calc-form">
+                @csrf
+                <label class="calc-field">
+                    <span>{{ __('Copart հղում') }}</span>
+                    <input type="url" name="copart_link" placeholder="https://www.copart.com/lot/12345678" required>
+                </label>
+                <label class="calc-field">
+                    <span>{{ __('Գին ($)') }}</span>
+                    <input type="number" name="price" min="0" step="100" placeholder="15000">
+                </label>
+                <input type="hidden" name="auction" value="copart">
+                <label class="calc-field">
+                    <span>{{ __('Աճուրդի վայր (state)') }}</span>
+                    <input type="text" name="state" value="NH-CANDIA" placeholder="NH-CANDIA">
+                </label>
+                <label class="calc-field">
+                    <span>{{ __('Շարժիչի տեսակ') }}</span>
+                    <select name="engine">
+                        <option value="benzin">Բենզին</option>
+                        <option value="disel">Դիզել</option>
+                        <option value="hybrid">Հիբրիդ</option>
+                        <option value="electric">Էլեկտրո</option>
+                    </select>
+                </label>
+                <label class="calc-field">
+                    <span>{{ __('Թողարկման տարեթիվ') }}</span>
+                    <input type="number" name="year" min="1950" max="{{ date('Y') }}" value="{{ date('Y') }}">
+                </label>
+                <label class="calc-field">
+                    <span>{{ __('Շարժիչի ծավալ, սմ³') }}</span>
+                    <input type="number" name="engine_volume" min="0" step="100" value="2000">
+                </label>
+                <label class="calc-field">
+                    <span>{{ __('Թրանսպորտի տեսակ') }}</span>
+                    <select name="type-of-transport">
+                        <option value="car">Car</option>
+                        <option value="suv">SUV</option>
+                        <option value="truck">Truck</option>
+                        <option value="motorcycle">Motorcycle</option>
+                    </select>
+                </label>
+                <label class="calc-field">
+                    <span>{{ __('Կառույց (body_type)') }}</span>
+                    <input type="text" name="body_type" value="sedan" placeholder="sedan">
+                </label>
+            </form>
+            <div class="calc-modal__footer">
+                <button type="button" class="calc-primary" id="mini-calc-submit">{{ __('Հաշվել') }}</button>
+                <button type="button" class="calc-ghost" @click="openCalc = false">{{ __('Отмена') }}</button>
+            </div>
+            <div id="mini-calc-loader" class="text-sm text-muted" style="display:none;">{{ __('Հաշվում ենք…') }}</div>
+            <div id="mini-calc-result" class="calc-result-box" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('mini-calc-form');
+    const submitBtn = document.getElementById('mini-calc-submit');
+    const loader = document.getElementById('mini-calc-loader');
+    const resultBox = document.getElementById('mini-calc-result');
+    if (!form || !submitBtn) return;
+
+    const ensureCalcStyles = () => {
+        if (document.getElementById('calc-summary-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'calc-summary-styles';
+        style.textContent = `
+        .calc-summary{background:#f5f7fb;padding:20px;border-radius:18px;box-shadow:0 10px 35px rgba(0,0,0,0.08);margin-top:8px;}
+        .calc-summary__hero{background:linear-gradient(135deg,#1c8adb,#3ac6f7);color:#fff;border-radius:14px;padding:18px;margin-bottom:14px;display:flex;flex-direction:column;gap:6px;}
+        .calc-summary__label{font-size:14px;opacity:.9;letter-spacing:.3px;}
+        .calc-summary__total{font-size:30px;font-weight:700;line-height:1.2;}
+        .calc-summary__note{font-size:13px;opacity:.85;}
+        .calc-summary__chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+        .calc-chip{background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:999px;padding:6px 10px;font-size:12px;}
+        .calc-summary__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;}
+        .calc-card{background:#fff;border-radius:12px;padding:14px;box-shadow:0 6px 22px rgba(0,0,0,0.05);display:flex;flex-direction:column;gap:10px;}
+        .calc-card__header{font-weight:700;font-size:15px;color:#1f2a3d;}
+        .calc-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;}
+        .calc-list li{display:flex;justify-content:space-between;align-items:center;color:#2b3c4f;font-size:14px;padding:8px 10px;border:1px solid #eef1f6;border-radius:10px;background:#fafbfe;}
+        .calc-list li span{color:#4c5b6d;}
+        .calc-list li strong{color:#0c2c63;font-weight:700;}
+        .calc-card__footer{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:10px;background:#edf4ff;color:#0c2c63;font-weight:700;}
+        .calc-note{font-size:12px;color:#6b7280;margin-top:4px;}
+        @media(max-width:576px){.calc-summary{padding:16px;}.calc-summary__total{font-size:26px;}}
+        `;
+        document.head.appendChild(style);
+    };
+
+    const renderResult = (data) => {
+        ensureCalcStyles();
+        const payload = data?.data || {};
+        const v = (key) => (payload && Object.prototype.hasOwnProperty.call(payload, key) ? payload[key] : '—');
+        const chips = [];
+        if (v('engine') !== '—') chips.push(`<span class="calc-chip">${v('engine')}</span>`);
+        if (v('engine_volume') !== '—') chips.push(`<span class="calc-chip">${v('engine_volume')} սմ³</span>`);
+        if (v('year') !== '—') chips.push(`<span class="calc-chip">${v('year')} թ.</span>`);
+        if (v('state') !== '—') chips.push(`<span class="calc-chip">Աճուրդի վայր: ${v('state')}</span>`);
+
+        const hero = `
+          <div class="calc-summary__hero">
+            <div class="calc-summary__label">Ընդհանուր գին</div>
+            <div class="calc-summary__total">${v('totalAMD')}</div>
+            <div class="calc-summary__note">${v('auction') || '—'}</div>
+            <div class="calc-summary__chips">${chips.join('')}</div>
+          </div>`;
+
+        const leftCard = `
+          <section class="calc-card">
+            <header class="calc-card__header">Մաքսային վճարներ (AMD)</header>
+            <ul class="calc-list">
+              <li><span>Մեքենայի գին</span><strong>${v('carPrice')}</strong></li>
+              <li><span>Մաքսատուրք</span><strong>${v('customsDuty')}</strong></li>
+              <li><span>ԱԱՀ</span><strong>${v('NDS')}</strong></li>
+              <li><span>Բնապահպանական հարկ</span><strong>${v('ecologyFee')}</strong></li>
+              <li><span>Այլ տուրքեր</span><strong>${v('taxes')}</strong></li>
+            </ul>
+            <div class="calc-card__footer"><span>Ընդհանուր</span><strong>${v('totalAMD')}</strong></div>
+            <div class="calc-note">${v('state') !== '—' ? 'Աճուրդի վայր: '+v('state') : ''}</div>
+          </section>`;
+
+        const rightCard = `
+          <section class="calc-card">
+            <header class="calc-card__header">Առաքում եւ սերվիս (USD)</header>
+            <ul class="calc-list">
+              <li><span>FOB</span><strong>${v('fob')}</strong></li>
+              <li><span>Առաքում</span><strong>${v('shipping')}</strong></li>
+              <li><span>Ապահովագրություն</span><strong>${v('insurance')}</strong></li>
+              <li><span>Սերվիս</span><strong>${v('serviceFee')}</strong></li>
+            </ul>
+            <div class="calc-card__footer"><span>Ընդհանուր</span><strong>${v('totalUSD')}</strong></div>
+            <div class="calc-note">${v('auction') ? v('auction') : ''}</div>
+          </section>`;
+
+        resultBox.innerHTML = `<div class="calc-summary">${hero}<div class="calc-summary__grid">${leftCard}${rightCard}</div></div>`;
+        resultBox.style.display = 'block';
+    };
+
+    submitBtn.addEventListener('click', async () => {
+        const fd = new FormData(form);
+        // Если можно достать год из ссылки Copart — делаем это, чтобы корректно посчитать возраст
+        loader.style.display = 'block';
+        resultBox.style.display = 'none';
+        resultBox.innerHTML = '';
+        submitBtn.disabled = true;
+        try {
+            const resp = await fetch('{{ url('/api/copart-calculator/calculate') }}', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: fd
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || data.error) {
+                const statusText = data.status ? ` (status: ${data.status})` : '';
+                const bodyText = data.body ? `<pre class="mb-0 mt-2" style="white-space:pre-wrap;">${data.body}</pre>` : '';
+                const detailText = data.detail ? `<pre class="mb-0 mt-2" style="white-space:pre-wrap;">${data.detail}</pre>` : '';
+                const errorsText = data.errors ? `<pre class="mb-0 mt-2" style="white-space:pre-wrap;">${JSON.stringify(data.errors, null, 2)}</pre>` : '';
+                resultBox.innerHTML = `<div class="alert alert-danger mb-0">${data.error ?? '{{ __('Ошибка расчета') }}'}${statusText}${bodyText}${detailText}${errorsText}</div>`;
+                resultBox.style.display = 'block';
+            } else {
+                renderResult(data);
+            }
+        } catch (e) {
+            resultBox.innerHTML = `<div class="alert alert-danger mb-0">{{ __('Ошибка расчета. Попробуйте позже.') }}</div>`;
+            resultBox.style.display = 'block';
+        } finally {
+            loader.style.display = 'none';
+            submitBtn.disabled = false;
+        }
+    });
+});
+</script>
+@endpush
