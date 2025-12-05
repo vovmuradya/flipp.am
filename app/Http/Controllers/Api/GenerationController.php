@@ -11,7 +11,7 @@ class GenerationController extends Controller
     public function getGenerationsByModel($modelId)
     {
         $generations = CarGeneration::where('car_model_id', $modelId)
-            ->orderBy('year_begin', 'desc')
+            ->orderBy('year_start', 'desc')
             ->get();
 
         return response()->json($generations);
