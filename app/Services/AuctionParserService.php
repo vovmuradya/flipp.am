@@ -1848,14 +1848,32 @@ class AuctionParserService
     {
         $candidates = [
             data_get($details, 'dd'),
+            data_get($details, 'pd'),
             data_get($details, 'damageDescription'),
+            data_get($details, 'primaryDamage'),
+            data_get($details, 'sdd'),
+            data_get($details, 'secondaryDamage'),
             $this->searchNestedByKeyFragments($details, ['damage']),
+            $this->searchNestedByKeyFragments($details, ['primary', 'damage']),
         ];
 
         foreach ($candidates as $value) {
             $normalized = $this->normalizeDamage($value);
             if ($normalized !== null) {
                 return $normalized;
+            }
+        }
+
+        foreach ($this->collectStringLeaves($details) as $leaf) {
+            if (!is_string($leaf)) {
+                continue;
+            }
+
+            if (stripos($leaf, 'damage') !== false) {
+                $normalized = $this->normalizeDamage($leaf);
+                if ($normalized !== null) {
+                    return $normalized;
+                }
             }
         }
 
@@ -1871,7 +1889,9 @@ class AuctionParserService
         $patterns = [
             '/data-uname="lotdetailprimarydamage"[^>]*>\s*([^<]+)/i',
             '/data-uname="lotdetaildamagedescription"[^>]*>\s*([^<]+)/i',
+            '/data-uname="lotdetailPrimarydamagevalue"[^>]*>\s*([^<]+)/i',
             '/Primary Damage:\s*<\/span>\s*<span[^>]*>\s*([^<]+)/i',
+            '/Damage Description:\s*<\/span>\s*<span[^>]*>\s*([^<]+)/i',
         ];
 
         foreach ($patterns as $pattern) {

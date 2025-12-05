@@ -170,6 +170,7 @@
                                 $buyNowPrice = $vehicleDetail?->buy_now_price;
                                 $buyNowCurrency = $vehicleDetail?->buy_now_currency ?: $listing->currency;
                                 $operationalStatus = $vehicleDetail?->operational_status;
+                                $primaryDamage = $vehicleDetail?->primary_damage;
                                 $isBuyNowAvailable = $buyNowPrice !== null;
                                 $displayPrice = $isBuyNowAvailable ? $buyNowPrice : $listing->price;
                                 $displayCurrency = $isBuyNowAvailable ? $buyNowCurrency : $listing->currency;
@@ -236,6 +237,11 @@
                             @if($operationalStatus)
                                 <div class="mt-2 text-base font-semibold text-emerald-700">
                                     {{ __('Состояние:') }} {{ $operationalStatus }}
+                                </div>
+                            @endif
+                            @if($primaryDamage)
+                                <div class="mt-1 text-base font-semibold text-rose-700">
+                                    {{ __('Основное повреждение:') }} {{ $primaryDamage }}
                                 </div>
                             @endif
 
