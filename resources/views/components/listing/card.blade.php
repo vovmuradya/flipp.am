@@ -105,6 +105,7 @@
         : null;
     $buyNowCurrency = $vehicleDetail?->buy_now_currency ?: $listing->currency;
     $operationalStatus = $vehicleDetail?->operational_status;
+    $primaryDamage = $vehicleDetail?->primary_damage;
     $isBuyNowAvailable = $buyNowPrice !== null;
     $currentBidPrice = $vehicleDetail && is_numeric($vehicleDetail->current_bid_price) && (float) $vehicleDetail->current_bid_price > 0
         ? (float) $vehicleDetail->current_bid_price
@@ -188,6 +189,9 @@
         <div class="brand-listing-card__content">
             <h4 class="brand-listing-card__title">{{ $listing->title }}</h4>
             <p class="brand-listing-card__meta">{{ $listing->region?->localized_name ?? __('Регион не указан') }}</p>
+            @if($primaryDamage)
+                <p class="brand-listing-card__meta text-danger">{{ __('Основное повреждение') }}: {{ $primaryDamage }}</p>
+            @endif
             <p class="brand-listing-card__price">
                 <span class="brand-listing-card__price-label">
                     {{ $isBuyNowPrimary ? __('Купить сейчас') : __('Цена') }}
