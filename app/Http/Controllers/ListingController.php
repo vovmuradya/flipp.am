@@ -419,6 +419,7 @@ class ListingController extends Controller
                 'buy_now_price' => isset($parsed['buy_now_price']) && $parsed['buy_now_price'] !== '' ? (float) $parsed['buy_now_price'] : null,
                 'buy_now_currency' => $parsed['buy_now_currency'] ?? null,
                 'operational_status' => $parsed['operational_status'] ?? null,
+                'primary_damage' => $parsed['primary_damage'] ?? null,
             ];
 
             $titleParts = [];
@@ -450,6 +451,10 @@ class ListingController extends Controller
             if (!empty($vehicle['exterior_color'])) {
                 $colorText = VehicleAttributeOptions::colorLabel($vehicle['exterior_color']) ?? $vehicle['exterior_color'];
                 $descriptionLines[] = '• Գույն․ ' . $colorText;
+            }
+
+            if (!empty($vehicle['primary_damage'])) {
+                $descriptionLines[] = '• Հիմնական վնաս․ ' . $vehicle['primary_damage'];
             }
 
             if (!empty($vehicle['engine_displacement_cc'])) {
@@ -861,6 +866,7 @@ class ListingController extends Controller
                     'auction_ends_at' => $auctionEndsAt,
                     'buy_now_price' => $buyNowPrice,
                     'buy_now_currency' => $buyNowCurrency,
+                    'primary_damage' => $vehicleData['primary_damage'] ?? null,
                     'current_bid_price' => $currentBidPrice,
                     'current_bid_currency' => $currentBidCurrency,
                     'current_bid_fetched_at' => $currentBidPrice ? now() : null,

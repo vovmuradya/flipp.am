@@ -40,6 +40,7 @@ class AuctionListingController extends Controller
                 'photos' => array_values(array_filter($parsed['photos'] ?? [], fn($u) => is_string($u) && strlen($u) > 5)),
                 'source_auction_url' => $parsed['source_auction_url'] ?? $url,
                 'auction_ends_at' => $parsed['auction_ends_at'] ?? null,
+                'primary_damage' => $parsed['primary_damage'] ?? null,
             ];
 
             // Заголовок и описание
@@ -65,6 +66,9 @@ class AuctionListingController extends Controller
             }
             if (!empty($vehicle['engine_displacement_cc'])) {
                 $desc[] = '• Объем двигателя: ' . number_format((int)$vehicle['engine_displacement_cc'], 0, '.', ' ') . ' куб. см';
+            }
+            if (!empty($vehicle['primary_damage'])) {
+                $desc[] = '• Основное повреждение: ' . $vehicle['primary_damage'];
             }
 
             $response = [

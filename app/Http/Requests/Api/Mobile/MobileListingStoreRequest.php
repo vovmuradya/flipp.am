@@ -68,6 +68,7 @@ class MobileListingStoreRequest extends FormRequest
                 'vehicle.buy_now_price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
                 'vehicle.buy_now_currency' => ['sometimes', 'nullable', 'string', 'max:4'],
                 'vehicle.operational_status' => ['sometimes', 'nullable', 'string', 'max:120'],
+                'vehicle.primary_damage' => ['sometimes', 'nullable', 'string', 'max:150'],
             ];
         }
 
@@ -87,6 +88,7 @@ class MobileListingStoreRequest extends FormRequest
             'vehicle.buy_now_price' => ['nullable', 'numeric', 'min:0'],
             'vehicle.buy_now_currency' => ['nullable', 'string', 'max:4'],
             'vehicle.operational_status' => ['nullable', 'string', 'max:120'],
+            'vehicle.primary_damage' => ['nullable', 'string', 'max:150'],
         ];
     }
 

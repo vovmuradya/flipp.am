@@ -27,6 +27,7 @@ class VehicleDetail extends Model
         'buy_now_price',
         'buy_now_currency',
         'operational_status',
+        'primary_damage',
         'current_bid_price',
         'current_bid_currency',
         'current_bid_fetched_at',

@@ -294,6 +294,7 @@ class MyListingController extends Controller
         $detail->buy_now_price = $vehicleData['buy_now_price'] ?? $detail->buy_now_price;
         $detail->buy_now_currency = $vehicleData['buy_now_currency'] ?? $detail->buy_now_currency;
         $detail->operational_status = $vehicleData['operational_status'] ?? $detail->operational_status;
+        $detail->primary_damage = $vehicleData['primary_damage'] ?? $detail->primary_damage;
 
         $listing->vehicleDetail()->save($detail);
     }

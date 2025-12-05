@@ -678,6 +678,7 @@ class AuctionParserService
             $mileage = null;
             $color = null;
             $engineStr = null;
+            $primaryDamage = null;
             $headlessPayload = null;
 
             $headers = [
@@ -739,6 +740,7 @@ class AuctionParserService
                 $mileage = isset($details['od']) ? (int)$details['od'] : null;
                 $color = $details['clr'] ?? null;
                 $engineStr = $details['egn'] ?? null;
+                $primaryDamage = $this->extractCopartPrimaryDamage($details);
 
                 $auctionEndAt = $this->detectCopartAuctionEnd($details);
 
@@ -775,6 +777,10 @@ class AuctionParserService
                             $currentBidPrice = $htmlCurrentBid;
                             $currentBidCurrency ??= $htmlCurrentBidCurrency;
                         }
+                    }
+
+                    if ($primaryDamage === null) {
+                        $primaryDamage = $this->extractCopartPrimaryDamageFromHtml($lotHtml);
                     }
                 }
             }
@@ -986,6 +992,7 @@ class AuctionParserService
                 'current_bid_price' => $currentBidPrice,
                 'current_bid_currency' => $currentBidPrice !== null ? ($currentBidCurrency ?? $buyNowCurrency ?? 'USD') : null,
                 'operational_status' => $operationalStatus,
+                'primary_damage' => $primaryDamage,
                 'photos' => array_values($photos),
                 'source_auction_url' => $url,
                 'auction_ends_at' => $auctionEndAt ? $auctionEndAt->toIso8601String() : null,
@@ -1837,6 +1844,48 @@ class AuctionParserService
         return null;
     }
 
+    private function extractCopartPrimaryDamage(array $details): ?string
+    {
+        $candidates = [
+            data_get($details, 'dd'),
+            data_get($details, 'damageDescription'),
+            $this->searchNestedByKeyFragments($details, ['damage']),
+        ];
+
+        foreach ($candidates as $value) {
+            $normalized = $this->normalizeDamage($value);
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractCopartPrimaryDamageFromHtml(?string $html): ?string
+    {
+        if (!$html) {
+            return null;
+        }
+
+        $patterns = [
+            '/data-uname="lotdetailprimarydamage"[^>]*>\s*([^<]+)/i',
+            '/data-uname="lotdetaildamagedescription"[^>]*>\s*([^<]+)/i',
+            '/Primary Damage:\s*<\/span>\s*<span[^>]*>\s*([^<]+)/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $html, $matches) && isset($matches[1])) {
+                $normalized = $this->normalizeDamage($matches[1]);
+                if ($normalized !== null) {
+                    return $normalized;
+                }
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @return array{0:?float,1:?string}
      */
@@ -2079,6 +2128,22 @@ class AuctionParserService
         }
 
         return null;
+    }
+
+    private function normalizeDamage(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $clean = trim(strip_tags($value));
+        if ($clean === '') {
+            return null;
+        }
+
+        $clean = preg_replace('/\s+/', ' ', $clean);
+
+        return $this->titleCase($clean);
     }
 
     private function parseMoneyValue(mixed $value): ?float

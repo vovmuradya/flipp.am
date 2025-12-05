@@ -59,6 +59,7 @@ class ListingResource extends JsonResource
                 'fuel_type' => $vehicle->fuel_type,
                 'engine_displacement_cc' => $vehicle->engine_displacement_cc,
                 'exterior_color' => $vehicle->exterior_color,
+                'primary_damage' => $vehicle->primary_damage,
                 'is_from_auction' => (bool) $vehicle->is_from_auction,
                 'auction_ends_at' => $vehicle->auction_ends_at?->toIso8601String(),
                 'source_auction_url' => $vehicle->source_auction_url,

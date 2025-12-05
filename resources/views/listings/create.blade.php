@@ -645,6 +645,7 @@
                                             'buy_now_currency' => $vehiclePrefill['buy_now_currency'] ?? '',
                                             'current_bid_price' => $vehiclePrefill['current_bid_price'] ?? '',
                                             'current_bid_currency' => $vehiclePrefill['current_bid_currency'] ?? '',
+                                            'primary_damage' => $vehiclePrefill['primary_damage'] ?? '',
                                         ];
                                         $displayExteriorColor = $auctionVehicleValues['exterior_color_display'] ?? '';
                                         if ($displayExteriorColor === '' && $auctionVehicleValues['exterior_color'] !== '') {
@@ -669,6 +670,7 @@
                                                 ? number_format((int) $auctionVehicleValues['engine_displacement_cc'], 0, '.', ' ') . ' ' . __('см³')
                                                 : ($auctionVehicleValues['engine_displacement_cc'] !== '' ? $auctionVehicleValues['engine_displacement_cc'] : '—'),
                                             'exterior_color' => $displayExteriorColor !== '' ? $displayExteriorColor : '—',
+                                            'primary_damage' => $auctionVehicleValues['primary_damage'] !== '' ? $auctionVehicleValues['primary_damage'] : '—',
                                         ];
                                     @endphp
                                     @if($copartSource ?? false)
@@ -713,6 +715,10 @@
                                             <label class="form-label">{{ __('Цвет кузова') }}</label>
                                             <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['exterior_color'] }}</p>
                                         </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">{{ __('Основное повреждение') }}</label>
+                                            <p class="form-control-plaintext bg-light px-3 py-2 rounded border">{{ $auctionVehicleDisplay['primary_damage'] }}</p>
+                                        </div>
                                         @php
                                             $hasPreviewBuyNow = isset($auctionVehicleValues['buy_now_price']) && is_numeric($auctionVehicleValues['buy_now_price']) && (float) $auctionVehicleValues['buy_now_price'] > 0;
                                         @endphp
@@ -726,7 +732,7 @@
                                             </div>
                                         @endif
                                     </div>
-                                    @foreach(['make','model','year','mileage','body_type','transmission','fuel_type','engine_displacement_cc','exterior_color','brand_id','model_id','generation_id','buy_now_price','buy_now_currency','current_bid_price','current_bid_currency'] as $fieldName)
+                                    @foreach(['make','model','year','mileage','body_type','transmission','fuel_type','engine_displacement_cc','exterior_color','brand_id','model_id','generation_id','buy_now_price','buy_now_currency','current_bid_price','current_bid_currency','primary_damage'] as $fieldName)
                                         @if(array_key_exists($fieldName, $auctionVehicleValues))
                                             <input type="hidden" name="vehicle[{{ $fieldName }}]" value="{{ $auctionVehicleValues[$fieldName] }}">
                                         @endif

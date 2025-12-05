@@ -59,6 +59,7 @@ class ListingRequest extends FormRequest
                 'vehicle.auction_ends_at' => ['nullable', 'date'],
                 'vehicle.buy_now_price' => ['nullable', 'numeric', 'min:0'],
                 'vehicle.buy_now_currency' => ['nullable', 'string', 'max:4'],
+                'vehicle.primary_damage' => ['nullable', 'string', 'max:150'],
             ];
             foreach ($vehicleRules as $k => $v) {
                 $rules[$k] = $v;

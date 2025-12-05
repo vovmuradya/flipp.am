@@ -162,6 +162,7 @@ class AuctionParserController extends Controller
                 'fuel_type' => null,
                 'engine_displacement_cc' => null,
                 'exterior_color' => null,
+                'primary_damage' => null,
                 'source_auction_url' => $url,
                 'photos' => [],
             ];
@@ -177,6 +178,7 @@ class AuctionParserController extends Controller
                 'fuel_type' => null,
                 'engine_displacement_cc' => null,
                 'exterior_color' => null,
+                'primary_damage' => null,
                 'source_auction_url' => $url,
                 'photos' => [],
             ];
