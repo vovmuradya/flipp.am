@@ -74,7 +74,14 @@ class AuctionParserService
 
             $result = $this->parseCopart($url, $aggressiveMode);
 
-            if ($result !== null) {
+            $needsRetry = $result !== null && empty($result['photos'] ?? []);
+            if ($needsRetry) {
+                $this->clearCacheForUrl($url);
+                // Force one more pass in aggressive mode to try pulling photos
+                $result = $this->parseCopart($url, true);
+            }
+
+            if ($result !== null && !empty($result['photos'] ?? [])) {
                 Cache::put($cacheKey, $result, now()->addMinutes(10));
             }
 

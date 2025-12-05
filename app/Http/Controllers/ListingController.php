@@ -394,6 +394,18 @@ class ListingController extends Controller
                 $parsed = $this->fallbackAuctionData($url);
             }
 
+            if ($parsed && empty($parsed['photos'] ?? [])) {
+                // Сообщаем пользователю, что перезапрашиваем, и пробуем ещё раз
+                $service->clearCacheForUrl($url);
+                $parsed = $service->parseFromUrl($url, aggressive: true);
+
+                if ($parsed && empty($parsed['photos'] ?? [])) {
+                    return back()
+                        ->withInput()
+                        ->with('auction_error', __('Не удалось получить фото с Copart, пробуем ещё раз. Пожалуйста, повторите попытку.'));
+                }
+            }
+
             if (!$parsed || empty($parsed['make']) || empty($parsed['model'])) {
                 return back()
                     ->withInput()
