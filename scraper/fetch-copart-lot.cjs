@@ -8,6 +8,8 @@
  */
 
 const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
 const lotId = process.argv[2];
 if (!lotId) {
     console.error('Usage: fetch-copart-lot.cjs <lotId>');
@@ -28,6 +30,13 @@ const LOT_URL = `https://www.copart.com/lot/${lotId}`;
 const API_URL = `https://www.copart.com/public/data/lotdetails/solr/${lotId}`;
 
 async function main() {
+    try {
+        fs.mkdirSync(CRASHPAD_DIR, { recursive: true, mode: 0o755 });
+    } catch (_) {
+        // ignore
+    }
+    const crashpadHandler = path.join(path.dirname(EXECUTABLE_PATH), 'chrome_crashpad_handler');
+
     const browser = await puppeteer.launch({
         headless: 'new',
         executablePath: EXECUTABLE_PATH,
@@ -39,7 +48,7 @@ async function main() {
             '--disable-gpu',
             '--disable-extensions',
             '--no-zygote',
-            `--crashpad-handler=${EXECUTABLE_PATH.replace(/chrome$/, 'chrome_crashpad_handler')}`,
+            `--crashpad-handler=${crashpadHandler}`,
             `--database=${CRASHPAD_DIR}`,
             `--metrics-dir=${CRASHPAD_DIR}`,
             '--disable-logging',
