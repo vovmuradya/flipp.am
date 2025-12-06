@@ -114,8 +114,8 @@
                             : null;
                         $currentBidCurrency = $vehicleDetail?->current_bid_currency ?: ($buyNowCurrency ?: $listing->currency);
                     @endphp
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <article class="auction-card" id="auction-card-{{ $listing->id }}" data-listing-card="{{ $listing->id }}">
+                    <div class="col-12 col-md-6 col-xl-4 d-flex">
+                        <article class="auction-card h-100" id="auction-card-{{ $listing->id }}" data-listing-card="{{ $listing->id }}">
                             <span class="auction-card__badge {{ $statusClass }}">
                                 {{ $statusLabel }}
                             </span>
@@ -157,16 +157,14 @@
                                             @endif
                                         </strong>
                                     </li>
-                                    <li>
-                                        <span>{{ __('Купить сейчас') }}</span>
-                                        <strong>
-                                            @if($buyNowPrice !== null)
+                                    @if($buyNowPrice !== null)
+                                        <li>
+                                            <span>{{ __('Գնել հիմա') }}</span>
+                                            <strong>
                                                 {{ number_format($buyNowPrice, 0, '.', ' ') }} {{ $buyNowCurrency ?? 'USD' }}
-                                            @else
-                                                <span class="text-muted">{{ __('Не указано') }}</span>
-                                            @endif
-                                        </strong>
-                                    </li>
+                                            </strong>
+                                        </li>
+                                    @endif
                                     <li>
                                         <span>{{ __('Цена объявления') }}</span>
                                         <strong>{{ number_format($listing->price, 0, '.', ' ') }} {{ $listing->currency }}</strong>
@@ -175,26 +173,6 @@
                                         <li>
                                             <span>{{ __('Итого (OTD)') }}</span>
                                             <strong>{{ number_format($listing->out_the_door_price, 0, '.', ' ') }} {{ $listing->currency }}</strong>
-                                        </li>
-                                    @endif
-                                    @if($listing->price_badge)
-                                        @php
-                                            $labels = [
-                                                'great' => __('Great Deal'),
-                                                'fair' => __('Fair Deal'),
-                                                'overpriced' => __('Overpriced'),
-                                                'unknown' => __('Цена не оценена'),
-                                            ];
-                                            $label = $labels[$listing->price_badge] ?? $listing->price_badge;
-                                        @endphp
-                                        <li>
-                                            <span>{{ __('Оценка цены') }}</span>
-                                            <strong>
-                                                {{ $label }}
-                                                @if($listing->price_anomaly)
-                                                    <span class="text-warning ms-2 text-uppercase small">{{ __('Проверить') }}</span>
-                                                @endif
-                                            </strong>
                                         </li>
                                     @endif
                                 </ul>

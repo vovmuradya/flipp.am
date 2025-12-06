@@ -5,7 +5,7 @@
  * Забираем заголовок, цену, описание и ссылки на изображения, обходя Cloudflare-челлендж.
  */
 
-const puppeteer = require('puppeteer');
+const { firefox } = require('playwright');
 
 const targetUrl = process.argv[2];
 if (!targetUrl) {
@@ -83,19 +83,21 @@ async function main() {
     const headlessEnv = process.env.LISTAM_HEADLESS;
     const headless = headlessEnv === 'false' ? false : true;
 
-    const browser = await puppeteer.launch({
+    const browser = await firefox.launch({
         headless,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-blink-features=AutomationControlled',
-            '--window-size=1920,1080',
             '--disable-dev-shm-usage',
         ],
     });
 
     try {
-        const page = await browser.newPage();
+        const context = await browser.newContext({
+            userAgent: USER_AGENT,
+            viewport: { width: 1920, height: 1080 },
+        });
+        const page = await context.newPage();
         const networkImages = new Map(); // url -> { size?: number }
         page.on('response', async (response) => {
             try {
@@ -112,10 +114,9 @@ async function main() {
                 // ignore network errors
             }
         });
-        await page.evaluateOnNewDocument(() => {
+        await page.addInitScript(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
         });
-        await page.setUserAgent(USER_AGENT);
         await page.setExtraHTTPHeaders({
             'Accept-Language': 'ru,en;q=0.9',
             Referer: 'https://www.list.am/',

@@ -22,7 +22,6 @@ git add .
 git commit -m "Update"
 git push
 
-
 serverum
 cd /home/admin/web/idrom.am/public_html
 git fetch

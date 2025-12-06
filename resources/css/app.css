@@ -1222,7 +1222,7 @@ a:hover {
 
 .brand-slider__track {
     display: flex;
-    gap: 0;
+    gap: var(--brand-slider-gap);
     align-items: stretch;
     user-select: none;
 }
@@ -1240,26 +1240,22 @@ a:hover {
 
 .brand-slider .brand-listing-card__media {
     min-height: 190px;
+    border-radius: 16px;
+    overflow: hidden;
 }
 
 .brand-slider .brand-listing-card__media img {
     height: 190px;
+    border-radius: 16px;
 }
 
 .brand-slider__nav {
-    display: flex;
+    display: none;
     gap: 12px;
 }
 
 .brand-slider__nav--floating {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-inline: clamp(12px, 1.5vw, 24px);
-    z-index: 3;
+    display: none;
 }
 
 .brand-slider__nav--floating .brand-slider__nav-btn {
@@ -1874,17 +1870,18 @@ a:hover {
     }
 
     .brand-slider .brand-listing-card__media {
-        aspect-ratio: 1 / 1;
+        aspect-ratio: 4 / 3;
         width: 100%;
         height: auto;
         min-height: 0;
-        border-radius: 14px;
+        border-radius: 16px;
     }
 
     .brand-slider .brand-listing-card__media img {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        border-radius: 16px;
     }
 
     .brand-slider .brand-listing-card__content {
@@ -3620,6 +3617,7 @@ body {
     flex-direction: column;
     gap: 16px;
     transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    height: 100%;
 }
 
 .auction-card:hover {
