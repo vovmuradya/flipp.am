@@ -13,12 +13,16 @@ use App\Services\CopartCookieManager;
 class AuctionParserService
 {
     // Hard cap so пользователь не ждёт слишком долго
-    private const COPART_MAX_DURATION_SECONDS = 22;
+    private const COPART_MAX_DURATION_SECONDS = 15;
+    private const COPART_HTTP_TIMEOUT_SECONDS = 6;
+    private const COPART_CURL_TIMEOUT_SECONDS = 10;
+    private const COPART_HEADLESS_TIMEOUT_SECONDS = 10;
     private ?string $copartCookieString = null;
     private ?array $copartCookieArray = null;
     private bool $copartBlocked = false;
     private bool $copartBlockedDuringLastParse = false;
     private bool $copartCookiesRefreshed = false;
+    private float $copartParseStartedAt = 0.0;
 
     public function __construct(
         private readonly CopartCookieManager $copartCookieManager,
@@ -65,6 +69,7 @@ class AuctionParserService
         }
 
         if (str_contains($domain, 'copart.com')) {
+            $this->copartParseStartedAt = microtime(true);
             $aggressiveMode = filter_var(config('services.copart.aggressive', $aggressive), FILTER_VALIDATE_BOOLEAN);
             $cacheKey = 'auction_parser:' . md5(($aggressiveMode ? '1' : '0') . '|' . $url);
 
@@ -248,6 +253,35 @@ class AuctionParserService
         return $this->copartConfigValue('referer', 'https://www.copart.com/');
     }
 
+    private function remainingCopartSeconds(): float
+    {
+        if ($this->copartParseStartedAt <= 0) {
+            return self::COPART_MAX_DURATION_SECONDS;
+        }
+
+        return max(0.0, self::COPART_MAX_DURATION_SECONDS - (microtime(true) - $this->copartParseStartedAt));
+    }
+
+    private function hasNoTimeBudget(): bool
+    {
+        return $this->remainingCopartSeconds() <= 0.1;
+    }
+
+    private function httpTimeout(): int
+    {
+        return (int) max(2, min(self::COPART_HTTP_TIMEOUT_SECONDS, $this->remainingCopartSeconds()));
+    }
+
+    private function curlTimeout(): int
+    {
+        return (int) max(2, min(self::COPART_CURL_TIMEOUT_SECONDS, $this->remainingCopartSeconds()));
+    }
+
+    private function headlessTimeout(): int
+    {
+        return (int) max(4, min(self::COPART_HEADLESS_TIMEOUT_SECONDS, $this->remainingCopartSeconds()));
+    }
+
     /**
      * Общие опции HTTP для запросов к Copart. Позволяет прокидывать cookie jar и принудительный DNS-resolve.
      */
@@ -304,6 +338,11 @@ class AuctionParserService
             return null;
         }
 
+        if ($this->hasNoTimeBudget()) {
+            Log::info('Copart headless skipped due to time budget');
+            return null;
+        }
+
         $script = base_path('scraper/fetch-copart-lot.cjs');
         if (!is_file($script)) {
             Log::warning('Copart headless script missing', ['script' => $script]);
@@ -311,7 +350,7 @@ class AuctionParserService
         }
 
         // Keep headless attempt shorter to avoid user waiting too long on the import screen
-        $process = new Process(['node', $script, $lotId], base_path(), null, null, 20);
+        $process = new Process(['node', $script, $lotId], base_path(), null, null, $this->headlessTimeout());
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -404,7 +443,7 @@ class AuctionParserService
         $options['http_errors'] = false;
 
         try {
-            $response = Http::timeout(10)
+            $response = Http::timeout($this->httpTimeout())
                 ->retry(1, 500)
                 ->withHeaders($headers)
                 ->withOptions($options)
@@ -449,6 +488,11 @@ class AuctionParserService
             return null;
         }
 
+        if ($this->hasNoTimeBudget()) {
+            Log::info('⏱️ Skipping Copart curl JSON fallback due to time budget');
+            return null;
+        }
+
         return $this->requestCopartJsonViaCurl($url, $headers);
     }
 
@@ -463,7 +507,7 @@ class AuctionParserService
 
         $command = $this->buildCurlCommand($url, $headers);
         $process = new Process($command);
-        $process->setTimeout(15);
+        $process->setTimeout($this->curlTimeout());
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -501,7 +545,7 @@ class AuctionParserService
         $options['http_errors'] = false;
 
         try {
-            $response = Http::timeout(10)
+            $response = Http::timeout($this->httpTimeout())
                 ->retry(1, 500)
                 ->withHeaders($headers)
                 ->withOptions($options)
@@ -537,6 +581,11 @@ class AuctionParserService
             return null;
         }
 
+        if ($this->hasNoTimeBudget()) {
+            Log::info('⏱️ Skipping Copart curl body fallback due to time budget');
+            return null;
+        }
+
         return $this->requestCopartBodyViaCurl($url, $headers);
     }
 
@@ -551,7 +600,7 @@ class AuctionParserService
 
         $command = $this->buildCurlCommand($url, $headers);
         $process = new Process($command);
-        $process->setTimeout(15);
+        $process->setTimeout($this->curlTimeout());
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -603,16 +652,15 @@ class AuctionParserService
     private function parseCopart(string $url, bool $aggressive = true): ?array
     {
         $attempt = 0;
-        $startedAt = microtime(true);
         $normalizedUrl = $this->normalizeCopartUrl($url) ?? $url;
         $normalizedTried = ($normalizedUrl === $url);
         $currentUrl = $url;
         $result = null;
 
         while ($attempt < 3) {
-            if ((microtime(true) - $startedAt) > self::COPART_MAX_DURATION_SECONDS) {
+            if ($this->hasNoTimeBudget()) {
                 Log::warning('⏱️ Copart parse aborted due to time cap', [
-                    'elapsed' => round(microtime(true) - $startedAt, 2),
+                    'elapsed' => round(self::COPART_MAX_DURATION_SECONDS - $this->remainingCopartSeconds(), 2),
                     'attempt' => $attempt + 1,
                 ]);
                 break;
@@ -762,7 +810,7 @@ class AuctionParserService
             $currentBidPrice = $this->extractCopartCurrentBid($details);
             $currentBidCurrency = $this->extractCopartCurrentBidCurrency($details) ?? $buyNowCurrency;
 
-            if ($aggressive && ($buyNowPrice === null || $operationalStatus === null || $currentBidPrice === null)) {
+            if ($aggressive && ($buyNowPrice === null || $operationalStatus === null || $currentBidPrice === null || $primaryDamage === null)) {
                 $lotHtml = $this->fetchCopartLotHtml($url, $cookieJar);
 
                 if ($lotHtml) {
@@ -795,8 +843,8 @@ class AuctionParserService
             // GET PHOTOS FROM API
             $imageApiUrl = "https://www.copart.com/public/data/lotdetails/solr/lotImages/{$lotId}";
             try {
-                Log::info('📸 Fetching images from: ' . $imageApiUrl);
-                usleep(500000); // 0.5 sec delay between requests
+            Log::info('📸 Fetching images from: ' . $imageApiUrl);
+            usleep(200000); // 0.2 sec delay between requests
 
                 $imgHeaders = $headers;
                 $imgHeaders['Referer'] = $url;
@@ -897,18 +945,30 @@ class AuctionParserService
 
             // After attempting the primary API, broaden the search if needed
             if ($aggressive && empty($imagesArray)) {
-                Log::info('🔄 Primary image API empty, trying alternate endpoints');
-                $imagesArray = $this->fetchImagesViaAlternateApis($lotId, $url, $headers, $cookieJar);
+                if ($this->hasNoTimeBudget()) {
+                    Log::info('⏱️ Skipping alternate image endpoints due to time budget');
+                } else {
+                    Log::info('🔄 Primary image API empty, trying alternate endpoints');
+                    $imagesArray = $this->fetchImagesViaAlternateApis($lotId, $url, $headers, $cookieJar);
+                }
             }
 
             if ($aggressive && empty($imagesArray)) {
-                Log::info('🔄 Alternate endpoints failed, trying HTML scraping fallback');
-                $imagesArray = $this->scrapeImagesFromHtml($url, $lotId, $cookieJar, $lotHtml);
+                if ($this->hasNoTimeBudget()) {
+                    Log::info('⏱️ Skipping HTML scraping due to time budget');
+                } else {
+                    Log::info('🔄 Alternate endpoints failed, trying HTML scraping fallback');
+                    $imagesArray = $this->scrapeImagesFromHtml($url, $lotId, $cookieJar, $lotHtml);
+                }
             }
 
             if ($aggressive && empty($imagesArray)) {
-                Log::info('🔄 HTML scraping also failed, trying URL generation');
-                $imagesArray = $this->generatePotentialImageUrls($lotId);
+                if ($this->hasNoTimeBudget()) {
+                    Log::info('⏱️ Skipping URL generation due to time budget');
+                } else {
+                    Log::info('🔄 HTML scraping also failed, trying URL generation');
+                    $imagesArray = $this->generatePotentialImageUrls($lotId);
+                }
             }
 
             if (!empty($imagesArray)) {
@@ -3203,12 +3263,12 @@ private function normalizeText(?string $value): ?string
             Log::info('🎯 Generated ' . count($potentialUrls) . ' potential URLs to test');
 
             // Test each URL to see if it exists (but limit to avoid too many requests)
-            $urlsToTest = array_slice($potentialUrls, 0, 20); // Test first 20 URLs
+            $urlsToTest = array_slice($potentialUrls, 0, 6); // Test first 6 URLs to stay within time budget
             $workingUrls = [];
 
             foreach ($urlsToTest as $testUrl) {
                 try {
-                    $response = Http::timeout(5)
+                    $response = Http::timeout($this->httpTimeout())
                         ->withHeaders([
                             'User-Agent' => $this->copartUserAgent(),
                         ])

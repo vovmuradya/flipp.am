@@ -1,0 +1,43 @@
+- Перейди в корень: cd /home/vov/flipp-am
+  - Запусти сервер: php artisan serve --host=0.0.0.0 --port=8000
+  - Один раз, если ещё не делал, создай линк статики: php artisan storage:link (после первого раза можно не повторять).
+
+  2. Проверить API
+
+  - В другом окне: curl http://localhost:8000/api/mobile/listings — должен вернуть JSON, не 500.
+
+  3. Запустить Flutter-приложение
+
+  - Перейди в мобилку: cd /home/vov/flipp-am/mobile-app
+  - Если зависимости не подтянуты (после клонирования/чистки): flutter pub get
+  - Стартуй с нужными флагами:
+      - На Linux/десктопе:
+        flutter run -d linux --dart-define=API_BASE_URL=http://localhost:8000 --dart-define=API_TOKEN=<твой_Bearer>
+      - На Android-эмуляторе:
+        flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:8000 --dart-define=API_TOKEN=<твой_Bearer>
+
+  4. Токен
+
+  - Получи через POST /api/mobile/auth/login (login=email/phone, password) и подставь в API_TOKEN. Без токена будут доступны
+    только публичные листинги, избранное/чаты/профиль — нет.
+
+
+ШАГ 1 — Запустить backend (Laravel)
+cd ~/flipp-am
+php artisan serve --host=0.0.0.0 --port=8000
+
+
+Окно НЕ закрывать.
+
+ШАГ 2 — Запустить Flutter-приложение
+cd ~/flipp-am/mobile-app
+flutter run -d linux \
+  --dart-define=API_BASE_URL=http://localhost:8000 \
+  --dart-define=API_TOKEN="Bearer ТВОЙ_ТОКЕН"
+
+
+Или, если Android-эмулятор:
+
+flutter run -d emulator-5554 \
+  --dart-define=API_BASE_URL=http://10.0.2.2:8000 \
+  --dart-define=API_TOKEN="Bearer ТВОЙ_ТОКЕН"

@@ -10,8 +10,8 @@ class CopartCookieManager
 {
     public const CACHE_KEY = 'copart.dynamic_cookies';
     private const MIN_COOKIE_PAIRS = 7;
-    private const MAX_ATTEMPTS = 2;
-    private const FETCH_TIMEOUT = 60;
+    private const MAX_ATTEMPTS = 1; // keep refresh short to avoid blocking user
+    private const FETCH_TIMEOUT = 20; // seconds
 
     private bool $browserChecked = false;
 

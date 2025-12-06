@@ -11,6 +11,8 @@
 /.phpunit.cache
 /.vscode
 /.zed
+/.flutter-sdk
+/.flutter-pub-cache
 /auth.json
 /node_modules
 /scraper/node_modules
