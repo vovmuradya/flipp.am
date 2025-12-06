@@ -24,6 +24,11 @@ const EXECUTABLE_PATH =
     '/root/.cache/puppeteer/chrome/linux-142.0.7444.61/chrome-linux64/chrome';
 
 const PROFILE_DIR = '/home/admin/chrome-profile';
+const BROWSER_ENV = {
+    ...process.env,
+    CHROME_CRASHPAD_PIPE_NAME: '/tmp/nonexistent',
+    PUPPETEER_DISABLE_CRASH_REPORTER: '1',
+};
 const LOT_URL = `https://www.copart.com/lot/${lotId}`;
 const API_URL = `https://www.copart.com/public/data/lotdetails/solr/${lotId}`;
 
@@ -32,6 +37,7 @@ async function main() {
         headless: 'new',
         executablePath: EXECUTABLE_PATH,
         userDataDir: PROFILE_DIR,
+        env: BROWSER_ENV,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -40,6 +46,11 @@ async function main() {
             '--disable-extensions',
             '--single-process',
             '--no-zygote',
+            '--disable-crash-reporter',
+            '--no-crashpad',
+            '--disable-breakpad',
+            '--disable-logging',
+            '--log-level=3',
         ],
     });
 
