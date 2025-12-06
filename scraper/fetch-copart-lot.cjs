@@ -20,7 +20,7 @@ const USER_AGENT =
 
 const EXECUTABLE_PATH =
     process.env.PUPPETEER_EXECUTABLE_PATH ||
-    '/home/admin/chrome-cache/chrome/linux-142.0.7444.61/chrome-linux64/chrome';
+    '/usr/bin/chromium-browser';
 
 const PROFILE_DIR = '/home/admin/chrome-profile';
 const LOT_URL = `https://www.copart.com/lot/${lotId}`;
