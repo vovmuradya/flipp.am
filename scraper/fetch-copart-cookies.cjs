@@ -6,6 +6,8 @@
  */
 
 const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
 
 const USER_AGENT =
     process.env.COPART_USER_AGENT ||
@@ -16,12 +18,7 @@ const EXECUTABLE_PATH =
     '/root/.cache/puppeteer/chrome/linux-142.0.7444.61/chrome-linux64/chrome';
 
 const PROFILE_DIR = '/home/admin/chrome-profile';
-const BROWSER_ENV = {
-    ...process.env,
-    CHROME_CRASHPAD_PIPE_NAME: '/tmp/nonexistent',
-    PUPPETEER_DISABLE_CRASH_REPORTER: '1',
-};
-
+const CRASHPAD_DIR = '/home/admin/chrome-crashpad';
 const TARGET_URLS = [
     'https://www.copart.com',
     'https://www.copart.com/lot/91559035',
@@ -29,22 +26,26 @@ const TARGET_URLS = [
 ];
 
 async function main() {
+    fs.mkdirSync(CRASHPAD_DIR, { recursive: true });
+    const crashpadHandler = path.join(path.dirname(EXECUTABLE_PATH), 'chrome_crashpad_handler');
+
     const browser = await puppeteer.launch({
         headless: 'new',
         executablePath: EXECUTABLE_PATH,
         userDataDir: PROFILE_DIR,
-        env: BROWSER_ENV,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--disable-extensions',
-            '--single-process',
             '--no-zygote',
+            `--crashpad-handler=${crashpadHandler}`,
+            `--database=${CRASHPAD_DIR}`,
+            `--metrics-dir=${CRASHPAD_DIR}`,
+            '--enable-crashpad',
             '--disable-crash-reporter',
-            '--no-crashpad',
-            '--disable-breakpad',
+            '--disable-features=Crashpad2,UseChromeOSCrashReporter,SendFeedbackEmail,CrashpadDebugMode,Breakpad',
             '--disable-logging',
             '--log-level=3',
         ],
