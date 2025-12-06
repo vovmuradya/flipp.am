@@ -6,8 +6,6 @@
  */
 
 const puppeteer = require('puppeteer');
-const fs = require('fs');
-const path = require('path');
 const USER_AGENT =
     process.env.COPART_USER_AGENT ||
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
@@ -17,7 +15,6 @@ const EXECUTABLE_PATH =
     '/home/admin/chrome-cache/chrome/linux-142.0.7444.61/chrome-linux64/chrome';
 
 const PROFILE_DIR = '/home/admin/chrome-profile';
-const CRASHPAD_DIR = process.env.CHRASHPAD_DIR || '/tmp/chrome-crashpad';
 const TARGET_URLS = [
     'https://www.copart.com',
     'https://www.copart.com/lot/91559035',
@@ -25,13 +22,6 @@ const TARGET_URLS = [
 ];
 
 async function main() {
-    try {
-        fs.mkdirSync(CRASHPAD_DIR, { recursive: true, mode: 0o755 });
-    } catch (_) {
-        // ignore
-    }
-    const crashpadHandler = path.join(path.dirname(EXECUTABLE_PATH), 'chrome_crashpad_handler');
-
     const browser = await puppeteer.launch({
         headless: 'new',
         executablePath: EXECUTABLE_PATH,
@@ -43,14 +33,15 @@ async function main() {
             '--disable-gpu',
             '--disable-extensions',
             '--no-zygote',
-            `--crashpad-handler=${crashpadHandler}`,
-            `--database=${CRASHPAD_DIR}`,
-            `--metrics-dir=${CRASHPAD_DIR}`,
+            '--disable-crashpad',
+            '--disable-crash-reporter',
+            '--disable-features=Crashpad2,UseChromeOSCrashReporter,SendFeedbackEmail,CrashpadDebugMode,Breakpad',
             '--disable-logging',
             '--log-level=3',
         ],
         env: {
             ...process.env,
+            PUPPETEER_DISABLE_CRASH_REPORTER: '1',
         },
     });
 
