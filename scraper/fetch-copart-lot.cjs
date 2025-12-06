@@ -8,9 +8,6 @@
  */
 
 const puppeteer = require('puppeteer');
-const fs = require('fs');
-const path = require('path');
-
 const lotId = process.argv[2];
 if (!lotId) {
     console.error('Usage: fetch-copart-lot.cjs <lotId>');
@@ -26,14 +23,10 @@ const EXECUTABLE_PATH =
     '/home/admin/chrome-cache/chrome/linux-142.0.7444.61/chrome-linux64/chrome';
 
 const PROFILE_DIR = '/home/admin/chrome-profile';
-const CRASHPAD_DIR = process.env.CHRASHPAD_DIR || '/tmp/chrome-crashpad';
 const LOT_URL = `https://www.copart.com/lot/${lotId}`;
 const API_URL = `https://www.copart.com/public/data/lotdetails/solr/${lotId}`;
 
 async function main() {
-    fs.mkdirSync(CRASHPAD_DIR, { recursive: true });
-    const crashpadHandler = path.join(path.dirname(EXECUTABLE_PATH), 'chrome_crashpad_handler');
-
     const browser = await puppeteer.launch({
         headless: 'new',
         executablePath: EXECUTABLE_PATH,
@@ -45,15 +38,16 @@ async function main() {
             '--disable-gpu',
             '--disable-extensions',
             '--no-zygote',
-            `--crashpad-handler=${crashpadHandler}`,
-            `--database=${CRASHPAD_DIR}`,
-            `--metrics-dir=${CRASHPAD_DIR}`,
-            '--enable-crashpad',
+            '--disable-crashpad',
             '--disable-crash-reporter',
             '--disable-features=Crashpad2,UseChromeOSCrashReporter,SendFeedbackEmail,CrashpadDebugMode,Breakpad',
             '--disable-logging',
             '--log-level=3',
         ],
+        env: {
+            ...process.env,
+            PUPPETEER_DISABLE_CRASH_REPORTER: '1',
+        },
     });
 
     try {

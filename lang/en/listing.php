@@ -5,7 +5,7 @@ return [
     'wait' => 'Can be refreshed in :hours h.',
     'refreshed' => 'Listing refreshed',
     'auction_url_copart_only' => 'Only Copart auction links are supported.',
-    'auction_copart_rate_limited' => 'Copart temporarily limited the results. Please wait a few seconds and try again—we are refreshing cookies automatically.',
+    'auction_copart_rate_limited' => 'Copart temporarily limited the results. Please wait a bit and try again, or fill the form manually.',
     'auction_not_found' => 'Could not find data for this lot. Check the link and try again.',
     'listing_categories_missing' => 'Vehicle categories are not configured. Please contact the administrator.',
     'auction_load_failed' => 'Failed to load data from the auction. Try again or fill the form manually.',
