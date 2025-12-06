@@ -12,6 +12,8 @@ class CopartCookieManager
     private const MIN_COOKIE_PAIRS = 7;
     private const MAX_ATTEMPTS = 1; // keep refresh short to avoid blocking user
     private const FETCH_TIMEOUT = 20; // seconds
+    private const LOCK_KEY = 'copart_cookie_refresh_lock';
+    private const LOCK_SECONDS = 90;
 
     private bool $browserChecked = false;
 
@@ -38,14 +40,22 @@ class CopartCookieManager
      */
     public function refreshCookies(): ?string
     {
+        $lock = Cache::lock(self::LOCK_KEY, self::LOCK_SECONDS);
+        if (! $lock->get()) {
+            Log::info('CopartCookieManager: refresh skipped, another refresh in progress');
+            return $this->getCookieHeader();
+        }
+
         if (!config('services.copart.headless_enabled', true)) {
             Log::info('CopartCookieManager: headless disabled via config, skipping refresh');
+            $lock->release();
             return $this->getCookieHeader();
         }
 
         $script = base_path('scraper/fetch-copart-cookies.cjs');
         if (! is_file($script)) {
             Log::warning('CopartCookieManager: fetch script missing', ['path' => $script]);
+            $lock->release();
             return null;
         }
 
@@ -55,63 +65,67 @@ class CopartCookieManager
             $env['PUPPETEER_EXECUTABLE_PATH'] = $executable;
         }
 
-        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
-            // Ограничиваем время ожидания, чтобы не блокировать запросы
-            $process = new Process(['node', $script], base_path(), $env ?: null, null, self::FETCH_TIMEOUT);
-            $process->run();
+        try {
+            for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
+                // Ограничиваем время ожидания, чтобы не блокировать запросы
+                $process = new Process(['node', $script], base_path(), $env ?: null, null, self::FETCH_TIMEOUT);
+                $process->run();
 
-            if (! $process->isSuccessful()) {
-                $errorOutput = trim($process->getErrorOutput()) ?: trim($process->getOutput());
+                if (! $process->isSuccessful()) {
+                    $errorOutput = trim($process->getErrorOutput()) ?: trim($process->getOutput());
 
-                if ($this->shouldInstallBrowser($errorOutput)) {
-                    $this->installBrowserBinary();
+                    if ($this->shouldInstallBrowser($errorOutput)) {
+                        $this->installBrowserBinary();
+                    }
+
+                    Log::warning('CopartCookieManager: fetch script failed', [
+                        'attempt' => $attempt,
+                        'error' => $errorOutput,
+                    ]);
+                    continue;
                 }
 
-                Log::warning('CopartCookieManager: fetch script failed', [
-                    'attempt' => $attempt,
-                    'error' => $errorOutput,
-                ]);
-                continue;
+                $output = trim($process->getOutput());
+                if ($output === '') {
+                    Log::warning('CopartCookieManager: fetch script returned empty output', ['attempt' => $attempt]);
+                    continue;
+                }
+
+                $decoded = json_decode($output, true);
+                if (! is_array($decoded) || empty($decoded['cookies']) || ! is_string($decoded['cookies'])) {
+                    Log::warning('CopartCookieManager: invalid fetch output', [
+                        'attempt' => $attempt,
+                        'output' => $output,
+                    ]);
+                    continue;
+                }
+
+                $cookieString = trim($decoded['cookies']);
+                if ($cookieString === '') {
+                    continue;
+                }
+
+                $pairCount = (int) ($decoded['count'] ?? 0);
+                if ($pairCount < self::MIN_COOKIE_PAIRS && $attempt < self::MAX_ATTEMPTS) {
+                    Log::info('CopartCookieManager: cookie count low, retrying', [
+                        'attempt' => $attempt,
+                        'pairs' => $pairCount,
+                    ]);
+                    usleep(400000);
+                    continue;
+                }
+
+                Cache::put(self::CACHE_KEY, $cookieString, now()->addHours(6));
+
+                return $cookieString;
             }
 
-            $output = trim($process->getOutput());
-            if ($output === '') {
-                Log::warning('CopartCookieManager: fetch script returned empty output', ['attempt' => $attempt]);
-                continue;
-            }
+            Log::warning('CopartCookieManager: unable to fetch cookies after retries');
 
-            $decoded = json_decode($output, true);
-            if (! is_array($decoded) || empty($decoded['cookies']) || ! is_string($decoded['cookies'])) {
-                Log::warning('CopartCookieManager: invalid fetch output', [
-                    'attempt' => $attempt,
-                    'output' => $output,
-                ]);
-                continue;
-            }
-
-            $cookieString = trim($decoded['cookies']);
-            if ($cookieString === '') {
-                continue;
-            }
-
-            $pairCount = (int) ($decoded['count'] ?? 0);
-            if ($pairCount < self::MIN_COOKIE_PAIRS && $attempt < self::MAX_ATTEMPTS) {
-                Log::info('CopartCookieManager: cookie count low, retrying', [
-                    'attempt' => $attempt,
-                    'pairs' => $pairCount,
-                ]);
-                usleep(400000);
-                continue;
-            }
-
-            Cache::put(self::CACHE_KEY, $cookieString, now()->addHours(6));
-
-            return $cookieString;
+            return $this->getCookieHeader();
+        } finally {
+            $lock->release();
         }
-
-        Log::warning('CopartCookieManager: unable to fetch cookies after retries');
-
-        return $this->getCookieHeader();
     }
 
     /**
