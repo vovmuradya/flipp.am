@@ -43,6 +43,11 @@ class Kernel extends ConsoleKernel
         //     ->withoutOverlapping()
         //     ->appendOutputTo(storage_path('logs/auction-backfill.log'));
 
+        $schedule->command('copart:update-cookies')
+            ->everyTwoHours()
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/copart-cookies.log'));
+
         $schedule->command('listings:expire-ended-auctions --limit=200')
             ->everyTenMinutes()
             ->withoutOverlapping()

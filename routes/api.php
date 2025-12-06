@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\Mobile\FavoriteController as MobileFavoriteControll
 use App\Http\Controllers\Api\Mobile\ListingController as MobileListingController;
 use App\Http\Controllers\Api\Mobile\MyListingController as MobileMyListingController;
 use App\Http\Controllers\Api\Mobile\ProfileController as MobileProfileController;
+use App\Services\CopartService;
 use App\Http\Controllers\Api\Payments\EscrowController;
 use App\Http\Controllers\Api\Calls\CallMaskingController;
 use App\Http\Controllers\ImportCalculatorController;
@@ -48,6 +49,18 @@ Route::get('/models/{modelId}/generations', [GenerationController::class, 'getGe
 Route::post('/v1/dealer/listings/fetch-from-url', [AuctionParserController::class, 'fetchFromUrl'])
     ->middleware('auth:sanctum')
     ->name('api.auction.fetch');
+
+// COPART DIRECT+FALLBACK
+Route::get('/copart/{id}', function (string $id, CopartService $copart) {
+    $result = $copart->getLot($id);
+    $response = response()->json($result['data'] ?? null);
+
+    if (!empty($result['fallback'])) {
+        $response->header('x-fallback', '1');
+    }
+
+    return $response;
+})->name('api.copart.show');
 
 // ==================== MOBILE API ====================
 Route::prefix('mobile')

@@ -2,85 +2,69 @@
 
 namespace App\Console\Commands;
 
-use App\Services\CopartCookieManager;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\Process\Process;
 
 class UpdateCopartCookiesCommand extends Command
 {
-    protected $signature = 'copart:update-cookies {cookies? : Строка cookies, скопированная из DevTools}';
+    protected $signature = 'copart:update-cookies';
 
-    protected $description = 'Обновить значение COPART_COOKIES в .env';
+    protected $description = 'Обновить COPART_COOKIES через Puppeteer и перезагрузить конфиг';
 
     public function handle(): int
     {
-        $raw = $this->argument('cookies');
-
-        if (!$raw) {
-            $this->info('Вставьте cookies целиком (например, значение заголовка Cookie из DevTools).');
-            $raw = $this->ask('Cookies');
-        }
-
-        if (!is_string($raw) || trim($raw) === '') {
-            $this->error('Пустое значение. Обновление отменено.');
+        $script = base_path('scraper/fetch-copart-cookies.cjs');
+        if (! File::exists($script)) {
+            $this->error("Скрипт не найден: {$script}");
             return self::FAILURE;
         }
 
-        $cookies = trim($raw);
-        $envPath = base_path('.env');
+        $process = new Process(['node', $script], base_path(), null, null, 80);
+        $process->run();
 
-        if (!file_exists($envPath)) {
-            $this->error('.env не найден. Сначала создайте .env файл.');
+        if (! $process->isSuccessful()) {
+            $error = trim($process->getErrorOutput()) ?: trim($process->getOutput());
+            Log::warning('copart:update-cookies failed', ['error' => $error]);
+            $this->error("Не удалось обновить cookies: {$error}");
             return self::FAILURE;
         }
 
-        if (!$this->writeEnvValue($envPath, 'COPART_COOKIES', $cookies)) {
-            $this->error('Не удалось записать значение в .env.');
+        $output = trim($process->getOutput());
+        $decoded = json_decode($output, true);
+        $cookies = is_array($decoded) ? ($decoded['cookies'] ?? null) : null;
+        $count = is_array($decoded) ? (int) ($decoded['count'] ?? 0) : 0;
+
+        if (! is_string($cookies) || trim($cookies) === '') {
+            $this->error('Скрипт вернул пустые cookies');
             return self::FAILURE;
         }
 
-        // Обновляем конфиг и кеш, чтобы новое значение использовалось сразу.
-        config(['services.copart.cookies' => $cookies]);
-        Cache::put(CopartCookieManager::CACHE_KEY, $cookies, now()->addHours(6));
+        $this->writeEnvCookie($cookies);
 
-        $this->info('COPART_COOKIES успешно обновлена.');
-        $this->line('Не забудьте перезапустить очередь / Horizon, если они используются.');
+        $this->callSilent('config:clear');
+        $this->info("Cookies обновлены ✔ ({$count})");
 
         return self::SUCCESS;
     }
 
-    private function writeEnvValue(string $envPath, string $key, string $value): bool
+    private function writeEnvCookie(string $cookies): void
     {
-        $contents = file_get_contents($envPath);
-        if ($contents === false) {
-            return false;
+        $envPath = base_path('.env');
+        if (! File::exists($envPath)) {
+            return;
         }
 
-        $formatted = $this->formatEnvValue($value);
-        $line = $key . '=' . $formatted;
+        $env = File::get($envPath);
+        $line = 'COPART_COOKIES="' . $cookies . '"';
 
-        $pattern = "/^{$key}=.*$/m";
-
-        if (preg_match($pattern, $contents)) {
-            $contents = preg_replace($pattern, $line, $contents);
+        if (preg_match('/^COPART_COOKIES=.*$/m', $env)) {
+            $env = preg_replace('/^COPART_COOKIES=.*$/m', $line, $env);
         } else {
-            $contents = rtrim($contents) . PHP_EOL . $line . PHP_EOL;
+            $env .= PHP_EOL . $line . PHP_EOL;
         }
 
-        return file_put_contents($envPath, $contents) !== false;
-    }
-
-    private function formatEnvValue(string $value): string
-    {
-        $needsQuotes = Str::contains($value, ['"', "'", ' ', '#', '=']);
-
-        if (!$needsQuotes) {
-            return $value;
-        }
-
-        $escaped = str_replace('"', '\\"', $value);
-
-        return '"' . $escaped . '"';
+        File::put($envPath, $env);
     }
 }
