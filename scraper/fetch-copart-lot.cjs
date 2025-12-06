@@ -26,7 +26,7 @@ const EXECUTABLE_PATH =
     '/root/.cache/puppeteer/chrome/linux-142.0.7444.61/chrome-linux64/chrome';
 
 const PROFILE_DIR = '/home/admin/chrome-profile';
-const CRASHPAD_DIR = '/home/admin/chrome-crashpad';
+const CRASHPAD_DIR = process.env.CHRASHPAD_DIR || '/tmp/chrome-crashpad';
 const LOT_URL = `https://www.copart.com/lot/${lotId}`;
 const API_URL = `https://www.copart.com/public/data/lotdetails/solr/${lotId}`;
 
