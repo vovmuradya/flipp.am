@@ -23,6 +23,7 @@ const EXECUTABLE_PATH =
     '/home/admin/chrome-cache/chrome/linux-142.0.7444.61/chrome-linux64/chrome';
 
 const PROFILE_DIR = '/home/admin/chrome-profile';
+const CRASHPAD_DIR = process.env.CHRASHPAD_DIR || '/tmp/chrome-crashpad';
 const LOT_URL = `https://www.copart.com/lot/${lotId}`;
 const API_URL = `https://www.copart.com/public/data/lotdetails/solr/${lotId}`;
 
@@ -38,18 +39,14 @@ async function main() {
             '--disable-gpu',
             '--disable-extensions',
             '--no-zygote',
-            '--disable-crashpad',
-            '--disable-crash-reporter',
-            '--disable-features=Crashpad2,UseChromeOSCrashReporter,SendFeedbackEmail,CrashpadDebugMode,Breakpad',
-            '--crashpad-handler=/bin/true',
-            '--metrics-recording-only',
-            '--disable-hang-monitor',
+            `--crashpad-handler=${EXECUTABLE_PATH.replace(/chrome$/, 'chrome_crashpad_handler')}`,
+            `--database=${CRASHPAD_DIR}`,
+            `--metrics-dir=${CRASHPAD_DIR}`,
             '--disable-logging',
             '--log-level=3',
         ],
         env: {
             ...process.env,
-            PUPPETEER_DISABLE_CRASH_REPORTER: '1',
         },
     });
 
