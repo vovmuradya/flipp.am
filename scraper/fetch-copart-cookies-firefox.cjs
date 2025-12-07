@@ -5,13 +5,13 @@
  * Выход: {"cookies":"k=v; ...","count":N,"visited":[{url,status},...]}
  */
 
-const { firefox } = require('playwright');
+const { chromium } = require('playwright');
 
 const USER_AGENT =
   process.env.COPART_USER_AGENT ||
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:119.0) Gecko/20100101 Firefox/119.0';
 
-const PROFILE_DIR = process.env.FIREFOX_PROFILE_DIR || '/home/admin/chrome-profile';
+const PROFILE_DIR = process.env.FIREFOX_PROFILE_DIR || process.env.CHROME_PROFILE_DIR || '/home/admin/chrome-profile';
 const TARGET_URLS = [
   'https://www.copart.com',
   'https://www.copart.com/lot/91559035',
@@ -19,10 +19,18 @@ const TARGET_URLS = [
 ];
 
 async function main() {
-  const browser = await firefox.launchPersistentContext(PROFILE_DIR, {
+  const browser = await chromium.launchPersistentContext(PROFILE_DIR, {
     headless: true,
     userAgent: USER_AGENT,
     viewport: { width: 1280, height: 800 },
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+      '--mute-audio',
+    ],
   });
 
   const page = await browser.newPage();

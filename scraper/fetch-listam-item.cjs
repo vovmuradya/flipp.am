@@ -5,7 +5,7 @@
  * Забираем заголовок, цену, описание и ссылки на изображения, обходя Cloudflare-челлендж.
  */
 
-const { firefox } = require('playwright');
+const { chromium } = require('playwright');
 
 const targetUrl = process.argv[2];
 if (!targetUrl) {
@@ -83,12 +83,14 @@ async function main() {
     const headlessEnv = process.env.LISTAM_HEADLESS;
     const headless = headlessEnv === 'false' ? false : true;
 
-    const browser = await firefox.launch({
+    const browser = await chromium.launch({
         headless,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer',
         ],
     });
 

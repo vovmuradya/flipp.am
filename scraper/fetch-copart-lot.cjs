@@ -20,20 +20,35 @@ const USER_AGENT =
     process.env.COPART_USER_AGENT ||
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
 
-const EXECUTABLE_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
-const CRASHPAD_HANDLER = process.env.PUPPETEER_CRASHPAD_HANDLER || '/usr/lib/chromium-browser/chrome_crashpad_handler';
-const CRASHPAD_DIR = process.env.CHRASHPAD_DIR || '/tmp/chrome-crashpad';
+const PLAYWRIGHT_CACHE = process.env.PLAYWRIGHT_BROWSERS_PATH || '/home/admin/.cache/ms-playwright';
+const EXECUTABLE_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || resolvePlaywrightChrome(PLAYWRIGHT_CACHE) || '/usr/bin/chromium-browser';
 const PROFILE_DIR = '/home/admin/chrome-profile';
 const LOT_URL = `https://www.copart.com/lot/${lotId}`;
 const API_URL = `https://www.copart.com/public/data/lotdetails/solr/${lotId}`;
 
-async function main() {
+function resolvePlaywrightChrome(cacheDir) {
     try {
-        fs.mkdirSync(CRASHPAD_DIR, { recursive: true, mode: 0o755 });
+        if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+            return process.env.PUPPETEER_EXECUTABLE_PATH;
+        }
+        const entries = fs.readdirSync(cacheDir, { withFileTypes: true })
+            .filter((d) => d.isDirectory() && d.name.startsWith('chromium-'))
+            .map((d) => d.name)
+            .sort()
+            .reverse();
+        for (const dir of entries) {
+            const candidate = path.join(cacheDir, dir, 'chrome-linux64', 'chrome');
+            if (fs.existsSync(candidate)) {
+                return candidate;
+            }
+        }
     } catch (_) {
-        // ignore
+        return null;
     }
+    return null;
+}
 
+async function main() {
     const browser = await puppeteer.launch({
         headless: 'new',
         executablePath: EXECUTABLE_PATH,
@@ -45,9 +60,7 @@ async function main() {
             '--disable-gpu',
             '--disable-extensions',
             '--no-zygote',
-            `--crashpad-handler=${CRASHPAD_HANDLER}`,
-            `--database=${CRASHPAD_DIR}`,
-            `--metrics-dir=${CRASHPAD_DIR}`,
+            '--disable-software-rasterizer',
             '--disable-logging',
             '--log-level=3',
         ],
