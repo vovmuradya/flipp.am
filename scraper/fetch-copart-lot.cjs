@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * Загружает данные лота Copart через Chromium с пользовательским профилем.
- * Используется как fallback, когда прямой API возвращает антибот/HTML.
+ * Fallback загрузка данных лота Copart через Playwright Chromium с профилем.
+ * Используется, когда прямой API возвращает антибот/HTML.
  *
- * Вызывает: node fetch-copart-lot.cjs <lotId>
+ * Запуск: node fetch-copart-lot.cjs <lotId>
+ * Выход: JSON { lotId, lotUrl, apiUrl, pageStatus, response: { ok, status, json|null, raw|null } }
  */
 
-const puppeteer = require('puppeteer');
+const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+
 const lotId = process.argv[2];
 if (!lotId) {
     console.error('Usage: fetch-copart-lot.cjs <lotId>');
@@ -20,69 +22,47 @@ const USER_AGENT =
     process.env.COPART_USER_AGENT ||
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
 
-const PLAYWRIGHT_CACHE = process.env.PLAYWRIGHT_BROWSERS_PATH || '/home/admin/.cache/ms-playwright';
-const EXECUTABLE_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || resolvePlaywrightChrome(PLAYWRIGHT_CACHE) || '/usr/bin/chromium-browser';
-const PROFILE_DIR = '/home/admin/chrome-profile';
+const PROFILE_DIR = process.env.CHROME_PROFILE_DIR || '/home/admin/chrome-profile';
 const LOT_URL = `https://www.copart.com/lot/${lotId}`;
 const API_URL = `https://www.copart.com/public/data/lotdetails/solr/${lotId}`;
 
-function resolvePlaywrightChrome(cacheDir) {
-    try {
-        if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
-            return process.env.PUPPETEER_EXECUTABLE_PATH;
-        }
-        const entries = fs.readdirSync(cacheDir, { withFileTypes: true })
-            .filter((d) => d.isDirectory() && d.name.startsWith('chromium-'))
-            .map((d) => d.name)
-            .sort()
-            .reverse();
-        for (const dir of entries) {
-            const candidate = path.join(cacheDir, dir, 'chrome-linux64', 'chrome');
-            if (fs.existsSync(candidate)) {
-                return candidate;
-            }
-        }
-    } catch (_) {
-        return null;
-    }
-    return null;
-}
-
 async function main() {
-    const browser = await puppeteer.launch({
-        headless: 'new',
-        executablePath: EXECUTABLE_PATH,
-        userDataDir: PROFILE_DIR,
+    try {
+        fs.mkdirSync(PROFILE_DIR, { recursive: true, mode: 0o755 });
+    } catch (_) {
+        // ignore
+    }
+
+    const browser = await chromium.launchPersistentContext(PROFILE_DIR, {
+        headless: true,
+        userAgent: USER_AGENT,
+        viewport: { width: 1280, height: 800 },
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--disable-extensions',
-            '--no-zygote',
             '--disable-software-rasterizer',
+            '--disable-crashpad',
             '--disable-logging',
             '--log-level=3',
+            '--mute-audio',
+            '--no-zygote',
         ],
-        env: {
-            ...process.env,
-            PUPPETEER_DISABLE_CRASH_REPORTER: '1',
-        },
     });
 
     try {
         const page = await browser.newPage();
-        await page.setUserAgent(USER_AGENT);
         await page.setExtraHTTPHeaders({
             'Accept-Language': 'en-US,en;q=0.9',
         });
 
-        // Открываем страницу лота, ждём чтобы reese84 и инкапсула установились
         const res = await page.goto(LOT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
         const status = res?.status?.() || 0;
-        await page.waitForTimeout(2700); // 2.5–3.0s по ТЗ
 
-        // Пробуем получить JSON напрямую из страницы, чтобы использовать текущие cookies
+        // ждём чтобы reese84/incapsula установились
+        await page.waitForTimeout(2800);
+
         const apiPayload = await page.evaluate(
             async ({ apiUrl }) => {
                 try {

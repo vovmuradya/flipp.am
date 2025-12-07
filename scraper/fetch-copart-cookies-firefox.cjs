@@ -6,6 +6,7 @@
  */
 
 const { chromium } = require('playwright');
+const fs = require('fs');
 
 const USER_AGENT =
   process.env.COPART_USER_AGENT ||
@@ -19,6 +20,12 @@ const TARGET_URLS = [
 ];
 
 async function main() {
+  try {
+    fs.mkdirSync(PROFILE_DIR, { recursive: true, mode: 0o755 });
+  } catch (_) {
+    // ignore
+  }
+
   const browser = await chromium.launchPersistentContext(PROFILE_DIR, {
     headless: true,
     userAgent: USER_AGENT,
@@ -30,6 +37,8 @@ async function main() {
       '--disable-gpu',
       '--disable-software-rasterizer',
       '--mute-audio',
+      '--disable-crashpad',
+      '--disable-features=Crashpad2,UseChromeOSCrashReporter,SendFeedbackEmail,CrashpadDebugMode,Breakpad',
     ],
   });
 
