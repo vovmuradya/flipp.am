@@ -25,6 +25,31 @@ const USER_AGENT =
 const PROFILE_DIR = process.env.CHROME_PROFILE_DIR || '/home/admin/chrome-profile';
 const LOT_URL = `https://www.copart.com/lot/${lotId}`;
 const API_URL = `https://www.copart.com/public/data/lotdetails/solr/${lotId}`;
+const ENV_COOKIES = process.env.COPART_COOKIES || '';
+
+function parseEnvCookies(raw) {
+    if (!raw || typeof raw !== 'string') return [];
+    return raw
+        .split(';')
+        .map((pair) => pair.trim())
+        .filter(Boolean)
+        .map((pair) => {
+            const idx = pair.indexOf('=');
+            if (idx === -1) return null;
+            const name = pair.slice(0, idx).trim();
+            const value = pair.slice(idx + 1).trim();
+            if (!name) return null;
+            return {
+                name,
+                value,
+                domain: '.copart.com',
+                path: '/',
+                httpOnly: false,
+                secure: true,
+            };
+        })
+        .filter(Boolean);
+}
 
 async function main() {
     try {
@@ -52,6 +77,11 @@ async function main() {
     });
 
     try {
+        const preloadCookies = parseEnvCookies(ENV_COOKIES);
+        if (preloadCookies.length) {
+            await browser.addCookies(preloadCookies);
+        }
+
         const page = await browser.newPage();
         await page.setExtraHTTPHeaders({
             'Accept-Language': 'en-US,en;q=0.9',
@@ -61,7 +91,7 @@ async function main() {
         const status = res?.status?.() || 0;
 
         // ждём чтобы reese84/incapsula установились
-        await page.waitForTimeout(2800);
+        await page.waitForTimeout(3500);
 
         const apiPayload = await page.evaluate(
             async ({ apiUrl }) => {
