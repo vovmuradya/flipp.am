@@ -27,7 +27,7 @@ async function main() {
   }
 
   const browser = await chromium.launchPersistentContext(PROFILE_DIR, {
-    headless: true,
+    headless: false,
     userAgent: USER_AGENT,
     viewport: { width: 1280, height: 800 },
     args: [
@@ -39,6 +39,11 @@ async function main() {
       '--mute-audio',
       '--disable-crashpad',
       '--disable-features=Crashpad2,UseChromeOSCrashReporter,SendFeedbackEmail,CrashpadDebugMode,Breakpad',
+      '--disable-web-security',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-infobars',
+      '--window-size=1280,800',
     ],
   });
 
@@ -47,16 +52,39 @@ async function main() {
 
   for (const url of TARGET_URLS) {
     try {
-      const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-      visited.push({ url, status: res?.status() || 0 });
-      await page.waitForTimeout(1200);
+      if (url === 'https://www.copart.com') {
+        const res = await page.goto('https://www.copart.com/', { waitUntil: 'networkidle', timeout: 180000 });
+        visited.push({ url, status: res?.status() || 0 });
+        await page.waitForTimeout(20000);
+
+        // Дополнительный прогрев: открываем лот и API в той же сессии
+        try {
+          const lotRes = await page.goto('https://www.copart.com/lot/91559035', {
+            waitUntil: 'domcontentloaded',
+            timeout: 120000,
+          });
+          visited.push({ url: 'https://www.copart.com/lot/91559035', status: lotRes?.status() || 0 });
+          await page.waitForTimeout(5000);
+
+          const apiRes = await page.goto('https://www.copart.com/public/data/lotdetails/solr/lotImages/1', {
+            waitUntil: 'domcontentloaded',
+            timeout: 120000,
+          });
+          visited.push({ url: 'https://www.copart.com/public/data/lotdetails/solr/lotImages/1', status: apiRes?.status() || 0 });
+        } catch (e) {
+          visited.push({ url: 'https://www.copart.com/lot/91559035', status: 0, error: e.message });
+        }
+      } else {
+        const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        visited.push({ url, status: res?.status() || 0 });
+        await page.waitForTimeout(1200);
+      }
     } catch (e) {
       visited.push({ url, status: 0, error: e.message });
     }
   }
 
   const contextCookies = await browser.cookies();
-  await browser.close();
 
   const cookiePairs = contextCookies
     .filter((c) => (c.domain || '').includes('copart.com') && c.name && c.value)
@@ -69,6 +97,9 @@ async function main() {
       visited,
     })
   );
+
+  // Держим контекст открытым ещё 60 секунд (для локальной отладки clearance)
+  await new Promise((r) => setTimeout(r, 60000));
 }
 
 main().catch((err) => {
