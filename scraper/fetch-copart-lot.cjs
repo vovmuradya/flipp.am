@@ -2,15 +2,12 @@
 
 /**
  * Fallback загрузка данных лота Copart через Playwright Chromium с профилем.
- * Используется, когда прямой API возвращает антибот/HTML.
- *
  * Запуск: node fetch-copart-lot.cjs <lotId>
- * Выход: JSON { lotId, lotUrl, apiUrl, pageStatus, response: { ok, status, json|null, raw|null } }
+ * Выход: JSON { lotId, lotUrl, apiUrl, pageStatus, response, logs? }
  */
 
 const { chromium } = require('playwright');
 const fs = require('fs');
-const path = require('path');
 
 const lotId = process.argv[2];
 if (!lotId) {
@@ -87,28 +84,56 @@ async function main() {
             'Accept-Language': 'en-US,en;q=0.9',
         });
 
+        // Прогрев главной, чтобы инициировать reese/incapsula
+        try {
+            await page.goto('https://www.copart.com', { waitUntil: 'networkidle', timeout: 60000 });
+            await page.waitForTimeout(3000);
+        } catch (_) {
+            // игнорируем, продолжим попытки на лоте
+        }
+
         let status = 0;
-        const maxAttempts = 5;
-        for (let i = 0; i < maxAttempts; i++) {
-            const res = await page.goto(LOT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        const logs = [];
+        const MAX_ATTEMPTS = 7;
+        const WAIT_AFTER_LOAD = 4000;
+        const EXTRA_WAIT = 3000;
+
+        for (let i = 0; i < MAX_ATTEMPTS; i++) {
+            const res = await page.goto(LOT_URL, { waitUntil: 'networkidle', timeout: 90000 });
             status = res?.status?.() || 0;
-            await page.waitForTimeout(2500);
+            await page.waitForTimeout(WAIT_AFTER_LOAD);
 
-            const incapsula = await page.evaluate(() => {
-                const robots = document.querySelector('meta[name="ROBOTS"]');
-                const iframe = document.querySelector('iframe[src*="_Incapsula_Resource"]');
-                const bodyText = document.body?.innerText || '';
-                return Boolean(robots || iframe || /incapsula/i.test(bodyText));
-            });
+            let probe = { anti: true, hasReese: false };
+            let hasReeseCookie = false;
+            for (let inner = 0; inner < 10; inner++) {
+                probe = await page.evaluate(() => {
+                    const robots = document.querySelector('meta[name="ROBOTS"]');
+                    const iframe = document.querySelector('iframe[src*="_Incapsula_Resource"]');
+                    const hasReese = document.cookie.split(';').some((c) => c.trim().startsWith('reese84='));
+                    const bodyText = (document.body?.innerText || '').toLowerCase();
+                    const anti = Boolean(robots || iframe || bodyText.includes('incapsula') || bodyText.includes('access denied'));
+                    return { anti, hasReese };
+                });
+                const cookiesNow = await page.context().cookies();
+                hasReeseCookie = cookiesNow.some((c) => c.name === 'reese84');
 
-            if (!incapsula && status !== 403) {
+                if (!probe.anti && (probe.hasReese || hasReeseCookie) && status !== 403) {
+                    break;
+                }
+                await page.waitForTimeout(1000);
+            }
+
+            logs.push({ attempt: i + 1, status, probe, hasReeseCookie });
+
+            if (!probe.anti && (probe.hasReese || hasReeseCookie) && status !== 403) {
                 break;
             }
 
-            if (i === maxAttempts - 1) {
-                throw new Error('Incapsula challenge not passed');
+            if (i === MAX_ATTEMPTS - 1) {
+                console.error(JSON.stringify({ error: 'Incapsula challenge not passed', logs }, null, 2));
+                process.exit(1);
             }
-            await page.waitForTimeout(2500);
+            await page.waitForTimeout(EXTRA_WAIT);
         }
 
         const apiPayload = await page.evaluate(
@@ -138,6 +163,7 @@ async function main() {
                 apiUrl: API_URL,
                 pageStatus: status,
                 response: apiPayload,
+                logs,
             })
         );
     } finally {
