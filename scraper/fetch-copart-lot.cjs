@@ -87,11 +87,29 @@ async function main() {
             'Accept-Language': 'en-US,en;q=0.9',
         });
 
-        const res = await page.goto(LOT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        const status = res?.status?.() || 0;
+        let status = 0;
+        const maxAttempts = 5;
+        for (let i = 0; i < maxAttempts; i++) {
+            const res = await page.goto(LOT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+            status = res?.status?.() || 0;
+            await page.waitForTimeout(2500);
 
-        // ждём чтобы reese84/incapsula установились
-        await page.waitForTimeout(3500);
+            const incapsula = await page.evaluate(() => {
+                const robots = document.querySelector('meta[name="ROBOTS"]');
+                const iframe = document.querySelector('iframe[src*="_Incapsula_Resource"]');
+                const bodyText = document.body?.innerText || '';
+                return Boolean(robots || iframe || /incapsula/i.test(bodyText));
+            });
+
+            if (!incapsula && status !== 403) {
+                break;
+            }
+
+            if (i === maxAttempts - 1) {
+                throw new Error('Incapsula challenge not passed');
+            }
+            await page.waitForTimeout(2500);
+        }
 
         const apiPayload = await page.evaluate(
             async ({ apiUrl }) => {
