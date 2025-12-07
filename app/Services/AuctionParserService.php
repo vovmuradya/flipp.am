@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Cookie\CookieJar;
 use Symfony\Component\Process\Process;
 use App\Services\CopartCookieManager;
+use App\Services\CopartImageService;
 class AuctionParserService
 {
     // Hard cap so пользователь не ждёт слишком долго
@@ -17,6 +18,7 @@ class AuctionParserService
     private const COPART_HTTP_TIMEOUT_SECONDS = 6;
     private const COPART_CURL_TIMEOUT_SECONDS = 10;
     private const COPART_HEADLESS_TIMEOUT_SECONDS = 10;
+    private const COPART_REQUEST_DELAY_MS = 3000;
     private ?string $copartCookieString = null;
     private ?array $copartCookieArray = null;
     private bool $copartBlocked = false;
@@ -26,6 +28,7 @@ class AuctionParserService
 
     public function __construct(
         private readonly CopartCookieManager $copartCookieManager,
+        private readonly CopartImageService $copartImageService,
     ) {}
 
     public function clearCacheForUrl(string $url): void
@@ -87,7 +90,7 @@ class AuctionParserService
             }
 
             if ($result !== null && !empty($result['photos'] ?? [])) {
-                Cache::put($cacheKey, $result, now()->addMinutes(10));
+                Cache::put($cacheKey, $result, now()->addMinutes(60));
             }
 
             return $result;
@@ -283,6 +286,24 @@ class AuctionParserService
     }
 
     /**
+     * Simple rate limiter to avoid hammering Copart endpoints.
+     */
+    private function throttleCopartRequest(): void
+    {
+        $now = microtime(true);
+        $last = Cache::get('auction_parser:copart:last_request_at');
+        if (is_numeric($last)) {
+            $elapsed = $now - (float) $last;
+            $delay = (self::COPART_REQUEST_DELAY_MS / 1000) - $elapsed;
+            if ($delay > 0) {
+                usleep((int) ($delay * 1_000_000));
+            }
+        }
+
+        Cache::put('auction_parser:copart:last_request_at', microtime(true), now()->addMinutes(5));
+    }
+
+    /**
      * Общие опции HTTP для запросов к Copart. Позволяет прокидывать cookie jar и принудительный DNS-resolve.
      */
     private function copartHttpOptions(?CookieJar $cookieJar = null): array
@@ -350,7 +371,11 @@ class AuctionParserService
         }
 
         // Keep headless attempt shorter to avoid user waiting too long on the import screen
-        $process = new Process(['node', $script, $lotId], base_path(), null, null, $this->headlessTimeout());
+        $env = [
+            'PUPPETEER_EXECUTABLE_PATH' => env('PUPPETEER_EXECUTABLE_PATH', '/home/vov/.cache/puppeteer/chrome/linux-142.0.7444.61/chrome-linux64/chrome'),
+        ];
+        // Give more time to let Chrome start and fetch data when Incapsula is slow
+        $process = new Process(['node', $script, $lotId], base_path(), $env, null, 60);
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -376,11 +401,23 @@ class AuctionParserService
             return null;
         }
 
+        $decodedCookies = $decoded['cookie'] ?? ($decoded['cookies'] ?? null);
+        if (is_array($decodedCookies)) {
+            $parts = [];
+            foreach ($decodedCookies as $name => $val) {
+                $parts[] = $name . '=' . $val;
+            }
+            $decodedCookies = implode('; ', $parts);
+        }
+
+        $detailsPayload = $decoded['details'] ?? ($decoded['data'] ?? null);
+        $imagesPayload = $decoded['images'] ?? ($decoded['data']['images'] ?? null);
+
         return [
-            'details' => $decoded['details'] ?? null,
-            'images' => $decoded['images'] ?? null,
-            'cookie' => isset($decoded['cookies']) && is_string($decoded['cookies']) && trim($decoded['cookies']) !== ''
-                ? trim($decoded['cookies'])
+            'details' => $detailsPayload,
+            'images' => $imagesPayload,
+            'cookie' => isset($decodedCookies) && is_string($decodedCookies) && trim($decodedCookies) !== ''
+                ? trim($decodedCookies)
                 : null,
         ];
     }
@@ -413,7 +450,7 @@ class AuctionParserService
 
     private function applyHeadlessCookies(array $payload, array &$headers, ?CookieJar &$cookieJar): void
     {
-        $cookieString = $payload['cookie'] ?? null;
+        $cookieString = $payload['cookie'] ?? ($payload['cookies'] ?? null);
         if (!is_string($cookieString) || trim($cookieString) === '') {
             return;
         }
@@ -439,6 +476,7 @@ class AuctionParserService
      */
     private function requestCopartJson(string $url, array $headers, ?CookieJar $cookieJar = null): ?array
     {
+        $this->throttleCopartRequest();
         $options = $this->copartHttpOptions($cookieJar);
         $options['http_errors'] = false;
 
@@ -505,6 +543,7 @@ class AuctionParserService
             return null;
         }
 
+        $this->throttleCopartRequest();
         $command = $this->buildCurlCommand($url, $headers);
         $process = new Process($command);
         $process->setTimeout($this->curlTimeout());
@@ -541,6 +580,7 @@ class AuctionParserService
      */
     private function requestCopartBody(string $url, array $headers, ?CookieJar $cookieJar = null): ?string
     {
+        $this->throttleCopartRequest();
         $options = $this->copartHttpOptions($cookieJar);
         $options['http_errors'] = false;
 
@@ -598,6 +638,7 @@ class AuctionParserService
             return null;
         }
 
+        $this->throttleCopartRequest();
         $command = $this->buildCurlCommand($url, $headers);
         $process = new Process($command);
         $process->setTimeout($this->curlTimeout());
@@ -1015,6 +1056,18 @@ class AuctionParserService
                 Log::warning('⚠️ No images found after all strategies');
             }
 
+            // If still no photos, try dedicated CopartImageService (CDN/headless)
+            if (empty($photos)) {
+                $serviceImages = $this->copartImageService->fetchLotImages($lotId, $imgData ?? []);
+                if (!empty($serviceImages)) {
+                    $photos = array_map(function ($imageUrl) {
+                        $normalized = $this->normalizeCopartImageUrl($imageUrl) ?? $imageUrl;
+                        return url('/proxy/image') . '?u=' . rawurlencode($normalized);
+                    }, $serviceImages);
+                    Log::info('✅ Photos filled via CopartImageService', ['count' => count($photos)]);
+                }
+            }
+
             // FALLBACK: Parse from URL if main data missing
             if (!$year || !$make || !$model) {
                 Log::info('⚡ Fallback: Parsing from URL...');
@@ -1035,6 +1088,18 @@ class AuctionParserService
 
             // PARSE ENGINE DISPLACEMENT
             $engineCc = $this->parseEngineString($engineStr);
+
+            // Try CDN pattern if still no photos
+            if (empty($photos)) {
+                $cdnImages = $this->fetchRealImages($lotId);
+                if (!empty($cdnImages)) {
+                    Log::info('✅ Images fetched via CDN pattern: ' . count($cdnImages));
+                    $photos = array_map(
+                        fn ($u) => url('/proxy/image') . '?u=' . rawurlencode($this->normalizeCopartImageUrl($u) ?? $u),
+                        $cdnImages
+                    );
+                }
+            }
 
             // ✅ Use placeholder if no photos found
             if (empty($photos)) {
@@ -3309,5 +3374,62 @@ private function normalizeText(?string $value): ?string
         }
 
         return $imagesArray;
+    }
+
+    /**
+     * Generate Copart CDN image URLs by predictable pattern.
+     *
+     * @return array<int,string>
+     */
+    private function generateCopartImageUrls(string $lotId, int $count = 20): array
+    {
+        $images = [];
+        $baseUrl = 'https://cs.copart.com/v1/AUTH_svc.pdoc00001/PIX';
+        $lotIdPart = substr((string) $lotId, -3);
+
+        for ($i = 1; $i <= $count; $i++) {
+            $images[] = sprintf('%s%s/%s/%d.JPG', $baseUrl, $lotIdPart, $lotId, $i);
+        }
+
+        return $images;
+    }
+
+    /**
+     * Check if a URL exists via HEAD.
+     */
+    private function imageExists(string $url): bool
+    {
+        try {
+            $response = Http::timeout(5)
+                ->withHeaders(['User-Agent' => $this->copartUserAgent()])
+                ->head($url);
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Fetch real images by probing CDN pattern.
+     *
+     * @return array<int,string>
+     */
+    private function fetchRealImages(string $lotId): array
+    {
+        $possible = $this->generateCopartImageUrls($lotId, 30);
+        $real = [];
+
+        foreach ($possible as $url) {
+            if ($this->imageExists($url)) {
+                $real[] = $url;
+            }
+
+            if (count($real) >= $this->minCopartPhotos()) {
+                break;
+            }
+        }
+
+        return $real;
     }
 }

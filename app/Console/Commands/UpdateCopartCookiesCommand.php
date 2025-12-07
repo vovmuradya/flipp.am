@@ -15,13 +15,13 @@ class UpdateCopartCookiesCommand extends Command
 
     public function handle(): int
     {
-        $script = base_path('scraper/fetch-copart-cookies.cjs');
+        $script = base_path('scraper/update-cookies.sh');
         if (! File::exists($script)) {
             $this->error("Скрипт не найден: {$script}");
             return self::FAILURE;
         }
 
-        $process = new Process(['node', $script], base_path(), null, null, 80);
+        $process = Process::fromShellCommandline($script, base_path(), null, null, 120);
         $process->run();
 
         if (! $process->isSuccessful()) {

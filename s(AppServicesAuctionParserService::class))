@@ -1,0 +1,58 @@
+[90m= [39m[
+    [34;4mReflectionMethod[39;24m {#6318
+      +[1mname[22m: "[32m__construct[39m",
+      +[1mclass[22m: "[32mApp\Services\AuctionParserService[39m",
+      [34mparameters[39m: {
+        [34m$copartCookieManager[39m: [34;4mReflectionParameter[39;24m {#6344
+          +[1mname[22m: "[32mcopartCookieManager[39m",
+          [34mposition[39m: [35m0[39m,
+          [34mtypeHint[39m: "[32mApp\Services\CopartCookieManager[39m",
+        },
+        [34m$copartImageService[39m: [34;4mReflectionParameter[39;24m {#6323
+          +[1mname[22m: "[32mcopartImageService[39m",
+          [34mposition[39m: [35m1[39m,
+          [34mtypeHint[39m: "[32mApp\Services\CopartImageService[39m",
+        },
+      },
+      [34mmodifiers[39m: "[32mpublic[39m",
+    },
+    [34;4mReflectionMethod[39;24m {#6336
+      +[1mname[22m: "[32mclearCacheForUrl[39m",
+      +[1mclass[22m: "[32mApp\Services\AuctionParserService[39m",
+      [34mreturnType[39m: "[32mvoid[39m",
+      [34mparameters[39m: {
+        [34m$url[39m: [34;4mReflectionParameter[39;24m {#6316
+          +[1mname[22m: "[32murl[39m",
+          [34mposition[39m: [35m0[39m,
+          [34mtypeHint[39m: "[32mstring[39m",
+        },
+      },
+      [34mmodifiers[39m: "[32mpublic[39m",
+    },
+    [34;4mReflectionMethod[39;24m {#6337
+      +[1mname[22m: "[32mparseFromUrl[39m",
+      +[1mclass[22m: "[32mApp\Services\AuctionParserService[39m",
+      [34mreturnType[39m: "[32m?array[39m",
+      [34mparameters[39m: {
+        [34m$url[39m: [34;4mReflectionParameter[39;24m {#6327
+          +[1mname[22m: "[32murl[39m",
+          [34mposition[39m: [35m0[39m,
+          [34mtypeHint[39m: "[32mstring[39m",
+        },
+        [34m$aggressive[39m: [34;4mReflectionParameter[39;24m {#6352
+          +[1mname[22m: "[32maggressive[39m",
+          [34mposition[39m: [35m1[39m,
+          [34mtypeHint[39m: "[32mbool[39m",
+          [34mdefault[39m: [36mtrue[39m,
+        },
+      },
+      [34mmodifiers[39m: "[32mpublic[39m",
+    },
+    [34;4mReflectionMethod[39;24m {#6338
+      +[1mname[22m: "[32mwasCopartBlocked[39m",
+      +[1mclass[22m: "[32mApp\Services\AuctionParserService[39m",
+      [34mreturnType[39m: "[32mbool[39m",
+      [34mmodifiers[39m: "[32mpublic[39m",
+    },
+  ]
+

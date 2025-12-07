@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const { execSync } = require('child_process');
-const fetch = require('node-fetch');
 
 const TEST_URL = 'https://www.copart.com/public/data/lotdetails/solr/lotImages/1';
 

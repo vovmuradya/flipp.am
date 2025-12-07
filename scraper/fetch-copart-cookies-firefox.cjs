@@ -1,108 +1,74 @@
 #!/usr/bin/env node
 
 /**
- * Получает cookies Copart через Playwright Firefox.
- * Выход: {"cookies":"k=v; ...","count":N,"visited":[{url,status},...]}
+ * Fetch Copart cookies via Puppeteer + Stealth (Firefox profile name kept for BC).
+ * Output: {"success":true,"cookies":"k=v; ...","count":N}
  */
 
-const { chromium } = require('playwright');
-const fs = require('fs');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
+puppeteer.use(StealthPlugin());
+
+const DEFAULT_EXEC_PATH = '/home/vov/.cache/puppeteer/chrome/linux-142.0.7444.61/chrome-linux64/chrome';
 const USER_AGENT =
   process.env.COPART_USER_AGENT ||
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:119.0) Gecko/20100101 Firefox/119.0';
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-const PROFILE_DIR = process.env.FIREFOX_PROFILE_DIR || process.env.CHROME_PROFILE_DIR || '/home/admin/chrome-profile';
-const TARGET_URLS = [
-  'https://www.copart.com',
-  'https://www.copart.com/lot/91559035',
-  'https://www.copart.com/public/data/lotdetails/solr/lotImages/1',
-];
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function main() {
-  try {
-    fs.mkdirSync(PROFILE_DIR, { recursive: true, mode: 0o755 });
-  } catch (_) {
-    // ignore
-  }
-
-  const browser = await chromium.launchPersistentContext(PROFILE_DIR, {
-    headless: false,
-    userAgent: USER_AGENT,
-    viewport: { width: 1280, height: 800 },
-    args: [
+async function fetchCopartCookies() {
+  const browser = await puppeteer.launch({
+    headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || DEFAULT_EXEC_PATH,
+    args: (process.env.PUPPETEER_ARGS ? process.env.PUPPETEER_ARGS.split(' ') : [
       '--no-sandbox',
       '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-software-rasterizer',
-      '--mute-audio',
-      '--disable-crashpad',
-      '--disable-features=Crashpad2,UseChromeOSCrashReporter,SendFeedbackEmail,CrashpadDebugMode,Breakpad',
-      '--disable-web-security',
       '--disable-blink-features=AutomationControlled',
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--disable-infobars',
-      '--window-size=1280,800',
-    ],
+      '--disable-crash-reporter',
+      '--disable-breakpad',
+      '--enable-crashpad=0',
+      '--no-zygote',
+      '--single-process',
+      '--window-size=1920,1080',
+    ]),
   });
 
   const page = await browser.newPage();
-  const visited = [];
+  await page.setUserAgent(USER_AGENT);
+  await page.setViewport({ width: 1920, height: 1080 });
+  await page.setExtraHTTPHeaders({ 'accept-language': 'en-US,en;q=0.9' });
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  });
 
-  for (const url of TARGET_URLS) {
-    try {
-      if (url === 'https://www.copart.com') {
-        const res = await page.goto('https://www.copart.com/', { waitUntil: 'networkidle', timeout: 180000 });
-        visited.push({ url, status: res?.status() || 0 });
-        await page.waitForTimeout(20000);
+  try {
+    await page.goto('https://www.copart.com/', { waitUntil: 'networkidle0', timeout: 90000 });
+    await sleep(5000);
 
-        // Дополнительный прогрев: открываем лот и API в той же сессии
-        try {
-          const lotRes = await page.goto('https://www.copart.com/lot/91559035', {
-            waitUntil: 'domcontentloaded',
-            timeout: 120000,
-          });
-          visited.push({ url: 'https://www.copart.com/lot/91559035', status: lotRes?.status() || 0 });
-          await page.waitForTimeout(5000);
+    const cookies = await page.cookies();
+    const cookiePairs = cookies
+      .filter((c) => (c.domain || '').includes('copart.com') && c.name && c.value)
+      .map((c) => `${c.name}=${c.value}`);
 
-          const apiRes = await page.goto('https://www.copart.com/public/data/lotdetails/solr/lotImages/1', {
-            waitUntil: 'domcontentloaded',
-            timeout: 120000,
-          });
-          visited.push({ url: 'https://www.copart.com/public/data/lotdetails/solr/lotImages/1', status: apiRes?.status() || 0 });
-        } catch (e) {
-          visited.push({ url: 'https://www.copart.com/lot/91559035', status: 0, error: e.message });
-        }
-      } else {
-        const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        visited.push({ url, status: res?.status() || 0 });
-        await page.waitForTimeout(1200);
-      }
-    } catch (e) {
-      visited.push({ url, status: 0, error: e.message });
-    }
+    console.log(
+      JSON.stringify({
+        success: true,
+        cookies: cookiePairs.join('; '),
+        count: cookiePairs.length,
+      })
+    );
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+      })
+    );
+    process.exit(1);
+  } finally {
+    await browser.close();
   }
-
-  const contextCookies = await browser.cookies();
-
-  const cookiePairs = contextCookies
-    .filter((c) => (c.domain || '').includes('copart.com') && c.name && c.value)
-    .map((c) => `${c.name}=${c.value}`);
-
-  process.stdout.write(
-    JSON.stringify({
-      cookies: cookiePairs.join('; '),
-      count: cookiePairs.length,
-      visited,
-    })
-  );
-
-  // Держим контекст открытым ещё 60 секунд (для локальной отладки clearance)
-  await new Promise((r) => setTimeout(r, 60000));
 }
 
-main().catch((err) => {
-  console.error(err?.stack || err?.message || String(err));
-  process.exit(1);
-});
+fetchCopartCookies();

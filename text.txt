@@ -40,6 +40,8 @@ tail -n 100 storage/logs/laravel.log
 php artisan copart:update-cookies
 cooki update
 
+php artisan tinker
+
 
 php artisan cache:clear
   php artisan config:clear

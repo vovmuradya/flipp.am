@@ -11,8 +11,8 @@ class CopartCookieManager
 {
     public const CACHE_KEY = 'copart.dynamic_cookies';
     private const MIN_COOKIE_PAIRS = 7;
-    private const MAX_ATTEMPTS = 1; // keep refresh short to avoid blocking user
-    private const FETCH_TIMEOUT = 20; // seconds
+    private const MAX_ATTEMPTS = 3; // allow a few retries before failing
+    private const FETCH_TIMEOUT = 60; // seconds
     private const CHECK_URL = 'https://www.copart.com/public/data/lotdetails/solr/1';
     private const LOCK_KEY = 'copart_cookie_refresh_lock';
     private const LOCK_SECONDS = 90;
@@ -38,6 +38,35 @@ class CopartCookieManager
     }
 
     /**
+     * Явно сохраняет куки (строкой или массивом) в кэш.
+     */
+    public function saveCookies(string|array $cookies): void
+    {
+        if (is_array($cookies)) {
+            $pairs = [];
+            foreach ($cookies as $name => $value) {
+                if (!is_string($name) || $name === '' || !is_string($value) || $value === '') {
+                    continue;
+                }
+                $pairs[] = $name . '=' . $value;
+            }
+            $cookies = implode('; ', $pairs);
+        }
+
+        if (!is_string($cookies) || trim($cookies) === '') {
+            return;
+        }
+
+        $cookieString = trim($cookies);
+        Cache::put(self::CACHE_KEY, $cookieString, now()->addHours(2));
+    }
+
+    public function clearCache(): void
+    {
+        Cache::forget(self::CACHE_KEY);
+    }
+
+    /**
      * Запускает Node-скрипт и пытается получить свежие cookie из Copart.
      */
     public function refreshCookies(): ?string
@@ -54,41 +83,60 @@ class CopartCookieManager
                 return $this->getCookieHeader();
             }
 
-            // Попробуем текущие cookies без браузера
-            if ($this->isCookieAlive($this->getCookieHeader())) {
-                Log::info('CopartCookieManager: existing cookies still valid');
-                return $this->getCookieHeader();
-            }
-
             $script = base_path('scraper/fetch-copart-cookies-firefox.cjs');
             if (! is_file($script)) {
                 Log::warning('CopartCookieManager: fetch script missing', ['path' => $script]);
                 return $this->getCookieHeader();
             }
 
-            $process = new Process(['node', $script], base_path(), null, null, 60);
-            $process->run();
-
-            if (! $process->isSuccessful()) {
-                $error = trim($process->getErrorOutput()) ?: trim($process->getOutput());
-                Log::warning('CopartCookieManager: fetch script failed', ['error' => $error]);
+            // Попробуем текущие cookies без браузера
+            if ($this->isCookieAlive($this->getCookieHeader())) {
+                Log::info('CopartCookieManager: existing cookies still valid');
                 return $this->getCookieHeader();
             }
 
-            $output = trim($process->getOutput());
-            $decoded = json_decode($output, true);
-            $cookies = is_array($decoded) ? ($decoded['cookies'] ?? null) : null;
-            $count = is_array($decoded) ? (int) ($decoded['count'] ?? 0) : 0;
+            $lastError = null;
+            for ($i = 1; $i <= self::MAX_ATTEMPTS; $i++) {
+                $env = [
+                    'PUPPETEER_EXECUTABLE_PATH' => env('PUPPETEER_EXECUTABLE_PATH', '/home/vov/.cache/puppeteer/chrome/linux-142.0.7444.61/chrome-linux64/chrome'),
+                ];
+                $process = new Process(['node', $script], base_path(), $env, null, self::FETCH_TIMEOUT);
+                $process->run();
 
-            if (! is_string($cookies) || trim($cookies) === '') {
-                Log::warning('CopartCookieManager: fetch script returned empty cookies');
-                return $this->getCookieHeader();
+                if (! $process->isSuccessful()) {
+                    $lastError = trim($process->getErrorOutput()) ?: trim($process->getOutput());
+                    Log::warning('CopartCookieManager: fetch script failed', ['error' => $lastError, 'attempt' => $i]);
+                    continue;
+                }
+
+                $output = trim($process->getOutput());
+                $decoded = json_decode($output, true);
+                $cookies = is_array($decoded) ? ($decoded['cookies'] ?? null) : null;
+                $count = is_array($decoded) ? (int) ($decoded['count'] ?? 0) : 0;
+
+                if (! is_string($cookies) || trim($cookies) === '') {
+                    $lastError = 'empty cookies';
+                    Log::warning('CopartCookieManager: fetch script returned empty cookies', ['attempt' => $i]);
+                    continue;
+                }
+
+                if (! $this->isCookieAlive($cookies)) {
+                    $lastError = 'fetched cookies invalid';
+                    Log::warning('CopartCookieManager: fetched cookies invalid', ['attempt' => $i]);
+                    continue;
+                }
+
+                Cache::put(self::CACHE_KEY, $cookies, now()->addHours(2));
+                Log::info('CopartCookieManager: cookies refreshed via stealth browser', [
+                    'count' => $count,
+                    'attempt' => $i,
+                ]);
+
+                return $cookies;
             }
 
-            Cache::put(self::CACHE_KEY, $cookies, now()->addHours(6));
-            Log::info('CopartCookieManager: cookies refreshed via firefox', ['count' => $count]);
-
-            return $cookies;
+            Log::warning('CopartCookieManager: all attempts to refresh cookies failed', ['error' => $lastError]);
+            return $this->getCookieHeader();
         } finally {
             $lock->release();
         }
