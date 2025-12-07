@@ -35,7 +35,7 @@ onDocumentReady(() => {
             arrows: true,
             pagination: false,
             speed: 520,
-            gap: 'clamp(18px, 2vw, 28px)',
+            gap: '0px',
             easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
             autoplay: true,
             interval: 3200,

@@ -472,6 +472,192 @@ class AuctionParserService
     }
 
     /**
+     * Collect images with 3-layer fallback: API → lotDetails → headless.
+     *
+     * @return array{lot_id:string,details:array,images:array}
+     */
+    private function collectCopartImages(string $lotId, array $lotDetails, array $headers, ?CookieJar $cookieJar, string $referer): array
+    {
+        $imageApiUrl = "https://www.copart.com/public/data/lotdetails/solr/lotImages/{$lotId}";
+        $imgHeaders = $headers;
+        $imgHeaders['Referer'] = $referer;
+        $imgHeaders['Accept'] = 'application/json, text/plain, */*';
+
+        $imageUrls = [];
+
+        // 1) Primary API
+        $imgData = $this->requestCopartJson($imageApiUrl, $imgHeaders, $cookieJar);
+        if (is_array($imgData) && isset($imgData['data'])) {
+            $imageUrls = $this->extractImagesFromApiResponse($imgData);
+        }
+
+        // 2) Fallback: lotDetails
+        if (empty($imageUrls) && !empty($lotDetails)) {
+            $extracted = $this->extractCopartImagesFromLotDetails($lotDetails);
+            if (!empty($extracted)) {
+                $imageUrls = $extracted;
+                Log::info('✅ Images pulled from lotDetails fallback', ['count' => count($imageUrls)]);
+            }
+        }
+
+        // 3) Headless fallback
+        if (empty($imageUrls) && $this->isPuppeteerAvailable()) {
+            $headless = $this->fetchImagesViaHeadless($lotId);
+            if (!empty($headless['images'])) {
+                $imageUrls = $headless['images'];
+                // Merge details if headless provided
+                if (is_array($headless['details'] ?? null) && !empty($headless['details'])) {
+                    $lotDetails = $headless['details'];
+                }
+                Log::info('✅ Images pulled via headless fallback', ['count' => count($imageUrls)]);
+            }
+        }
+
+        return [
+            'lot_id' => $lotId,
+            'details' => $lotDetails,
+            'images' => array_values(array_filter(array_unique($imageUrls))),
+        ];
+    }
+
+    /**
+     * Extract images from API response structure.
+     *
+     * @param array $imgData
+     * @return array<int,string>
+     */
+    private function extractImagesFromApiResponse(array $imgData): array
+    {
+        $imagesArray = [];
+
+        if (isset($imgData['data']) && is_string($imgData['data'])) {
+            $decodedData = json_decode($imgData['data'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decodedData)) {
+                $imgData['data'] = $decodedData;
+            }
+        }
+
+        $data = $imgData['data'] ?? [];
+
+        if (isset($data['imagesList']['content']) && is_array($data['imagesList']['content'])) {
+            $imagesArray = $data['imagesList']['content'];
+        } elseif (isset($data['imagesList']) && is_array($data['imagesList'])) {
+            $maybeImages = $data['imagesList'];
+            if (!empty($maybeImages) && isset($maybeImages[0]) &&
+                (isset($maybeImages[0]['fullUrl']) || isset($maybeImages[0]['highResUrl']) || isset($maybeImages[0]['thumbnailUrl']))) {
+                $imagesArray = $maybeImages;
+            } else {
+                foreach ($maybeImages as $value) {
+                    if (is_array($value) && isset($value[0]) &&
+                        (isset($value[0]['fullUrl']) || isset($value[0]['highResUrl']) || isset($value[0]['thumbnailUrl']))) {
+                        $imagesArray = $value;
+                        break;
+                    }
+                }
+            }
+        }
+
+        $urls = [];
+        foreach ($imagesArray as $img) {
+            if (is_string($img)) {
+                $urls[] = $img;
+                continue;
+            }
+            if (!is_array($img)) {
+                continue;
+            }
+            $candidate = $img['fullUrl'] ?? $img['highResUrl'] ?? $img['thumbnailUrl'] ?? $img['link'] ?? null;
+            if ($candidate) {
+                $urls[] = $candidate;
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Extract images from lotDetails payload.
+     *
+     * @param array $lotDetails
+     * @return array<int,string>
+     */
+    private function extractCopartImagesFromLotDetails(array $lotDetails): array
+    {
+        $urls = [];
+        $keys = ['images', 'imagesList', 'lotImages', 'photos', 'imgs', 'imageUrls'];
+
+        foreach ($keys as $key) {
+            if (!isset($lotDetails[$key])) {
+                continue;
+            }
+            $value = $lotDetails[$key];
+            if (is_string($value)) {
+                $urls[] = $value;
+            } elseif (is_array($value)) {
+                foreach ($value as $item) {
+                    if (is_string($item)) {
+                        $urls[] = $item;
+                    } elseif (is_array($item)) {
+                        $candidate = $item['url'] ?? $item['src'] ?? $item['fullUrl'] ?? $item['highResUrl'] ?? $item['thumbnailUrl'] ?? null;
+                        if ($candidate) {
+                            $urls[] = $candidate;
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_values(array_filter(array_unique($urls)));
+    }
+
+    /**
+     * Headless images via Node Playwright.
+     *
+     * @return array{details: array|null, images: array|null}
+     */
+    private function fetchImagesViaHeadless(string $lotId): array
+    {
+        $script = base_path('scraper/fetch-copart-lot.cjs');
+        if (!is_file($script)) {
+            return [];
+        }
+
+        $env = [
+            'PLAYWRIGHT_BROWSERS_PATH' => '/home/admin/.cache/ms-playwright',
+            'PUPPETEER_EXECUTABLE_PATH' => env('PUPPETEER_EXECUTABLE_PATH'),
+            'PUPPETEER_ARGS' => env('PUPPETEER_ARGS'),
+        ];
+
+        $process = new Process(
+            ['node', $script, $lotId, '--images'],
+            base_path(),
+            $env,
+            null,
+            60
+        );
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            Log::warning('Headless image fetch failed', [
+                'lot_id' => $lotId,
+                'error' => trim($process->getErrorOutput()) ?: trim($process->getOutput()),
+            ]);
+            return [];
+        }
+
+        $output = trim($process->getOutput());
+        $decoded = json_decode($output, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return [
+            'details' => $decoded['data'] ?? ($decoded['details'] ?? null),
+            'images' => $decoded['data']['images'] ?? ($decoded['images'] ?? null),
+        ];
+    }
+
+    /**
      * @param array<string,string> $headers
      */
     private function requestCopartJson(string $url, array $headers, ?CookieJar $cookieJar = null): ?array
@@ -881,179 +1067,29 @@ class AuctionParserService
                 }
             }
 
-            // GET PHOTOS FROM API
-            $imageApiUrl = "https://www.copart.com/public/data/lotdetails/solr/lotImages/{$lotId}";
-            try {
-            Log::info('📸 Fetching images from: ' . $imageApiUrl);
-            usleep(200000); // 0.2 sec delay between requests
+            $imageResult = $this->collectCopartImages($lotId, $details ?? [], $headers, $cookieJar, $url);
+            $lotDetails = $imageResult['details'] ?? $details;
+            $imageUrls = $imageResult['images'] ?? [];
 
-                $imgHeaders = $headers;
-                $imgHeaders['Referer'] = $url;
-                $imgHeaders['Accept'] = 'application/json, text/plain, */*';
-
-                $imgData = $this->requestCopartJson($imageApiUrl, $imgHeaders, $cookieJar);
-                $imagesList = data_get($imgData, 'data.imagesList');
-
-                if (($this->copartBlocked || empty($imagesList)) && $headlessPayload === null) {
-                    $headlessPayload = $this->fetchCopartLotViaHeadless($lotId);
-                    if (!is_array($headlessPayload)) {
-                        $headlessPayload = false;
-                    } else {
-                        $this->applyHeadlessCookies($headlessPayload, $headers, $cookieJar);
-                        if (empty($details)) {
-                            $headlessDetails = data_get($headlessPayload, 'details.data.lotDetails');
-                            if (is_array($headlessDetails) && !empty($headlessDetails)) {
-                                $details = $headlessDetails;
-                            }
-                        }
-                        $imgData = $headlessPayload['images'] ?? $imgData;
-                        $imagesList = data_get($imgData, 'data.imagesList', $imagesList);
-                        $this->copartBlocked = false;
-                        $this->copartBlockedDuringLastParse = false;
-                    }
-                }
-
-                if ($this->copartBlocked && empty($imagesList)) {
-                    Log::warning('❌ Copart blocked while fetching image metadata');
-                    return null;
-                }
-
-                $imagesArray = [];
-                $imageUrls = [];
-
-                if (isset($imgData['data']) && is_string($imgData['data'])) {
-                    $decodedData = json_decode($imgData['data'], true);
-                    if (json_last_error() === JSON_ERROR_NONE && is_array($decodedData)) {
-                        $imgData['data'] = $decodedData;
-                    }
-                }
-
-                if (is_array($imgData)) {
-                    Log::info('✅ Image API response received');
-
-                    $responseKeys = isset($imgData['data']) ? array_keys($imgData['data']) : [];
-                    Log::info('🔍 API response structure: data keys = [' . implode(', ', $responseKeys) . ']');
-
-                    if (isset($imgData['data']['imagesList'])) {
-                        $imagesList = $imgData['data']['imagesList'];
-                        if (is_array($imagesList)) {
-                            $isListKeys = array_keys($imagesList);
-                            Log::info('🔍 imagesList structure: keys = [' . implode(', ', $isListKeys) . '], count = ' . count($imagesList));
-                        } else {
-                            Log::info('🔍 imagesList is not an array, type: ' . gettype($imagesList));
-                        }
-                    } else {
-                        Log::warning('🔍 No imagesList found in response');
-                    }
-
-                    // Handle different API response structures
-                    if (isset($imgData['data']['imagesList']['content']) && is_array($imgData['data']['imagesList']['content'])) {
-                        $imagesArray = $imgData['data']['imagesList']['content'];
-                        Log::info('✅ Found imagesList.content with ' . count($imagesArray) . ' images');
-                    } elseif (isset($imgData['data']['imagesList']) && is_array($imgData['data']['imagesList'])) {
-                        // Check if it's a direct array of images or has pagination structure
-                        $imagesList = $imgData['data']['imagesList'];
-
-                        // If first element has image properties, it's direct array
-                        if (!empty($imagesList) && isset($imagesList[0]) &&
-                            (isset($imagesList[0]['fullUrl']) || isset($imagesList[0]['highResUrl']) || isset($imagesList[0]['thumbnailUrl']))) {
-                            $imagesArray = $imagesList;
-                            Log::info('✅ Found direct imagesList array with ' . count($imagesArray) . ' items');
-                        } else {
-                            // Maybe it's paginated or has different structure, let's explore
-                            foreach ($imagesList as $key => $value) {
-                                if (is_array($value) && !empty($value)) {
-                                    Log::info('🔍 Checking imagesList[' . $key . '] with ' . count($value) . ' items');
-                                    // Check if this looks like an images array
-                                    if (isset($value[0]) && is_array($value[0]) &&
-                                        (isset($value[0]['fullUrl']) || isset($value[0]['highResUrl']) || isset($value[0]['thumbnailUrl']))) {
-                                        $imagesArray = $value;
-                                        Log::info('✅ Found images in imagesList[' . $key . '] with ' . count($imagesArray) . ' items');
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Log::warning('⚠️ imagesList structure not recognized - logging full structure');
-                        Log::warning('🔍 Full API response: ' . json_encode($imgData, JSON_PRETTY_PRINT));
-                    }
-                }
-
-            } catch (\Exception $e) {
-                Log::warning('⚠️ Image API request failed: ' . $e->getMessage());
-            }
-
-            // After attempting the primary API, broaden the search if needed
-            if ($aggressive && empty($imagesArray)) {
-                if ($this->hasNoTimeBudget()) {
-                    Log::info('⏱️ Skipping alternate image endpoints due to time budget');
-                } else {
-                    Log::info('🔄 Primary image API empty, trying alternate endpoints');
-                    $imagesArray = $this->fetchImagesViaAlternateApis($lotId, $url, $headers, $cookieJar);
-                }
-            }
-
-            if ($aggressive && empty($imagesArray)) {
-                if ($this->hasNoTimeBudget()) {
-                    Log::info('⏱️ Skipping HTML scraping due to time budget');
-                } else {
-                    Log::info('🔄 Alternate endpoints failed, trying HTML scraping fallback');
-                    $imagesArray = $this->scrapeImagesFromHtml($url, $lotId, $cookieJar, $lotHtml);
-                }
-            }
-
-            if ($aggressive && empty($imagesArray)) {
-                if ($this->hasNoTimeBudget()) {
-                    Log::info('⏱️ Skipping URL generation due to time budget');
-                } else {
-                    Log::info('🔄 HTML scraping also failed, trying URL generation');
-                    $imagesArray = $this->generatePotentialImageUrls($lotId);
-                }
-            }
-
-            if (!empty($imagesArray)) {
-                $imageUrls = [];
-
-                foreach ($imagesArray as $img) {
-                    $imgUrl = $img['fullUrl'] ?? $img['highResUrl'] ?? $img['thumbnailUrl'] ?? $img['link'] ?? null;
-                    if (!$imgUrl) {
-                        continue;
-                    }
-
-                    $normalizedUrl = $this->normalizeCopartImageUrl($imgUrl);
-                    if (!$normalizedUrl || $this->isPlaceholderImage($normalizedUrl)) {
-                        continue;
-                    }
-
-                    $imageUrls[] = $normalizedUrl;
-                }
-
-                Log::info('📸 Extracted ' . count($imageUrls) . ' image URLs after fallbacks');
-
-                // Remove duplicates by normalized path
-                $seenPaths = [];
+            if (!empty($imageUrls)) {
+                $photos = [];
+                $seen = [];
                 foreach ($imageUrls as $imgUrl) {
-                    $path = parse_url($imgUrl, PHP_URL_PATH) ?? $imgUrl;
-                    $query = parse_url($imgUrl, PHP_URL_QUERY);
-                    $normalizedPath = preg_replace('/_(thn|hrs|thb|tmb|ful)\.(jpg|jpeg|png|webp)$/i', '.$2', $path);
-                    $dedupeKey = strtolower($normalizedPath . ($query ? '?' . $query : ''));
-
-                    if (isset($seenPaths[$dedupeKey])) {
+                    $normalized = $this->normalizeCopartImageUrl($imgUrl) ?? $imgUrl;
+                    if ($this->isPlaceholderImage($normalized)) {
                         continue;
                     }
-                    $seenPaths[$dedupeKey] = true;
-
-                    $proxyUrl = url('/proxy/image') . '?u=' . rawurlencode($imgUrl);
-                    if (!empty($url)) {
-                        $proxyUrl .= '&r=' . rawurlencode($url);
+                    $key = strtolower(parse_url($normalized, PHP_URL_PATH) ?? $normalized);
+                    if (isset($seen[$key])) {
+                        continue;
                     }
-                    $photos[] = $proxyUrl;
+                    $seen[$key] = true;
+                    $photos[] = url('/proxy/image') . '?u=' . rawurlencode($normalized);
                 }
 
-                Log::info('✅ Final photos count: ' . count($photos));
+                Log::info('✅ Photos collected via three-layer fallback', ['count' => count($photos)]);
             } else {
-                Log::warning('⚠️ No images found after all strategies');
+                Log::warning('⚠️ No images found after three-layer fallback');
             }
 
             // If still no photos, try dedicated CopartImageService (CDN/headless)
