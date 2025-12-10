@@ -105,7 +105,7 @@ class ImageProxyController extends Controller
                 ]);
 
                 // Попробуем получить плейсхолдер и вернуть его
-                $placeholder = Http::timeout(10)->get('https://via.placeholder.com/800x600/e5e7eb/6b7280?text=No+Image+Available');
+                $placeholder = Http::timeout(10)->get('https://placehold.co/800x600/e5e7eb/6b7280/png?text=No+Image+Available');
                 return response($placeholder->body(), 200)
                     ->header('Content-Type', 'image/png')
                     ->header('Cache-Control', 'public, max-age=3600');
@@ -120,7 +120,7 @@ class ImageProxyController extends Controller
                     'content_type' => $contentType,
                 ]);
 
-                $placeholder = Http::timeout(10)->get('https://via.placeholder.com/800x600/e5e7eb/6b7280?text=Invalid+Image');
+                $placeholder = Http::timeout(10)->get('https://placehold.co/800x600/e5e7eb/6b7280/png?text=Invalid+Image');
                 return response($placeholder->body(), 200)
                     ->header('Content-Type', 'image/png')
                     ->header('Cache-Control', 'public, max-age=3600');
@@ -159,7 +159,7 @@ class ImageProxyController extends Controller
 
             // Возвращаем плейсхолдер при любых ошибках
             try {
-                $placeholder = Http::timeout(10)->get('https://via.placeholder.com/800x600/e5e7eb/6b7280?text=Error+Loading+Image');
+                $placeholder = Http::timeout(10)->get('https://placehold.co/800x600/e5e7eb/6b7280/png?text=Error+Loading+Image');
                 return response($placeholder->body(), 200)
                     ->header('Content-Type', 'image/png')
                     ->header('Cache-Control', 'public, max-age=3600');

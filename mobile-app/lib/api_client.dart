@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -7,22 +8,47 @@ import 'models/listing.dart';
 import 'models/message.dart';
 import 'models/profile.dart';
 
-/// Default base URL; override with --dart-define=API_BASE_URL=... when needed.
+/// Default base URL.
+/// For local development on Linux/WSL use 'http://localhost:8000'
+/// For Android Emulator use 'http://10.0.2.2:8000'
 const String kDefaultApiBaseUrl =
-    String.fromEnvironment('API_BASE_URL', defaultValue: 'http://10.0.2.2:8000');
+    String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8000');
 
-/// Optional bearer token; override with --dart-define=API_TOKEN=... or set via [setToken].
+/// Optional bearer token.
+/// You can hardcode your token here for testing if you don't want to pass it via CLI args.
 const String kDefaultApiToken =
     String.fromEnvironment('API_TOKEN', defaultValue: '');
 
 class ApiClient {
   ApiClient({
-    this.baseUrl = kDefaultApiBaseUrl,
+    String? baseUrl,
     String? token,
-  }) : _token = token ?? kDefaultApiToken;
+  }) : _token = token ?? kDefaultApiToken {
+     // If no specific URL provided, try to detect platform or use default
+     if (baseUrl != null) {
+       this.baseUrl = baseUrl;
+     } else if (kDefaultApiBaseUrl != 'http://localhost:8000') {
+       // If it was overridden by compile-time flag, use it
+       this.baseUrl = kDefaultApiBaseUrl;
+     } else {
+       // Smart default based on platform
+       try {
+         if (Platform.isAndroid) {
+           this.baseUrl = 'http://10.0.2.2:8000';
+         } else {
+           this.baseUrl = 'http://localhost:8000';
+         }
+       } catch (e) {
+         // Fallback for web or other
+         this.baseUrl = 'http://localhost:8000';
+       }
+     }
+  }
 
-  final String baseUrl;
+  late final String baseUrl;
   String _token;
+
+  String get token => _token;
 
   void setToken(String? token) {
     _token = token ?? '';
@@ -208,5 +234,56 @@ class ApiClient {
     if (resp.statusCode != 200 && resp.statusCode != 201) {
       throw Exception('Send message failed (${resp.statusCode})');
     }
+  }
+
+  Future<void> createListing({
+    required Map<String, String> fields,
+    List<String>? filePaths,
+  }) async {
+    if (_token.isEmpty) throw Exception('No auth token set');
+    final uri = _uri('/api/mobile/listings');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers.addAll(_headers(withAuth: true));
+
+    // Add text fields
+    request.fields.addAll(fields);
+
+    // Add files
+    if (filePaths != null) {
+      for (final path in filePaths) {
+        if (path.isEmpty) continue;
+        final file = await http.MultipartFile.fromPath('images[]', path);
+        request.files.add(file);
+      }
+    }
+
+    final streamResp = await request.send();
+    final resp = await http.Response.fromStream(streamResp);
+
+    if (resp.statusCode != 200 && resp.statusCode != 201) {
+      final body = jsonDecode(resp.body);
+      final msg = body is Map && body['message'] != null
+          ? body['message'].toString()
+          : 'Create listing failed (${resp.statusCode})';
+      throw Exception(msg);
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchFromAuctionUrl(String url) async {
+    if (_token.isEmpty) throw Exception('No auth token set');
+    final resp = await http.post(
+      _uri('/api/v1/dealer/listings/fetch-from-url'),
+      headers: _headers(withAuth: true),
+      body: {'url': url},
+    );
+    final body = jsonDecode(resp.body);
+    if (resp.statusCode != 200) {
+      final message = body is Map && body['message'] != null
+          ? body['message'].toString()
+          : 'Fetch failed (${resp.statusCode})';
+      throw Exception(message);
+    }
+    if (body is! Map) throw Exception('Unexpected auction response');
+    return body as Map<String, dynamic>;
   }
 }

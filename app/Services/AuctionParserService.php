@@ -1140,7 +1140,7 @@ class AuctionParserService
             // ✅ Use placeholder if no photos found
             if (empty($photos)) {
                 Log::warning('⚠️ No photos found, using placeholder');
-                $placeholderUrl = 'https://via.placeholder.com/800x600/e5e7eb/6b7280?text=No+Image+Available';
+                $placeholderUrl = 'https://placehold.co/800x600/e5e7eb/6b7280/png?text=No+Image+Available';
                 // ✅ FIX: Ensure placeholder also uses an absolute URL via url() helper
                 $photos = [url('/proxy/image?u=' . rawurlencode($placeholderUrl))];
             }
@@ -1209,7 +1209,7 @@ class AuctionParserService
             $photos = $this->proxyExternalImages($payload['images'] ?? [], $url);
 
             if (empty($photos)) {
-                $placeholderUrl = 'https://via.placeholder.com/800x600/e5e7eb/6b7280?text=No+Image+Available';
+                $placeholderUrl = 'https://placehold.co/800x600/e5e7eb/6b7280/png?text=No+Image+Available';
                 $photos = [url('/proxy/image?u=' . rawurlencode($placeholderUrl))];
                 Log::warning('⚠️ List.am images missing, using placeholder', ['url' => $url]);
             }
@@ -1872,7 +1872,7 @@ class AuctionParserService
 
             $photos = $this->extractIaaiPhotos($html, $url, $state);
             if (empty($photos)) {
-                $placeholderUrl = 'https://via.placeholder.com/800x600/e5e7eb/6b7280?text=No+Image+Available';
+                $placeholderUrl = 'https://placehold.co/800x600/e5e7eb/6b7280/png?text=No+Image+Available';
                 $photos = [url('/proxy/image?u=' . rawurlencode($placeholderUrl))];
             }
 

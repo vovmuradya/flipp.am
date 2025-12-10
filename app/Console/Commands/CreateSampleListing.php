@@ -136,7 +136,7 @@ class CreateSampleListing extends Command
 
         if (Schema::hasColumn('vehicle_details', 'preview_image_url')) {
             $listing->vehicleDetail()->update([
-                'preview_image_url' => 'https://via.placeholder.com/800x600/e5e7eb/1f2937?text=Nissan+Rogue+SV',
+                'preview_image_url' => 'https://placehold.co/800x600/e5e7eb/1f2937/png?text=Nissan+Rogue+SV',
             ]);
         }
 

@@ -250,7 +250,7 @@ class CopartImageService
     private function getPlaceholder(string $lotId): array
     {
         return [
-            "https://via.placeholder.com/800x600/cccccc/666666?text=Lot+{$lotId}+No+Image",
+            "https://placehold.co/800x600/cccccc/666666/png?text=Lot+{$lotId}+No+Image",
         ];
     }
 
