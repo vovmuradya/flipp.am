@@ -50,6 +50,10 @@ Route::post('/v1/dealer/listings/fetch-from-url', [AuctionParserController::clas
     ->middleware('auth:sanctum')
     ->name('api.auction.fetch');
 
+Route::post('/v1/dealer/listings/check-parse-status', [AuctionParserController::class, 'checkStatus'])
+    ->middleware('auth:sanctum')
+    ->name('api.auction.check-status');
+
 // COPART DIRECT+FALLBACK
 Route::get('/copart/{id}', function (string $id, CopartService $copart) {
     $result = $copart->getLot($id);

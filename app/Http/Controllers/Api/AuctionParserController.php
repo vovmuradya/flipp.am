@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ParseAuctionJob;
+use App\Models\AuctionParseJob as AuctionParseJobModel;
 use App\Services\AuctionParserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class AuctionParserController extends Controller
 {
@@ -16,7 +19,7 @@ class AuctionParserController extends Controller
     ];
 
     /**
-     * ТЗ v2.1: Парсинг данных с аукциона по URL
+     * ТЗ v2.1: Парсинг данных с аукциона по URL (асинхронный)
      */
     public function fetchFromUrl(Request $request)
     {
@@ -52,39 +55,79 @@ class AuctionParserController extends Controller
         }
 
         try {
-            // Пытаемся извлечь данные
-            $vehicleData = $this->parseAuction($url, $auctionType);
+            // Создаём уникальный ID для задачи
+            $jobId = Str::uuid()->toString();
+            
+            // Сохраняем задачу в БД
+            $jobRecord = AuctionParseJobModel::create([
+                'job_id' => $jobId,
+                'url' => $url,
+                'status' => 'pending',
+            ]);
 
-            if ($vehicleData && !empty($vehicleData['make'])) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Данные успешно извлечены',
-                    'data' => $vehicleData
-                ]);
-            }
+            // Запускаем парсинг в фоне
+            ParseAuctionJob::dispatch($jobId, $url, $auctionType);
 
-            // Fallback: не удалось извлечь данные
+            Log::info("🚀 Parse job created", ['job_id' => $jobId, 'url' => $url]);
+
+            // Возвращаем job_id для отслеживания статуса
             return response()->json([
-                'success' => false,
-                'fallback' => true,
-                'message' => 'Не удалось автоматически извлечь данные',
-                'data' => [
-                    'source_auction_url' => $url
-                ]
+                'success' => true,
+                'message' => 'Парсинг запущен',
+                'job_id' => $jobId,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Auction parsing error: ' . $e->getMessage());
+            Log::error('Failed to create parse job: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
                 'fallback' => true,
-                'message' => 'Ошибка при извлечении данных',
+                'message' => 'Ошибка при запуске парсинга',
                 'data' => [
                     'source_auction_url' => $url
                 ]
             ]);
         }
+    }
+
+    /**
+     * Проверка статуса парсинга
+     */
+    public function checkStatus(Request $request)
+    {
+        $request->validate([
+            'job_id' => 'required|string'
+        ]);
+
+        $jobId = $request->input('job_id');
+        $jobRecord = AuctionParseJobModel::where('job_id', $jobId)->first();
+
+        if (!$jobRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Задача не найдена'
+            ], 404);
+        }
+
+        $response = [
+            'success' => true,
+            'status' => $jobRecord->status,
+        ];
+
+        if ($jobRecord->status === 'completed' && $jobRecord->result) {
+            $response['data'] = $jobRecord->result;
+        }
+
+        if ($jobRecord->status === 'failed') {
+            $response['error'] = $jobRecord->error_message;
+            $response['fallback'] = true;
+            $response['data'] = [
+                'source_auction_url' => $jobRecord->url
+            ];
+        }
+
+        return response()->json($response);
     }
 
     /**

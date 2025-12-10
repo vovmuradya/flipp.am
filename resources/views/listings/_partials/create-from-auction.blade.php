@@ -71,8 +71,10 @@ document.addEventListener('DOMContentLoaded', function() {
         empty: @json(__('Пожалуйста, введите ссылку на аукцион')),
         generic: @json(__('Произошла ошибка')),
         request: @json(__('Произошла ошибка при обработке запроса')),
+        parsing: @json(__('Парсинг данных...')),
     };
     const allowedHosts = ['copart.com'];
+    let pollingInterval = null;
 
     fetchButton.addEventListener('click', async function() {
         const url = urlInput.value.trim();
@@ -101,6 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
         buttonLoader.classList.remove('hidden');
 
         try {
+            // Шаг 1: Запускаем парсинг
             const response = await fetch('/api/v1/dealer/listings/fetch-from-url', {
                 method: 'POST',
                 headers: {
@@ -113,39 +116,92 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const data = await response.json();
 
-            if (data.success || data.fallback) {
-                // Сохраняем в Laravel session через форму
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '{{ route("listings.save-auction-data") }}';
-
-                const csrfInput = document.createElement('input');
-                csrfInput.type = 'hidden';
-                csrfInput.name = '_token';
-                csrfInput.value = document.querySelector('meta[name="csrf-token"]').content;
-                form.appendChild(csrfInput);
-
-                const dataInput = document.createElement('input');
-                dataInput.type = 'hidden';
-                dataInput.name = 'auction_data';
-                dataInput.value = JSON.stringify(data.data || {});
-                form.appendChild(dataInput);
-
-                document.body.appendChild(form);
-                form.submit();
-            } else {
+            if (!data.success || !data.job_id) {
                 showError(data.message || messages.generic);
+                fetchButton.disabled = false;
+                buttonText.classList.remove('hidden');
+                buttonLoader.classList.add('hidden');
+                return;
             }
+
+            // Шаг 2: Ждём результат через polling
+            await pollParseStatus(data.job_id);
+
         } catch (error) {
             console.error('Fetch error:', error);
             showError(messages.request);
-        } finally {
             fetchButton.disabled = false;
             buttonText.classList.remove('hidden');
             buttonLoader.classList.add('hidden');
         }
     });
 
+    async function pollParseStatus(jobId) {
+        const maxAttempts = 60; // 60 попыток * 2 сек = 2 минуты
+        let attempts = 0;
+
+        pollingInterval = setInterval(async () => {
+            attempts++;
+
+            if (attempts > maxAttempts) {
+                clearInterval(pollingInterval);
+                showError(@json(__('Превышено время ожидания. Попробуйте позже.')));
+                fetchButton.disabled = false;
+                buttonText.classList.remove('hidden');
+                buttonLoader.classList.add('hidden');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/dealer/listings/check-parse-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ job_id: jobId })
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'completed') {
+                    clearInterval(pollingInterval);
+                    submitFormWithData(result.data);
+                } else if (result.status === 'failed') {
+                    clearInterval(pollingInterval);
+                    // Даже при ошибке переходим в форму с URL
+                    submitFormWithData(result.data || { source_auction_url: urlInput.value.trim() });
+                }
+                // Если pending или processing - продолжаем ждать
+
+            } catch (error) {
+                console.error('Polling error:', error);
+            }
+        }, 2000); // Проверяем каждые 2 секунды
+    }
+
+    function submitFormWithData(data) {
+        // Сохраняем в Laravel session через форму
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ route("listings.save-auction-data") }}';
+
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value = document.querySelector('meta[name="csrf-token"]').content;
+        form.appendChild(csrfInput);
+
+        const dataInput = document.createElement('input');
+        dataInput.type = 'hidden';
+        dataInput.name = 'auction_data';
+        dataInput.value = JSON.stringify(data || {});
+        form.appendChild(dataInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
 
     function showError(message) {
         errorText.textContent = message;
@@ -160,6 +216,13 @@ document.addEventListener('DOMContentLoaded', function() {
     urlInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             fetchButton.click();
+        }
+    });
+
+    // Очистка при уходе со страницы
+    window.addEventListener('beforeunload', function() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
         }
     });
 });
