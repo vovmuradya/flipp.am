@@ -6,6 +6,13 @@ import 'models/chat.dart';
 import 'models/listing.dart';
 import 'models/message.dart';
 import 'models/profile.dart';
+import 'screens/calculator_screen.dart';
+import 'screens/create_listing_screen.dart';
+import 'screens/import_auction_screen.dart';
+import 'screens/my_auctions_screen.dart';
+import 'screens/my_listings_screen.dart';
+import 'screens/search_screen.dart';
+import 'screens/settings_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -66,7 +73,7 @@ class _AppShellState extends State<AppShell> {
 
   void _openAddFlow() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AddListingOptionsScreen()),
+      MaterialPageRoute(builder: (_) => AddListingOptionsScreen(api: _api)),
     );
   }
 
@@ -149,7 +156,7 @@ class _AppShellState extends State<AppShell> {
           );
         },
       ),
-      const SearchPlaceholderScreen(),
+      SearchScreen(api: _api),
       MessagesListScreen(
         api: _api,
         profile: _profile,
@@ -1315,7 +1322,9 @@ class _SpecTile extends StatelessWidget {
 }
 
 class AddListingOptionsScreen extends StatelessWidget {
-  const AddListingOptionsScreen({super.key});
+  final ApiClient api;
+
+  const AddListingOptionsScreen({super.key, required this.api});
 
   @override
   Widget build(BuildContext context) {
@@ -1353,20 +1362,58 @@ class AddListingOptionsScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 children: [
                   _AddTypeCard(
-                    icon: Icons.list_alt,
-                    title: 'Full Listing',
+                    icon: Icons.directions_car,
+                    title: 'Vehicle Listing',
                     description:
-                        'Provide comprehensive details to attract serious buyers and get the best price for your vehicle.',
+                        'Create a full listing for your vehicle with all details.',
                     primary: primary,
                     isDark: isDark,
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CreateListingScreen(api: api, type: 'vehicle'),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _AddTypeCard(
+                    icon: Icons.build,
+                    title: 'Parts Listing',
+                    description:
+                        'List auto parts or accessories for sale.',
+                    primary: primary,
+                    isDark: isDark,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CreateListingScreen(api: api, type: 'parts'),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _AddTypeCard(
+                    icon: Icons.gavel,
+                    title: 'Import from Copart',
+                    description:
+                        'Import vehicle details from Copart auction URL.',
+                    primary: primary,
+                    isDark: isDark,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ImportAuctionScreen(api: api),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   _AddTypeCard(
                     icon: Icons.bolt,
                     title: 'Quick Sell',
                     description:
-                        'List your car in under 60 seconds with just the essentials. Perfect for getting started fast.',
+                        'List your car in under 60 seconds with just the essentials.',
                     primary: primary,
                     isDark: isDark,
                     onTap: () {
@@ -1376,16 +1423,6 @@ class AddListingOptionsScreen extends StatelessWidget {
                         ),
                       );
                     },
-                  ),
-                  const SizedBox(height: 12),
-                  _AddTypeCard(
-                    icon: Icons.gavel,
-                    title: 'List as Auction',
-                    description:
-                        'Start a bidding war. Set a reserve price and let the market decide the final value.',
-                    primary: primary,
-                    isDark: isDark,
-                    onTap: () {},
                   ),
                 ],
               ),
@@ -2796,36 +2833,6 @@ class _TypingDot extends StatelessWidget {
   }
 }
 
-class SearchPlaceholderScreen extends StatelessWidget {
-  const SearchPlaceholderScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search, size: 48, color: theme.colorScheme.primary),
-          const SizedBox(height: 12),
-          Text(
-            'Search and filters coming next',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Поищем авто по категориям, брендам и регионам.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -3010,6 +3017,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               const SizedBox(height: 16),
+              _ProfileTile(
+                icon: Icons.list,
+                title: 'My Listings',
+                subtitle: 'View and manage your listings',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => MyListingsScreen(api: widget.api)),
+                  );
+                },
+              ),
+              _ProfileTile(
+                icon: Icons.gavel,
+                title: 'My Auctions',
+                subtitle: 'Track your auction listings',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => MyAuctionsScreen(api: widget.api)),
+                  );
+                },
+              ),
+              _ProfileTile(
+                icon: Icons.calculate,
+                title: 'Import Calculator',
+                subtitle: 'Calculate import costs',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => CalculatorScreen(api: widget.api)),
+                  );
+                },
+              ),
+              _ProfileTile(
+                icon: Icons.notifications,
+                title: 'Notifications',
+                subtitle: 'Manage notification settings',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => SettingsScreen(api: widget.api)),
+                  );
+                },
+              ),
               _ProfileTile(
                 icon: Icons.settings,
                 title: 'Settings',

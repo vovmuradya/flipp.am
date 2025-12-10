@@ -10,3 +10,73 @@
 - Подключил API: добавлен `lib/api_client.dart` и `lib/models/listing.dart`, экран списка грузит `/api/mobile/listings`, показывает данные с сервера, умеет рефреш и попытку toggle избранного (требуется Bearer токен в `API_TOKEN`). Детали используют реальные поля listing (цена, год, пробег, цвет, повреждение, локация).
 - Добавил авторизацию/профиль/избранное/чаты: login через `/api/mobile/auth/login`, профиль из `/api/mobile/profile`, избранное из `/api/mobile/favorites`, чаты из `/api/mobile/chats`, сообщения по объявлению `/api/mobile/listings/{id}/messages` с отправкой. Профиль экран: форма логина и отображение данных + избранное. Чаты и избранное требуют Bearer токен.
 - Сделал полноценные экраны логина/регистрации с UI в стиле web: отдельный LoginScreen с поддержкой onSubmit и RegisterScreen (пока без вызова API, только UI). В профиле добавил кнопку открытия полноэкранного логина, улучшил форму входа в профиле.
+
+**Новые функции (полный функционал как в веб-версии):**
+
+- Создана модульная архитектура: `lib/models/`, `lib/screens/`, `lib/services/`
+- Добавлены модели данных: Category, Region, CarBrand/Model/Generation, Review, NotificationSettings, SearchFilters
+- Расширен ApiClient с методами:
+  * Категории и справочники (fetchRootCategories, fetchCategoryChildren, fetchCategoryFields)
+  * Бренды/модели авто (fetchCarBrands, fetchCarModels, fetchCarGenerations)
+  * Поиск с фильтрами (searchListings с SearchFilters)
+  * Мои объявления (fetchMyListings, fetchMyAuctions, updateListing, deleteListing, bumpListing)
+  * Импорт из Copart (fetchFromAuctionUrl)
+  * Отзывы (fetchReviews, createReview)
+  * Настройки уведомлений (fetchNotificationSettings, updateNotificationSettings)
+  * Калькулятор импорта (calculateImport)
+
+- **Экран поиска и фильтров** (`screens/search_screen.dart`):
+  * Полнотекстовый поиск
+  * Фильтры: категории, регионы, цена, год, пробег, тип кузова, коробка, топливо, состояние, только Copart
+  * Визуальные чипы активных фильтров
+  * Интеграция с API поиска
+
+- **Создание объявлений** (`screens/create_listing_screen.dart`):
+  * Форма для vehicle/parts
+  * Выбор категории, бренда, модели
+  * Поля: title, price, description, year, mileage
+  * Загрузка фото через image_picker
+  * Валидация и отправка на сервер
+
+- **Импорт из Copart** (`screens/import_auction_screen.dart`):
+  * Вставка URL аукциона
+  * Парсинг данных с сервера
+  * Превью импортированных данных
+  * Создание объявления одной кнопкой
+
+- **Мои объявления** (`screens/my_listings_screen.dart`):
+  * Список всех объявлений пользователя
+  * Действия: Bump, Edit, Delete
+  * Pull-to-refresh
+
+- **Мои аукционы** (`screens/my_auctions_screen.dart`):
+  * Отдельный список аукционных объявлений
+  * Управление аукционами
+
+- **Отзывы о продавцах** (`screens/reviews_screen.dart`):
+  * Просмотр всех отзывов
+  * Средний рейтинг со звездами
+  * Добавление нового отзыва (рейтинг 1-5 + комментарий)
+
+- **Настройки уведомлений** (`screens/settings_screen.dart`):
+  * Email уведомления (сообщения, новые объявления, снижение цены)
+  * Push уведомления
+  * Сохранение настроек на сервер
+
+- **Калькулятор импорта** (`screens/calculator_screen.dart`):
+  * Расчет полной стоимости импорта из Copart
+  * Поля: auction price, year
+  * Детализация: Copart fee, delivery, customs, VAT, recycling, clearance
+  * Итоговая сумма
+
+- **Обновлен ProfileScreen**:
+  * Добавлены кнопки навигации к: My Listings, My Auctions, Calculator, Notifications
+  * Интеграция всех новых экранов
+
+- **Обновлен AddListingOptionsScreen**:
+  * Новые опции: Vehicle Listing, Parts Listing, Import from Copart, Quick Sell
+  * Навигация к соответствующим экранам
+
+- Заменен SearchPlaceholderScreen на полноценный SearchScreen с фильтрами
+- Весь новый код следует архитектуре: разделение на models, screens, services
+- API client поддерживает все эндпоинты из веб-версии

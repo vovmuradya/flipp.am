@@ -3,10 +3,15 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'models/car_brand.dart';
+import 'models/category.dart';
 import 'models/chat.dart';
+import 'models/filters/search_filters.dart';
 import 'models/listing.dart';
 import 'models/message.dart';
+import 'models/notification_settings.dart';
 import 'models/profile.dart';
+import 'models/review.dart';
 
 /// Default base URL.
 /// For local development on Linux/WSL use 'http://localhost:8000'
@@ -285,5 +290,173 @@ class ApiClient {
     }
     if (body is! Map) throw Exception('Unexpected auction response');
     return body as Map<String, dynamic>;
+  }
+
+  Future<List<Category>> fetchRootCategories() async {
+    final resp = await http.get(_uri('/api/categories/root'), headers: _headers());
+    if (resp.statusCode != 200) throw Exception('Categories failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is List ? body['data'] as List : [];
+    return data.whereType<Map<String, dynamic>>().map((e) => Category.fromJson(e)).toList();
+  }
+
+  Future<List<Category>> fetchCategoryChildren(int categoryId) async {
+    final resp = await http.get(_uri('/api/categories/$categoryId/children'), headers: _headers());
+    if (resp.statusCode != 200) throw Exception('Category children failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is List ? body['data'] as List : [];
+    return data.whereType<Map<String, dynamic>>().map((e) => Category.fromJson(e)).toList();
+  }
+
+  Future<List<CategoryField>> fetchCategoryFields(int categoryId) async {
+    final resp = await http.get(_uri('/api/categories/$categoryId/fields'), headers: _headers());
+    if (resp.statusCode != 200) throw Exception('Category fields failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is List ? body['data'] as List : [];
+    return data.whereType<Map<String, dynamic>>().map((e) => CategoryField.fromJson(e)).toList();
+  }
+
+  Future<List<CarBrand>> fetchCarBrands() async {
+    final resp = await http.get(_uri('/api/brands'), headers: _headers());
+    if (resp.statusCode != 200) throw Exception('Brands failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is List ? body['data'] as List : [];
+    return data.whereType<Map<String, dynamic>>().map((e) => CarBrand.fromJson(e)).toList();
+  }
+
+  Future<List<CarModel>> fetchCarModels(int brandId) async {
+    final resp = await http.get(_uri('/api/brands/$brandId/models'), headers: _headers());
+    if (resp.statusCode != 200) throw Exception('Models failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is List ? body['data'] as List : [];
+    return data.whereType<Map<String, dynamic>>().map((e) => CarModel.fromJson(e)).toList();
+  }
+
+  Future<List<CarGeneration>> fetchCarGenerations(int modelId) async {
+    final resp = await http.get(_uri('/api/models/$modelId/generations'), headers: _headers());
+    if (resp.statusCode != 200) throw Exception('Generations failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is List ? body['data'] as List : [];
+    return data.whereType<Map<String, dynamic>>().map((e) => CarGeneration.fromJson(e)).toList();
+  }
+
+  Future<List<Listing>> searchListings(SearchFilters filters, {int page = 1}) async {
+    final params = filters.toQueryParams();
+    params['page'] = '$page';
+    final resp = await http.get(_uri('/api/mobile/listings', params), headers: _headers());
+    if (resp.statusCode != 200) throw Exception('Search failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is List ? body['data'] as List : [];
+    return data.whereType<Map<String, dynamic>>().map((e) => Listing.fromJson(e, baseUrl: baseUrl)).toList();
+  }
+
+  Future<List<Listing>> fetchMyListings() async {
+    if (_token.isEmpty) throw Exception('No auth token set');
+    final resp = await http.get(_uri('/api/mobile/my/listings'), headers: _headers(withAuth: true));
+    if (resp.statusCode != 200) throw Exception('My listings failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is List ? body['data'] as List : [];
+    return data.whereType<Map<String, dynamic>>().map((e) => Listing.fromJson(e, baseUrl: baseUrl)).toList();
+  }
+
+  Future<List<Listing>> fetchMyAuctions() async {
+    if (_token.isEmpty) throw Exception('No auth token set');
+    final resp = await http.get(_uri('/api/mobile/my/auctions'), headers: _headers(withAuth: true));
+    if (resp.statusCode != 200) throw Exception('My auctions failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is List ? body['data'] as List : [];
+    return data.whereType<Map<String, dynamic>>().map((e) => Listing.fromJson(e, baseUrl: baseUrl)).toList();
+  }
+
+  Future<void> updateListing({required int id, required Map<String, String> fields, List<String>? filePaths}) async {
+    if (_token.isEmpty) throw Exception('No auth token set');
+    final uri = _uri('/api/mobile/listings/$id');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers.addAll(_headers(withAuth: true));
+    fields['_method'] = 'PUT';
+    request.fields.addAll(fields);
+    if (filePaths != null) {
+      for (final path in filePaths) {
+        if (path.isEmpty) continue;
+        final file = await http.MultipartFile.fromPath('images[]', path);
+        request.files.add(file);
+      }
+    }
+    final streamResp = await request.send();
+    final resp = await http.Response.fromStream(streamResp);
+    if (resp.statusCode != 200) {
+      final body = jsonDecode(resp.body);
+      final msg = body is Map && body['message'] != null ? body['message'].toString() : 'Update failed';
+      throw Exception(msg);
+    }
+  }
+
+  Future<void> deleteListing(int id) async {
+    if (_token.isEmpty) throw Exception('No auth token set');
+    final resp = await http.delete(_uri('/api/mobile/listings/$id'), headers: _headers(withAuth: true));
+    if (resp.statusCode != 200 && resp.statusCode != 204) throw Exception('Delete failed');
+  }
+
+  Future<void> bumpListing(int id) async {
+    if (_token.isEmpty) throw Exception('No auth token set');
+    final resp = await http.post(_uri('/api/mobile/listings/$id/bump'), headers: _headers(withAuth: true));
+    if (resp.statusCode != 200) {
+      final body = jsonDecode(resp.body);
+      final msg = body is Map && body['message'] != null ? body['message'].toString() : 'Bump failed';
+      throw Exception(msg);
+    }
+  }
+
+  Future<List<Review>> fetchReviews(int sellerId) async {
+    final resp = await http.get(_uri('/api/sellers/$sellerId/reviews'), headers: _headers());
+    if (resp.statusCode != 200) throw Exception('Reviews failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is List ? body['data'] as List : [];
+    return data.whereType<Map<String, dynamic>>().map((e) => Review.fromJson(e)).toList();
+  }
+
+  Future<void> createReview({required int sellerId, required int rating, String? comment}) async {
+    if (_token.isEmpty) throw Exception('No auth token set');
+    final resp = await http.post(
+      _uri('/api/sellers/$sellerId/reviews'),
+      headers: _headers(withAuth: true),
+      body: {'rating': rating.toString(), if (comment != null) 'comment': comment},
+    );
+    if (resp.statusCode != 200 && resp.statusCode != 201) throw Exception('Create review failed');
+  }
+
+  Future<NotificationSettings> fetchNotificationSettings() async {
+    if (_token.isEmpty) throw Exception('No auth token set');
+    final resp = await http.get(_uri('/api/mobile/notification-settings'), headers: _headers(withAuth: true));
+    if (resp.statusCode != 200) throw Exception('Notification settings failed');
+    final body = jsonDecode(resp.body);
+    final data = body is Map && body['data'] is Map ? body['data'] as Map : body;
+    if (data is! Map<String, dynamic>) throw Exception('Unexpected response');
+    return NotificationSettings.fromJson(data);
+  }
+
+  Future<void> updateNotificationSettings(NotificationSettings settings) async {
+    if (_token.isEmpty) throw Exception('No auth token set');
+    final resp = await http.put(
+      _uri('/api/mobile/notification-settings'),
+      headers: {..._headers(withAuth: true), 'Content-Type': 'application/json'},
+      body: jsonEncode(settings.toJson()),
+    );
+    if (resp.statusCode != 200) throw Exception('Update settings failed');
+  }
+
+  Future<Map<String, dynamic>> calculateImport(Map<String, String> params) async {
+    final resp = await http.post(
+      _uri('/api/copart-calculator/calculate'),
+      headers: _headers(),
+      body: params,
+    );
+    if (resp.statusCode != 200) {
+      final body = jsonDecode(resp.body);
+      final msg = body is Map && body['message'] != null ? body['message'].toString() : 'Calculation failed';
+      throw Exception(msg);
+    }
+    final body = jsonDecode(resp.body);
+    return body is Map<String, dynamic> ? body : {};
   }
 }
