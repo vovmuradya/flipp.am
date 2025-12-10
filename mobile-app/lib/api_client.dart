@@ -459,4 +459,27 @@ class ApiClient {
     final body = jsonDecode(resp.body);
     return body is Map<String, dynamic> ? body : {};
   }
+
+  Future<Profile> loginWithGoogle(String idToken) async {
+    final resp = await http.post(
+      _uri('/api/mobile/auth/google'),
+      headers: {..._headers(), 'Content-Type': 'application/json'},
+      body: jsonEncode({'id_token': idToken}),
+    );
+    if (resp.statusCode != 200 && resp.statusCode != 201) {
+      final body = jsonDecode(resp.body);
+      final msg = body is Map && body['message'] != null ? body['message'].toString() : 'Google login failed';
+      throw Exception(msg);
+    }
+    final body = jsonDecode(resp.body);
+    if (body is! Map<String, dynamic>) throw Exception('Unexpected response');
+    
+    final token = body['token']?.toString();
+    if (token != null && token.isNotEmpty) {
+      setToken(token);
+    }
+    
+    final userData = body['user'] ?? body;
+    return Profile.fromJson(userData as Map<String, dynamic>);
+  }
 }

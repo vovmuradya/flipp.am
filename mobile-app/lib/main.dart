@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'api_client.dart';
 import 'models/chat.dart';
@@ -9,6 +10,7 @@ import 'models/profile.dart';
 import 'screens/calculator_screen.dart';
 import 'screens/create_listing_screen.dart';
 import 'screens/import_auction_screen.dart';
+import 'screens/import_listam_screen.dart';
 import 'screens/my_auctions_screen.dart';
 import 'screens/my_listings_screen.dart';
 import 'screens/search_screen.dart';
@@ -73,7 +75,10 @@ class _AppShellState extends State<AppShell> {
 
   void _openAddFlow() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => AddListingOptionsScreen(api: _api)),
+      MaterialPageRoute(builder: (_) => AddListingOptionsScreen(
+        api: _api,
+        isLoggedIn: _isLoggedIn,
+      )),
     );
   }
 
@@ -107,6 +112,7 @@ class _AppShellState extends State<AppShell> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => LoginScreen(
+          api: _api,
           onSubmit: (login, password) async {
             await _login(login, password);
             Navigator.of(context).pop();
@@ -117,6 +123,9 @@ class _AppShellState extends State<AppShell> {
                 builder: (_) => const RegisterScreen(),
               ),
             );
+          },
+          onGoogleSignIn: () async {
+            // Google Sign-In will be handled inside LoginScreen
           },
         ),
       ),
@@ -1323,8 +1332,13 @@ class _SpecTile extends StatelessWidget {
 
 class AddListingOptionsScreen extends StatelessWidget {
   final ApiClient api;
+  final bool isLoggedIn;
 
-  const AddListingOptionsScreen({super.key, required this.api});
+  const AddListingOptionsScreen({
+    super.key, 
+    required this.api,
+    this.isLoggedIn = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1378,16 +1392,16 @@ class AddListingOptionsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _AddTypeCard(
-                    icon: Icons.build,
-                    title: 'Parts Listing',
+                    icon: Icons.link,
+                    title: 'Import from List.am',
                     description:
-                        'List auto parts or accessories for sale.',
+                        'Import vehicle details from List.am URL.',
                     primary: primary,
                     isDark: isDark,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => CreateListingScreen(api: api, type: 'parts'),
+                          builder: (_) => ImportListAmScreen(api: api),
                         ),
                       );
                     },
@@ -1397,10 +1411,19 @@ class AddListingOptionsScreen extends StatelessWidget {
                     icon: Icons.gavel,
                     title: 'Import from Copart',
                     description:
-                        'Import vehicle details from Copart auction URL.',
+                        'Import vehicle details from Copart auction URL. (Requires login)',
                     primary: primary,
                     isDark: isDark,
                     onTap: () {
+                      if (!isLoggedIn) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please login first to import from Copart'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => ImportAuctionScreen(api: api),
@@ -2900,14 +2923,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return Scaffold(
         body: SafeArea(
           child: _UnauthedProfile(
-            authLoading: widget.authLoading,
-            authError: widget.authError,
-            onLogin: () => widget.onLogin(
-              _loginController.text.trim(),
-              _passwordController.text.trim(),
-            ),
-            loginController: _loginController,
-            passwordController: _passwordController,
             onOpenLogin: widget.onOpenLogin,
           ),
         ),
@@ -3162,12 +3177,16 @@ class _ProfileTile extends StatelessWidget {
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
+    required this.api,
     required this.onSubmit,
     required this.onOpenRegister,
+    required this.onGoogleSignIn,
   });
 
+  final ApiClient api;
   final Future<void> Function(String login, String password) onSubmit;
   final VoidCallback onOpenRegister;
+  final Future<void> Function() onGoogleSignIn;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -3178,6 +3197,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool loading = false;
   String? error;
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   Future<void> _submit() async {
     setState(() {
@@ -3193,6 +3216,44 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => error = e.toString());
     } finally {
       setState(() => loading = false);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+
+    try {
+      final account = await _googleSignIn.signIn();
+      
+      if (account == null) {
+        setState(() => loading = false);
+        return;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Failed to get Google ID token');
+      }
+
+      // Call API
+      final profile = await widget.api.loginWithGoogle(idToken);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Welcome, ${profile.name}!')),
+        );
+        Navigator.of(context).pop(); // Close login screen
+      }
+    } catch (e) {
+      setState(() {
+        error = e.toString().replaceFirst('Exception: ', '');
+        loading = false;
+      });
     }
   }
 
@@ -3293,6 +3354,40 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: Colors.white30)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'или',
+                              style: TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ),
+                          Expanded(child: Divider(color: Colors.white30)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(color: Colors.white30),
+                            backgroundColor: Colors.white.withOpacity(0.05),
+                          ),
+                          onPressed: loading ? null : _handleGoogleSignIn,
+                          icon: Icon(Icons.g_mobiledata, color: Colors.white, size: 28),
+                          label: const Text(
+                            'Войти через Google',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       TextButton(
                         onPressed: loading ? null : widget.onOpenRegister,
@@ -3310,8 +3405,58 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  bool loading = false;
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => loading = true);
+
+    try {
+      final ApiClient api = ApiClient();
+      final account = await _googleSignIn.signIn();
+      
+      if (account == null) {
+        setState(() => loading = false);
+        return;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Failed to get Google ID token');
+      }
+
+      // Call API
+      final profile = await api.loginWithGoogle(idToken);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Welcome, ${profile.name}!')),
+        );
+        Navigator.of(context).popUntil((route) => route.isFirst); // Go to home
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google Sign-In failed: ${e.toString().replaceFirst("Exception: ", "")}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3393,7 +3538,7 @@ class RegisterScreen extends StatelessWidget {
                             backgroundColor: primary,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          onPressed: () {
+                          onPressed: loading ? null : () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
@@ -3407,6 +3552,50 @@ class RegisterScreen extends StatelessWidget {
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: Colors.white30)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'или',
+                              style: TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ),
+                          Expanded(child: Divider(color: Colors.white30)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(color: Colors.white30),
+                            backgroundColor: Colors.white.withOpacity(0.05),
+                          ),
+                          onPressed: loading ? null : _handleGoogleSignIn,
+                          icon: Icon(Icons.g_mobiledata, color: Colors.white, size: 28),
+                          label: const Text(
+                            'Регистрация через Google',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text(
+                            'Уже есть аккаунт? Войти',
+                            style: TextStyle(color: Colors.white70),
                           ),
                         ),
                       ),
@@ -3488,80 +3677,61 @@ class _InputField extends StatelessWidget {
 
 class _UnauthedProfile extends StatelessWidget {
   const _UnauthedProfile({
-    required this.authLoading,
-    required this.authError,
-    required this.onLogin,
-    required this.loginController,
-    required this.passwordController,
     required this.onOpenLogin,
   });
 
-  final bool authLoading;
-  final String? authError;
-  final Future<void> Function() onLogin;
-  final TextEditingController loginController;
-  final TextEditingController passwordController;
   final VoidCallback onOpenLogin;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Профиль',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_outline,
+              size: 80,
+              color: theme.colorScheme.primary.withOpacity(0.5),
             ),
-          ),
-          const SizedBox(height: 12),
-          _GlassCard(
-            child: Column(
-              children: [
-                _InputField(
-                  controller: loginController,
-                  label: 'Email или телефон',
-                  icon: Icons.person_outline,
+            const SizedBox(height: 24),
+            Text(
+              'Войдите в аккаунт',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Чтобы создавать объявления, общаться с продавцами и сохранять избранное',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onOpenLogin,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: theme.colorScheme.primary,
                 ),
-                const SizedBox(height: 12),
-                _InputField(
-                  controller: passwordController,
-                  label: 'Пароль',
-                  icon: Icons.lock_outline,
-                  obscure: true,
-                ),
-                if (authError != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    authError!,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: authLoading ? null : onLogin,
-                    child: authLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Войти'),
+                icon: const Icon(Icons.login, color: Colors.white),
+                label: const Text(
+                  'Войти или зарегистрироваться',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                TextButton(
-                  onPressed: onOpenLogin,
-                  child: const Text('Открыть полноэкранный логин/регистрацию'),
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

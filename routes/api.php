@@ -78,6 +78,7 @@ Route::prefix('mobile')
                 ->name('auth.phone.send-code');
             Route::post('/register', [MobileAuthController::class, 'register'])->name('auth.register');
             Route::post('/login', [MobileAuthController::class, 'login'])->name('auth.login');
+            Route::post('/google', [MobileAuthController::class, 'googleAuth'])->name('auth.google');
         });
 
         Route::middleware('auth:sanctum')->group(function () {

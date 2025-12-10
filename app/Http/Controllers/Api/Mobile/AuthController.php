@@ -123,4 +123,47 @@ class AuthController extends Controller
     {
         return $request->input('device_name', 'mobile-app');
     }
+
+    /**
+     * Google OAuth authentication for mobile app
+     */
+    public function googleAuth(Request $request): JsonResponse
+    {
+        $request->validate([
+            'id_token' => 'required|string',
+        ]);
+
+        try {
+            $client = new \Google_Client(['client_id' => config('services.google.client_id')]);
+            $payload = $client->verifyIdToken($request->id_token);
+
+            if (!$payload) {
+                return $this->error(__('Неверный токен Google'), 401);
+            }
+
+            // Создаём или обновляем пользователя
+            $user = User::updateOrCreate(
+                [
+                    'provider' => 'google',
+                    'provider_id' => $payload['sub'],
+                ],
+                [
+                    'email' => $payload['email'],
+                    'name' => $payload['name'] ?? '',
+                    'email_verified_at' => now(),
+                ]
+            );
+
+            // Создаём токен для мобильного приложения
+            $token = $user->createToken($this->deviceName($request))->plainTextToken;
+
+            return $this->success(
+                $this->tokenPayload($user, $token),
+                __('Успешная авторизация через Google')
+            );
+
+        } catch (\Exception $e) {
+            return $this->error(__('Ошибка авторизации через Google: ') . $e->getMessage(), 500);
+        }
+    }
 }
