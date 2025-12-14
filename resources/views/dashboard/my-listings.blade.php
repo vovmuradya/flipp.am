@@ -122,7 +122,6 @@
                                         $labels = [
                                             'great' => __('Great Deal'),
                                             'fair' => __('Fair Deal'),
-                                            'overpriced' => __('Overpriced'),
                                             'unknown' => __('Цена не оценена'),
                                         ];
                                         $label = $labels[$listing->price_badge] ?? $listing->price_badge;

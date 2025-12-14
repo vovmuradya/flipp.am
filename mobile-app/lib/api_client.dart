@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/car_brand.dart';
 import 'models/category.dart';
@@ -55,8 +56,48 @@ class ApiClient {
 
   String get token => _token;
 
-  void setToken(String? token) {
-    _token = token ?? '';
+  Future<void> _loadToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedToken = prefs.getString('auth_token');
+      if (savedToken != null && savedToken.isNotEmpty) {
+        _token = savedToken;
+        print('🔑 Loaded saved token');
+      }
+    } catch (e) {
+      print('⚠️ Could not load token: $e');
+    }
+  }
+
+  /// Public method to load saved token from SharedPreferences
+  Future<void> loadSavedToken() async {
+    await _loadToken();
+  }
+
+  Future<void> _saveToken(String token) async {
+    _token = token;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+      print('💾 Token saved');
+    } catch (e) {
+      print('⚠️ Could not save token: $e');
+    }
+  }
+
+  Future<void> setToken(String? token) async {
+    if (token == null || token.isEmpty) {
+      _token = '';
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('auth_token');
+        print('🗑️ Token cleared');
+      } catch (e) {
+        print('⚠️ Could not clear token: $e');
+      }
+    } else {
+      await _saveToken(token);
+    }
   }
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
@@ -95,14 +136,24 @@ class ApiClient {
       throw Exception(message);
     }
     if (body is! Map) throw Exception('Unexpected login response');
-    final token = body['token']?.toString();
+    
+    // Handle response format: { status, message, data: { token, user } }
+    final data = body['data'] as Map?;
+    final token = (data?['token'] ?? body['token'])?.toString();
+    
     if (token == null || token.isEmpty) {
+      print('❌ Response body: $body');
       throw Exception('Token missing in response');
     }
-    _token = token;
-    final user = body['user'] is Map<String, dynamic>
-        ? body['user'] as Map<String, dynamic>
+    
+    await _saveToken(token);
+    
+    final userData = data?['user'] ?? body['user'];
+    final user = userData is Map<String, dynamic>
+        ? userData
         : <String, dynamic>{};
+    
+    print('✅ Login successful: ${user['name']}');
     return Profile.fromJson(user);
   }
 
@@ -274,23 +325,112 @@ class ApiClient {
     }
   }
 
+  // Fetch auction data from Copart URL (step 1)
   Future<Map<String, dynamic>> fetchFromAuctionUrl(String url) async {
-    if (_token.isEmpty) throw Exception('No auth token set');
+    print('🔍 Fetching auction data from: $url');
+    print('🔑 Using token: ${_token.isEmpty ? "NO TOKEN" : "EXISTS"}');
+    
+    if (_token.isEmpty) {
+      throw Exception('Please login to import from auctions');
+    }
+    
+    // Step 1: Start async parsing job
     final resp = await http.post(
       _uri('/api/v1/dealer/listings/fetch-from-url'),
-      headers: _headers(withAuth: true),
-      body: {'url': url},
+      headers: {..._headers(withAuth: true), 'Content-Type': 'application/json'},
+      body: jsonEncode({'url': url}),
     );
+    
+    print('📡 Response status: ${resp.statusCode}');
+    print('📄 Response body: ${resp.body}');
+    
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      throw Exception('Please login to import from auctions');
+    }
+    
     final body = jsonDecode(resp.body);
-    if (resp.statusCode != 200) {
+    
+    if (resp.statusCode != 200 && resp.statusCode != 201) {
       final message = body is Map && body['message'] != null
           ? body['message'].toString()
           : 'Fetch failed (${resp.statusCode})';
       throw Exception(message);
     }
-    if (body is! Map) throw Exception('Unexpected auction response');
-    return body as Map<String, dynamic>;
+    
+    if (body is! Map || body['job_id'] == null) {
+      throw Exception('Invalid response from server');
+    }
+    
+    final jobId = body['job_id'] as String;
+    print('✅ Parse job started: $jobId');
+    
+    // Step 2: Poll for completion (max 30 seconds)
+    for (var i = 0; i < 30; i++) {
+      await Future.delayed(Duration(seconds: 1));
+      
+      final statusResp = await http.post(
+        _uri('/api/v1/dealer/listings/check-parse-status'),
+        headers: _headers(withAuth: true),
+        body: {'job_id': jobId},
+      );
+      
+      if (statusResp.statusCode != 200) continue;
+      
+      final statusBody = jsonDecode(statusResp.body);
+      final status = statusBody['status'];
+      
+      print('⏳ Job status: $status (${i+1}s)');
+      
+      if (status == 'completed') {
+        print('✅ Parse completed!');
+        return statusBody['data'] as Map<String, dynamic>;
+      }
+      
+      if (status == 'failed') {
+        throw Exception(statusBody['error'] ?? 'Parsing failed');
+      }
+    }
+    
+    throw Exception('Parsing timeout (30s)');
   }
+
+  // Import from external URL (list.am, auto.am)
+  Future<Map<String, dynamic>> importFromUrl(String url, String source) async {
+    print('🔗 Importing from: $source ($url)');
+    
+    if (_token.isEmpty) {
+      throw Exception('Please login to import listings');
+    }
+    
+    // Use API endpoint with auth:sanctum
+    final resp = await http.post(
+      _uri('/api/v1/dealer/listings/import-external'),
+      headers: _headers(withAuth: true),
+      body: {'url': url},
+    );
+    
+    print('📡 Response status: ${resp.statusCode}');
+    
+    final body = jsonDecode(resp.body);
+    
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      throw Exception('Please login to import listings');
+    }
+    
+    if (resp.statusCode != 200 && resp.statusCode != 201) {
+      final message = body is Map && body['message'] != null
+          ? body['message'].toString()
+          : body is Map && body['errors'] != null
+            ? (body['errors'] as Map).values.first.toString()
+            : 'Import failed (${resp.statusCode})';
+      throw Exception(message);
+    }
+    
+    if (body is! Map<String, dynamic>) throw Exception('Unexpected response');
+    
+    return body['data'] ?? body;
+  }
+
 
   Future<List<Category>> fetchRootCategories() async {
     final resp = await http.get(_uri('/api/categories/root'), headers: _headers());

@@ -182,7 +182,6 @@
                                 $priceBadgeLabels = [
                                     'great' => __('Great Deal'),
                                     'fair' => __('Fair Deal'),
-                                    'overpriced' => __('Overpriced'),
                                     'unknown' => __('Цена не оценена'),
                                 ];
                                 $priceBadgeLabel = $priceBadge ? ($priceBadgeLabels[$priceBadge] ?? $priceBadge) : null;
@@ -208,9 +207,6 @@
                             @if($priceBadgeLabel)
                                 <div class="mt-2 inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
                                     {{ $priceBadgeLabel }}
-                                    @if($listing->price_anomaly)
-                                        <span class="bg-amber-400 text-slate-900 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide">{{ __('Проверить цену') }}</span>
-                                    @endif
                                 </div>
                             @endif
                             @if($isBuyNowAvailable)

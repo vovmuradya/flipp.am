@@ -9,12 +9,13 @@ import 'models/message.dart';
 import 'models/profile.dart';
 import 'screens/calculator_screen.dart';
 import 'screens/create_listing_screen.dart';
-import 'screens/import_auction_screen.dart';
-import 'screens/import_listam_screen.dart';
+import 'screens/import_from_auction_screen.dart';
+import 'screens/import_from_external_screen.dart';
 import 'screens/my_auctions_screen.dart';
 import 'screens/my_listings_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
+import 'test_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -53,6 +54,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const AppShell(),
+      // home: const TestScreen(), // Test screen
     );
   }
 }
@@ -72,6 +74,28 @@ class _AppShellState extends State<AppShell> {
   String? _authError;
 
   bool get _isLoggedIn => _profile != null && _api.hasToken;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSession();
+  }
+
+  Future<void> _restoreSession() async {
+    setState(() => _authLoading = true);
+    try {
+      // Try to load saved token and profile
+      await _api.loadSavedToken();
+      if (_api.hasToken) {
+        print('🔐 Found saved token, fetching profile...');
+        await _fetchProfile();
+      }
+    } catch (e) {
+      print('⚠️ Failed to restore session: $e');
+    } finally {
+      setState(() => _authLoading = false);
+    }
+  }
 
   void _openAddFlow() {
     Navigator.of(context).push(
@@ -114,8 +138,36 @@ class _AppShellState extends State<AppShell> {
         builder: (_) => LoginScreen(
           api: _api,
           onSubmit: (login, password) async {
-            await _login(login, password);
-            Navigator.of(context).pop();
+            setState(() {
+              _authLoading = true;
+              _authError = null;
+            });
+            
+            try {
+              final profile = await _api.login(
+                login: login,
+                password: password,
+                deviceName: 'flutter_app',
+              );
+              setState(() {
+                _profile = profile;
+                _authLoading = false;
+              });
+              
+              if (mounted) {
+                Navigator.of(context).pop(); // Close login screen only on success
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Добро пожаловать, ${profile.name}!')),
+                );
+              }
+            } catch (e) {
+              setState(() {
+                _authLoading = false;
+                _authError = e.toString().replaceFirst(RegExp('^Exception: '), '');
+              });
+              // Don't close screen - show error in LoginScreen
+              throw e; // Re-throw to show in LoginScreen
+            }
           },
           onOpenRegister: () {
             Navigator.of(context).push(
@@ -151,8 +203,9 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
 
     final screens = [
       CarListingScreen(
@@ -196,6 +249,25 @@ class _AppShellState extends State<AppShell> {
 
     final textInactive =
         isDark ? Colors.grey.shade600 : Colors.grey.shade500;
+
+    // Show loading screen while checking session
+    if (_authLoading && _profile == null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: primary),
+              const SizedBox(height: 16),
+              Text(
+                'Загрузка...',
+                style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -305,16 +377,19 @@ class _CarListingScreenState extends State<CarListingScreen> {
   @override
   void initState() {
     super.initState();
+    print('🚗 CarListingScreen: Initializing...');
     _load();
   }
 
   Future<void> _load() async {
+    print('📡 CarListingScreen: Loading listings from API...');
     setState(() {
       loading = true;
       error = null;
     });
     try {
       final data = await widget.api.fetchListings();
+      print('✅ CarListingScreen: Loaded ${data.length} listings');
       setState(() {
         listings = data;
         featured = data.take(2).toList();
@@ -322,6 +397,7 @@ class _CarListingScreenState extends State<CarListingScreen> {
         loading = false;
       });
     } catch (e) {
+      print('❌ CarListingScreen: Error loading listings: $e');
       setState(() {
         error = e.toString();
         loading = false;
@@ -1376,32 +1452,32 @@ class AddListingOptionsScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 children: [
                   _AddTypeCard(
-                    icon: Icons.directions_car,
-                    title: 'Vehicle Listing',
+                    icon: Icons.description,
+                    title: 'Обычное объявление',
                     description:
-                        'Create a full listing for your vehicle with all details.',
+                        'Подходит для частных продавцов и автосалонов',
                     primary: primary,
                     isDark: isDark,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => CreateListingScreen(api: api, type: 'vehicle'),
+                          builder: (_) => CreateListingScreen(api: api, type: 'regular'),
                         ),
                       );
                     },
                   ),
                   const SizedBox(height: 12),
                   _AddTypeCard(
-                    icon: Icons.link,
-                    title: 'Import from List.am',
+                    icon: Icons.public,
+                    title: 'Объявление с другого сайта',
                     description:
-                        'Import vehicle details from List.am URL.',
+                        'Импорт с List.am — подтянем фото и параметры',
                     primary: primary,
                     isDark: isDark,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => ImportListAmScreen(api: api),
+                          builder: (_) => ImportFromExternalScreen(),
                         ),
                       );
                     },
@@ -1409,40 +1485,15 @@ class AddListingOptionsScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _AddTypeCard(
                     icon: Icons.gavel,
-                    title: 'Import from Copart',
+                    title: 'Объявление из аукциона',
                     description:
-                        'Import vehicle details from Copart auction URL. (Requires login)',
-                    primary: primary,
-                    isDark: isDark,
-                    onTap: () {
-                      if (!isLoggedIn) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please login first to import from Copart'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                        return;
-                      }
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ImportAuctionScreen(api: api),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _AddTypeCard(
-                    icon: Icons.bolt,
-                    title: 'Quick Sell',
-                    description:
-                        'List your car in under 60 seconds with just the essentials.',
+                        'Импорт с Copart с готовыми характеристиками',
                     primary: primary,
                     isDark: isDark,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const QuickSellBasicInfoScreen(),
+                          builder: (_) => ImportFromAuctionScreen(api: api),
                         ),
                       );
                     },
@@ -3203,19 +3254,32 @@ class _LoginScreenState extends State<LoginScreen> {
   );
 
   Future<void> _submit() async {
+    if (_loginController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
+      setState(() => error = 'Заполните все поля');
+      return;
+    }
+
     setState(() {
       loading = true;
       error = null;
     });
+    
+    print('🔐 Attempting login with: ${_loginController.text.trim()}');
+    
     try {
       await widget.onSubmit(
         _loginController.text.trim(),
         _passwordController.text.trim(),
       );
+      print('✅ Login successful');
+      // Success - screen will be closed by parent
     } catch (e) {
-      setState(() => error = e.toString());
+      print('❌ Login failed: $e');
+      setState(() => error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
-      setState(() => loading = false);
+      if (mounted) {
+        setState(() => loading = false);
+      }
     }
   }
 
@@ -3226,6 +3290,17 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      // Check if running on desktop - show helpful message
+      if (Theme.of(context).platform == TargetPlatform.linux ||
+          Theme.of(context).platform == TargetPlatform.windows ||
+          Theme.of(context).platform == TargetPlatform.macOS) {
+        throw Exception(
+          'Google Sign-In работает только на Android/iOS.\n\n'
+          'На компьютере используйте email/телефон.\n\n'
+          'Или запустите на Android эмуляторе.'
+        );
+      }
+
       final account = await _googleSignIn.signIn();
       
       if (account == null) {
@@ -3323,10 +3398,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       if (error != null) ...[
                         const SizedBox(height: 8),
-                        Text(
-                          error!,
-                          style:
-                              const TextStyle(color: Colors.redAccent, fontSize: 13),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline, color: Colors.red, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  error!,
+                                  style: const TextStyle(color: Colors.red, fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                       const SizedBox(height: 16),

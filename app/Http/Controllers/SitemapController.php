@@ -2,72 +2,49 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\CarBrand;
 use App\Models\Listing;
 use Illuminate\Http\Response;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\URL;
 
 class SitemapController extends Controller
 {
-    /**
-        * Простой sitemap: выдаёт последние объявления и несколько pSEO-лендингов.
-        */
-    public function index(): Response
+    public function index()
     {
-        $listings = Listing::query()
-            ->active()
-            ->latest()
-            ->take(100)
-            ->get(['id', 'updated_at']);
+        $listings = Listing::where('status', 'published')
+            ->latest('updated_at')
+            ->get();
 
-        $pseoPaths = $this->pseoPaths();
-
-        $items = [];
-
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>';
+        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+        
+        // Главная страница
+        $xml .= '<url>';
+        $xml .= '<loc>' . url('/') . '</loc>';
+        $xml .= '<changefreq>daily</changefreq>';
+        $xml .= '<priority>1.0</priority>';
+        $xml .= '<lastmod>' . now()->toIso8601String() . '</lastmod>';
+        $xml .= '</url>';
+        
+        // Страница объявлений
+        $xml .= '<url>';
+        $xml .= '<loc>' . url('/listings') . '</loc>';
+        $xml .= '<changefreq>hourly</changefreq>';
+        $xml .= '<priority>0.9</priority>';
+        $xml .= '<lastmod>' . now()->toIso8601String() . '</lastmod>';
+        $xml .= '</url>';
+        
+        // Каждое объявление
         foreach ($listings as $listing) {
-            $items[] = [
-                'loc' => route('listings.show', $listing),
-                'lastmod' => optional($listing->updated_at)->toAtomString(),
-            ];
+            $xml .= '<url>';
+            $xml .= '<loc>' . url('/listings/' . $listing->id) . '</loc>';
+            $xml .= '<changefreq>weekly</changefreq>';
+            $xml .= '<priority>0.8</priority>';
+            $xml .= '<lastmod>' . $listing->updated_at->toIso8601String() . '</lastmod>';
+            $xml .= '</url>';
         }
+        
+        $xml .= '</urlset>';
 
-        foreach ($pseoPaths as $path) {
-            $items[] = [
-                'loc' => URL::to('/pseo/' . ltrim($path, '/')),
-                'lastmod' => Carbon::now()->toAtomString(),
-            ];
-        }
-
-        $xml = view('sitemap.xml', ['items' => $items])->render();
-
-        return response($xml, 200)->header('Content-Type', 'application/xml');
-    }
-
-    private function pseoPaths(): array
-    {
-        $brands = CarBrand::query()
-            ->orderByRaw('COALESCE(NULLIF(name_ru, \'\'), name_en)')
-            ->take(20)
-            ->get(['name_en', 'name_ru'])
-            ->map(fn ($b) => $b->name_en ?: $b->name_ru)
-            ->filter()
-            ->values()
-            ->all();
-
-        $paths = [];
-
-        foreach ($brands as $brand) {
-            $slug = strtolower($brand);
-            $paths[] = "$slug/under-10000";
-            $paths[] = "diesel/$slug";
-        }
-
-        // Добавим несколько общих комбинаций
-        $paths[] = 'suv/under-15000';
-        $paths[] = 'hybrid/under-20000';
-        $paths[] = 'electric';
-
-        return array_unique($paths);
+        return response($xml, 200)
+            ->header('Content-Type', 'application/xml');
     }
 }

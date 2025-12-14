@@ -7,9 +7,10 @@
   mutq server
 
 ssh root@idrom.am
-ssh root@185.227.110.47
+ssh root@113.30.188.98
+
 server password tatevS1000@1000
-cd /home/admin/web/idrom.am/public_html
+
 
 craper/fetch-copart-cookies.cjs
 
@@ -23,7 +24,7 @@ git commit -m "Update"
 git push
 
 serverum
-cd /home/admin/web/idrom.am/public_html
+ cd /var/www/idrom
 git fetch
 git pull
 

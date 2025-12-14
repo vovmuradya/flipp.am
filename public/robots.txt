@@ -1,4 +1,21 @@
 User-agent: *
-Disallow:
+Allow: /
+Allow: /listings
+Allow: /listings/*
+
+Disallow: /admin
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+Disallow: /dashboard
+Disallow: /profile
 
 Sitemap: https://idrom.am/sitemap.xml
+
+# Yandex
+User-agent: Yandex
+Allow: /
+
+# Google
+User-agent: Googlebot
+Allow: /

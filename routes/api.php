@@ -54,6 +54,18 @@ Route::post('/v1/dealer/listings/check-parse-status', [AuctionParserController::
     ->middleware('auth:sanctum')
     ->name('api.auction.check-status');
 
+// Import from external sources (list.am, auto.am, etc.)
+Route::post('/v1/dealer/listings/import-external', [AuctionParserController::class, 'fetchFromUrl'])
+    ->middleware('auth:sanctum')
+    ->name('api.external.import');
+
+// ==================== LISTINGS IMPORT ROUTES ====================
+Route::middleware('auth:sanctum')->prefix('listings')->group(function () {
+    Route::post('/import-listam', [AuctionParserController::class, 'fetchFromUrl'])->name('api.listings.import-listam');
+    Route::post('/import-copart', [AuctionParserController::class, 'fetchFromUrl'])->name('api.listings.import-copart');
+    Route::post('/check-status/{jobId}', [AuctionParserController::class, 'checkStatus'])->name('api.listings.check-status');
+});
+
 // COPART DIRECT+FALLBACK
 Route::get('/copart/{id}', function (string $id, CopartService $copart) {
     $result = $copart->getLot($id);

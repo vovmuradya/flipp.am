@@ -13,6 +13,8 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         'api/v1/dealer/listings/fetch-from-url',
+        'listings/import-auction',
+        'listings/import-external',
         'copart-calculator/*',
         'api/copart-calculator/*',
     ];
