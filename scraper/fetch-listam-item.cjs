@@ -5,7 +5,9 @@
  * Забираем заголовок, цену, описание и ссылки на изображения, обходя Cloudflare-челлендж.
  */
 
-const { chromium } = require('playwright');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 
 const targetUrl = process.argv[2];
 if (!targetUrl) {
@@ -78,34 +80,35 @@ function isAllowedListingImage(url) {
 }
 
 async function main() {
-    // По умолчанию используем headless режим, чтобы работать на серверах/локали без дисплея.
-    // Можно переопределить переменной LISTAM_HEADLESS=false и запускать через xvfb-run.
+    // Use headless mode for servers
     const headlessEnv = process.env.LISTAM_HEADLESS;
-    const headless = headlessEnv === 'false' ? false : true;
+    const headless = headlessEnv === 'false' ? false : 'new';
 
-    const browser = await chromium.launch({
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+
+    const browser = await puppeteer.launch({
         headless,
+        executablePath,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--disable-software-rasterizer',
+            '--disable-blink-features=AutomationControlled',
         ],
     });
 
     try {
-        const context = await browser.newContext({
-            userAgent: USER_AGENT,
-            viewport: { width: 1920, height: 1080 },
-        });
-        const page = await context.newPage();
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1920, height: 1080 });
+        await page.setUserAgent(USER_AGENT);
+        
         const networkImages = new Map(); // url -> { size?: number }
         page.on('response', async (response) => {
             try {
-                const req = response.request();
-                const url = req.url();
-                const type = req.resourceType();
+                const url = response.url();
+                const type = response.request().resourceType();
                 const ct = response.headers()['content-type'] || '';
                 if (type === 'image' || ct.startsWith('image/')) {
                     const sizeHeader = response.headers()['content-length'];
@@ -116,18 +119,29 @@ async function main() {
                 // ignore network errors
             }
         });
-        await page.addInitScript(() => {
+        
+        await page.evaluateOnNewDocument(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
         });
+        
         await page.setExtraHTTPHeaders({
             'Accept-Language': 'ru,en;q=0.9',
             Referer: 'https://www.list.am/',
         });
 
         await page.goto(targetUrl, {
-            waitUntil: 'domcontentloaded',
+            waitUntil: 'networkidle2',
             timeout: 60000,
         });
+
+        // Wait for Cloudflare challenge to complete
+        try {
+            await page.waitForSelector('h1, [itemprop="name"], .t', { timeout: 20000 });
+        } catch (e) {
+            console.error('Cloudflare challenge timeout or page load failed');
+        }
+
+        await sleep(3000); // Extra wait for Cloudflare
 
         // Плавно пролистываем страницу вниз, чтобы загрузить все ленивая картинки
         await page.evaluate(async () => {

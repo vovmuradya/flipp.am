@@ -531,7 +531,8 @@ class ListingController extends Controller
                 $parsed = $this->fallbackAuctionData($url);
             }
 
-            if (!$parsed || empty($parsed['make']) || empty($parsed['model'])) {
+            // Для list.am достаточно иметь хотя бы фотографии или заголовок
+            if (!$parsed || (empty($parsed['photos']) && empty($parsed['title']))) {
                 return back()
                     ->withInput()
                     ->with('auction_error', __('listing.external_not_found'));
@@ -560,14 +561,19 @@ class ListingController extends Controller
             if ($vehicle['year']) {
                 $titleParts[] = $vehicle['year'];
             }
-            if ($vehicle['make']) {
+            if ($vehicle['make'] && $vehicle['make'] !== 'Неизвестно') {
                 $titleParts[] = $vehicle['make'];
             }
-            if ($vehicle['model']) {
+            if ($vehicle['model'] && $vehicle['model'] !== 'Неизвестно') {
                 $titleParts[] = $vehicle['model'];
             }
 
             $title = trim(implode(' ', $titleParts));
+            
+            // Если заголовок пустой, используем оригинальный заголовок из list.am
+            if ($title === '' && !empty($parsed['title'])) {
+                $title = $parsed['title'];
+            }
 
             $description = trim((string) ($parsed['description'] ?? ''));
 
