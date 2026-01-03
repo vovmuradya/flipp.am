@@ -1,4 +1,10 @@
-- Перейди в корень: cd /home/vov/flipp-am
+cd /home/vov/flipp-am/mobile-app
+flutter build apk --debug
+
+
+
+
+Перейди в корень: cd /home/vov/flipp-am
   - Запусти сервер: php artisan serve --host=0.0.0.0 --port=8000
   - Один раз, если ещё не делал, создай линк статики: php artisan storage:link (после первого раза можно не повторять).
 

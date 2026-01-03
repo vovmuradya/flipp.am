@@ -260,16 +260,17 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       setState(() => _error = 'Description must be at least 20 characters');
       return;
     }
-    
+
     final isFromAuction = widget.type == 'auction';
-    
+    final isParts = widget.type == 'parts';
+
     // Auto-select category if not selected - DO NOT show error
     if (_selectedCategory == null && _categories.isNotEmpty) {
       _selectedCategory = _categories.first;
     }
-    
+
     // For non-auction vehicles, require vehicle details
-    if (!isFromAuction && widget.type == 'vehicle') {
+    if (!isFromAuction && !isParts && widget.type == 'vehicle') {
       if (_selectedBrand == null) {
         setState(() => _error = 'Brand is required for vehicles');
         return;
@@ -283,7 +284,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         return;
       }
     }
-    
+
     // For auction imports, require make/model from import
     if (isFromAuction) {
       if (_importedMake == null || _importedMake?.isEmpty == true) {
@@ -291,7 +292,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         return;
       }
     }
-    
+
     setState(() {
       _loading = true;
       _error = null;
@@ -304,10 +305,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         'price': _priceController.text.trim(),
         'description': _descriptionController.text.trim(),
         'currency': 'USD',
-        'listing_type': widget.type == 'auction' ? 'vehicle' : widget.type,
+        'listing_type': isFromAuction ? 'vehicle' : widget.type, // Auctions are still vehicle type
         'from_auction': isFromAuction ? '1' : '0',
       };
-      
+
       // Category is REQUIRED - always add it
       if (_selectedCategory != null) {
         fields['category_id'] = _selectedCategory!.id.toString();
@@ -317,21 +318,21 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         // Fallback - use category 1 (usually Vehicles)
         fields['category_id'] = '1';
       }
-      
+
       // Vehicle details in nested structure
       if (widget.type == 'vehicle' || widget.type == 'auction') {
         // ALWAYS set is_from_auction for auction type
         if (isFromAuction) {
           fields['vehicle[is_from_auction]'] = '1';
         }
-        
+
         // For auction imports, use parsed make/model
         if (isFromAuction && _importedMake != null && _importedMake!.isNotEmpty) {
           fields['vehicle[make]'] = _importedMake!;
         } else if (_selectedBrand != null) {
           fields['vehicle[make]'] = _selectedBrand!.name;
         }
-        
+
         if (isFromAuction && _importedModel != null && _importedModel!.isNotEmpty) {
           fields['vehicle[model]'] = _importedModel!;
         } else if (_selectedModel != null) {
@@ -375,7 +376,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         if (_selectedBodyType != null && _selectedBodyType!.isNotEmpty) {
           fields['vehicle[body_type]'] = _selectedBodyType!;
         }
-        
+
         // Add auction-specific data
         if (isFromAuction && widget.initialData != null) {
           final initData = widget.initialData!;
@@ -390,24 +391,33 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           }
         }
       }
-      
+      // Parts-specific fields
+      else if (isParts) {
+        if (_engineController.text.isNotEmpty) {
+          fields['parts[part_number]'] = _engineController.text.trim(); // Use engine controller for part number
+        }
+        if (_vinController.text.isNotEmpty) {
+          fields['parts[compatible_with]'] = _vinController.text.trim(); // Use VIN controller for compatibility
+        }
+      }
+
       // Add imported image URLs as auction_photos
       final imagePaths = _images.map((e) => e.path).toList();
-      
+
       // Add auction photos URLs
       for (var i = 0; i < _importedImageUrls.length; i++) {
-        fields['auction_photos[$i]'] = _importedImageUrls[i];
+        if (isFromAuction) {
+          fields['auction_photos[$i]'] = _importedImageUrls[i];
+        }
       }
 
       await widget.api.createListing(fields: fields, filePaths: imagePaths);
 
       if (mounted) {
-        // Close TWO screens: CreateListingScreen AND ImportAuctionScreen
-        Navigator.of(context).pop(); // Close CreateListingScreen
-        Navigator.of(context).pop(); // Close ImportAuctionScreen
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Listing created successfully!')),
         );
+        Navigator.of(context).pop(); // Close CreateListingScreen
       }
     } catch (e) {
       setState(() {
@@ -422,7 +432,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Create ${widget.type == 'vehicle' ? 'Vehicle' : 'Parts'} Listing'),
+        title: Text('Create ${widget.type == 'vehicle' ? 'Vehicle' : widget.type == 'parts' ? 'Parts' : 'Listing'}'),
       ),
       body: _loading && _categories.isEmpty
           ? const Center(child: CircularProgressIndicator())
@@ -441,13 +451,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       ),
                       child: Text(_error!, style: const TextStyle(color: Colors.red)),
                     ),
-                  
+
                   TextFormField(
                     controller: _titleController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Title *',
-                      hintText: 'e.g. Toyota Camry 2015',
-                      border: OutlineInputBorder(),
+                      hintText: widget.type == 'parts' ? 'e.g. Headlights' : 'e.g. Toyota Camry 2015',
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -465,7 +475,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         enabled: false,
                       ),
                       const SizedBox(height: 16),
-                      
+
                       if (_importedModel != null) ...[
                         TextFormField(
                           initialValue: _importedModel,
@@ -479,7 +489,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         const SizedBox(height: 16),
                       ],
                     ],
-                    
+
                     // For regular vehicles (not auction), show dropdowns
                     if (widget.type == 'vehicle') ...[
                       DropdownButtonFormField<CarBrand>(
@@ -534,7 +544,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Additional fields for imported data
                     Row(
                       children: [
@@ -560,7 +570,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    
+
                     Row(
                       children: [
                         Expanded(
@@ -593,6 +603,45 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
+                  ] else if (widget.type == 'parts') ...[
+                    // For parts, show category and part-specific fields
+                    DropdownButtonFormField<Category>(
+                      value: _selectedCategory,
+                      decoration: const InputDecoration(
+                        labelText: 'Category *',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _categories
+                          .where((cat) =>
+                              cat.listingType == 'parts' ||
+                              cat.name.toLowerCase().contains('part') ||
+                              cat.name.toLowerCase().contains('spare') ||
+                              cat.name.toLowerCase().contains('авточ')) // Include categories that might be for parts
+                          .map((cat) => DropdownMenuItem(value: cat, child: Text(cat.name)))
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedCategory = v),
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _engineController,
+                      decoration: const InputDecoration(
+                        labelText: 'Part Number/SKU',
+                        hintText: 'Enter part number if available',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _vinController,
+                      decoration: const InputDecoration(
+                        labelText: 'Compatible with (Car Model)',
+                        hintText: 'e.g. Toyota Camry 2015-2020',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                   ],
 
                   TextFormField(
@@ -608,10 +657,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
                   TextFormField(
                     controller: _descriptionController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Description * (min 20 characters)',
-                      hintText: 'Describe the vehicle condition, features, etc.',
-                      border: OutlineInputBorder(),
+                      hintText: widget.type == 'parts' ? 'Describe the part, condition, compatibility, etc.' : 'Describe the vehicle condition, features, etc.',
+                      border: const OutlineInputBorder(),
                     ),
                     maxLines: 5,
                   ),

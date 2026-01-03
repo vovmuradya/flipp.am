@@ -33,6 +33,8 @@ class Listing extends Model implements HasMedia
         'price_analysis',
         'currency',
         'status',
+        'rejection_reason',
+        'rejection_comment',
         'views_count',
         'promoted_until',
         'last_bumped_at',

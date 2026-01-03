@@ -3,10 +3,16 @@ import '../api_client.dart';
 import '../models/review.dart';
 
 class ReviewsScreen extends StatefulWidget {
-  final ApiClient api;
   final int sellerId;
+  final String sellerName;
+  final ApiClient api;
 
-  const ReviewsScreen({super.key, required this.api, required this.sellerId});
+  const ReviewsScreen({
+    super.key,
+    required this.sellerId,
+    required this.sellerName,
+    required this.api,
+  });
 
   @override
   State<ReviewsScreen> createState() => _ReviewsScreenState();
@@ -16,6 +22,9 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   List<Review> _reviews = [];
   bool _loading = true;
   String? _error;
+  bool _showAddReview = false;
+  int _rating = 0;
+  String _comment = '';
 
   @override
   void initState() {
@@ -45,84 +54,144 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     }
   }
 
-  void _openAddReview() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => AddReviewSheet(
-        api: widget.api,
+  Future<void> _submitReview() async {
+    if (_rating == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a rating')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      await widget.api.createReview(
         sellerId: widget.sellerId,
-        onSuccess: () {
-          _loadReviews();
-        },
-      ),
-    );
+        rating: _rating,
+        comment: _comment.isEmpty ? null : _comment,
+      );
+
+      // Refresh reviews
+      await _loadReviews();
+      setState(() {
+        _showAddReview = false;
+        _rating = 0;
+        _comment = '';
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Review submitted successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit review: $e')),
+        );
+      }
+    } finally {
+      setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final avgRating = _reviews.isEmpty
-        ? 0.0
-        : _reviews.map((r) => r.rating).reduce((a, b) => a + b) / _reviews.length;
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reviews'),
+        title: Text('Reviews for ${widget.sellerName}'),
       ),
-      body: _loading
+      body: _loading && _reviews.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : _error != null
+          : _error != null && _reviews.isEmpty
               ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
               : Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      child: Row(
-                        children: [
-                          Column(
-                            children: [
-                              Text(
-                                avgRating.toStringAsFixed(1),
-                                style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
-                              ),
-                              _buildStars(avgRating),
-                              Text('${_reviews.length} reviews'),
-                            ],
-                          ),
-                          const Spacer(),
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Review'),
-                            onPressed: _openAddReview,
-                          ),
-                        ],
-                      ),
-                    ),
+                    if (_showAddReview) _buildAddReviewForm(),
                     Expanded(
-                      child: _reviews.isEmpty
-                          ? const Center(child: Text('No reviews yet'))
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _reviews.length,
-                              itemBuilder: (context, i) => _buildReviewCard(_reviews[i]),
-                            ),
+                      child: RefreshIndicator(
+                        onRefresh: _loadReviews,
+                        child: _reviews.isEmpty
+                            ? const Center(child: Text('No reviews yet'))
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _reviews.length,
+                                itemBuilder: (context, index) => _buildReviewCard(_reviews[index]),
+                              ),
+                      ),
                     ),
                   ],
                 ),
+      floatingActionButton: !_showAddReview
+          ? FloatingActionButton(
+              onPressed: () => setState(() => _showAddReview = true),
+              child: const Icon(Icons.add_comment),
+            )
+          : null,
     );
   }
 
-  Widget _buildStars(double rating) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(5, (i) {
-        return Icon(
-          i < rating.floor() ? Icons.star : Icons.star_border,
-          color: Colors.amber,
-          size: 16,
-        );
-      }),
+  Widget _buildAddReviewForm() {
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Write a Review',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: List.generate(
+                5,
+                (index) => IconButton(
+                  onPressed: () => setState(() => _rating = index + 1),
+                  icon: Icon(
+                    index < _rating ? Icons.star : Icons.star_border,
+                    color: Colors.amber,
+                    size: 32,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Your review',
+                border: OutlineInputBorder(),
+                hintText: 'Share your experience with this seller...',
+              ),
+              maxLines: 4,
+              onChanged: (value) => _comment = value,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () => setState(() => _showAddReview = false),
+                  child: const Text('Cancel'),
+                ),
+                const Spacer(),
+                ElevatedButton(
+                  onPressed: _loading ? null : _submitReview,
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Submit'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -136,127 +205,46 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           children: [
             Row(
               children: [
-                Text(review.reviewerName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                const Spacer(),
-                _buildStars(review.rating.toDouble()),
+                CircleAvatar(
+                  child: Text(review.reviewerName.isNotEmpty 
+                      ? review.reviewerName.substring(0, 1).toUpperCase() 
+                      : '?'),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        review.reviewerName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Row(
+                        children: List.generate(
+                          5,
+                          (index) => Icon(
+                            index < review.rating ? Icons.star : Icons.star_border,
+                            color: Colors.amber,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  review.createdAt,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
-              '${review.createdAt.day}/${review.createdAt.month}/${review.createdAt.year}',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              review.comment,
+              style: const TextStyle(height: 1.4),
             ),
-            if (review.comment != null && review.comment!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(review.comment!),
-            ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class AddReviewSheet extends StatefulWidget {
-  final ApiClient api;
-  final int sellerId;
-  final VoidCallback onSuccess;
-
-  const AddReviewSheet({super.key, required this.api, required this.sellerId, required this.onSuccess});
-
-  @override
-  State<AddReviewSheet> createState() => _AddReviewSheetState();
-}
-
-class _AddReviewSheetState extends State<AddReviewSheet> {
-  final _commentController = TextEditingController();
-  int _rating = 5;
-  bool _loading = false;
-
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    setState(() => _loading = true);
-
-    try {
-      await widget.api.createReview(
-        sellerId: widget.sellerId,
-        rating: _rating,
-        comment: _commentController.text.trim().isEmpty ? null : _commentController.text.trim(),
-      );
-
-      if (mounted) {
-        Navigator.of(context).pop();
-        widget.onSuccess();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Review submitted!')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('Add Review', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (i) {
-              return IconButton(
-                icon: Icon(
-                  i < _rating ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                  size: 32,
-                ),
-                onPressed: () => setState(() => _rating = i + 1),
-              );
-            }),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _commentController,
-            decoration: const InputDecoration(
-              labelText: 'Comment (optional)',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 4,
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loading ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: _loading
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Submit Review'),
-          ),
-        ],
       ),
     );
   }

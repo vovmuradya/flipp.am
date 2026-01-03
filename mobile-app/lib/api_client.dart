@@ -600,6 +600,74 @@ class ApiClient {
     return body is Map<String, dynamic> ? body : {};
   }
 
+  Future<void> sendPhoneVerification(String phone) async {
+    final resp = await http.post(
+      _uri('/api/mobile/auth/phone/send-code'),
+      headers: _headers(),
+      body: {
+        'phone': phone,
+      },
+    );
+
+    if (resp.statusCode != 200) {
+      final body = jsonDecode(resp.body);
+      final message = body is Map && body['message'] != null
+          ? body['message'].toString()
+          : 'Failed to send verification code (${resp.statusCode})';
+      throw Exception(message);
+    }
+  }
+
+  Future<Profile> register({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    required String verificationCode,
+  }) async {
+    final resp = await http.post(
+      _uri('/api/mobile/auth/register'),
+      headers: _headers(),
+      body: {
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'password': password,
+        'password_confirmation': password, // Laravel validation requires confirmation
+        'verification_code': verificationCode,
+      },
+    );
+
+    final body = jsonDecode(resp.body);
+    if (resp.statusCode != 200 && resp.statusCode != 201) {
+      final message = body is Map && body['message'] != null
+          ? body['message'].toString()
+          : 'Registration failed (${resp.statusCode})';
+      throw Exception(message);
+    }
+
+    if (body is! Map) throw Exception('Invalid response format');
+
+    // Handle response format: { status, message, data: { token, user } }
+    final data = body['data'] as Map?;
+    final token = (data?['token'] ?? body['token'])?.toString();
+
+    if (token == null || token.isEmpty) {
+      print('❌ Response body: $body');
+      throw Exception('Token missing in response');
+    }
+
+    await _saveToken(token);
+
+    final userData = data?['user'] ?? body['user'];
+    final user = userData is Map<String, dynamic>
+        ? userData
+        : <String, dynamic>{};
+
+    print('✅ Registration successful: ${user['name']}');
+    return Profile.fromJson(user);
+  }
+
   Future<Profile> loginWithGoogle(String idToken) async {
     final resp = await http.post(
       _uri('/api/mobile/auth/google'),
@@ -613,12 +681,12 @@ class ApiClient {
     }
     final body = jsonDecode(resp.body);
     if (body is! Map<String, dynamic>) throw Exception('Unexpected response');
-    
+
     final token = body['token']?.toString();
     if (token != null && token.isNotEmpty) {
       setToken(token);
     }
-    
+
     final userData = body['user'] ?? body;
     return Profile.fromJson(userData as Map<String, dynamic>);
   }

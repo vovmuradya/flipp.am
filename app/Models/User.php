@@ -139,6 +139,73 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    /**
+     * Роли пользователя
+     */
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'user_role');
+    }
+
+    /**
+     * Проверяет, имеет ли пользователь определенную роль
+     */
+    public function hasRole($role)
+    {
+        if (is_string($role)) {
+            return $this->roles->contains('name', $role);
+        }
+
+        return $this->roles->contains($role->id);
+    }
+
+    /**
+     * Проверяет, имеет ли пользователь определенное разрешение
+     */
+    public function hasPermission($permission)
+    {
+        if (is_string($permission)) {
+            $permission = Permission::where('name', $permission)->first();
+        }
+
+        if (!$permission) {
+            return false;
+        }
+
+        foreach ($this->roles as $role) {
+            if ($role->hasPermission($permission)) {
+                return true;
+            }
+        }
+
+        // Проверяем прямые разрешения пользователя (если такая функция будет реализована)
+        return false;
+    }
+
+    /**
+     * Назначает роль пользователю
+     */
+    public function assignRole($role)
+    {
+        if (is_string($role)) {
+            $role = Role::where('name', $role)->firstOrFail();
+        }
+
+        return $this->roles()->attach($role);
+    }
+
+    /**
+     * Убирает роль у пользователя
+     */
+    public function removeRole($role)
+    {
+        if (is_string($role)) {
+            $role = Role::where('name', $role)->firstOrFail();
+        }
+
+        return $this->roles()->detach($role);
+    }
+
     // Лимиты согласно ТЗ v2.1
     public function getMaxActiveListings(): int
     {

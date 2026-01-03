@@ -6,6 +6,10 @@
 
   mutq server
 
+/////
+ php artisan serve --host=0.0.0.0 --port=8002
+ /////// cragiry bacelu hamar stex senc serve bacel
+
 ssh root@idrom.am
 ssh root@113.30.188.98
 

@@ -7,12 +7,15 @@ import 'models/chat.dart';
 import 'models/listing.dart';
 import 'models/message.dart';
 import 'models/profile.dart';
+import 'models/review.dart';
 import 'screens/calculator_screen.dart';
 import 'screens/create_listing_screen.dart';
 import 'screens/import_from_auction_screen.dart';
 import 'screens/import_from_external_screen.dart';
 import 'screens/my_auctions_screen.dart';
 import 'screens/my_listings_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/reviews_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
 import 'test_screen.dart';
@@ -26,9 +29,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Основные цвета для новой темы
     const primary = Color(0xFFEF4444);
-    const backgroundLight = Color(0xFFF9FAFB);
-    const backgroundDark = Color(0xFF111111);
+    const secondary = Color(0xFFFF6B6B);
+    const accent = Color(0xFF4ECDC4);
+    const backgroundLight = Color(0xFFFAFAFA);
+    const backgroundDark = Color(0xFF0D0D0D);
+    const cardLight = Color(0xFFFFFFFF);
+    const cardDark = Color(0xFF1A1A1A);
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -40,8 +48,69 @@ class MyApp extends StatelessWidget {
           background: backgroundLight,
         ),
         scaffoldBackgroundColor: backgroundLight,
-        textTheme: GoogleFonts.poppinsTextTheme(),
+        cardColor: cardLight,
+        textTheme: GoogleFonts.poppinsTextTheme()
+            .copyWith(
+              headlineLarge: GoogleFonts.poppins(
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF1A1A1A),
+              ),
+              headlineMedium: GoogleFonts.poppins(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1A1A1A),
+              ),
+              titleLarge: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1A1A1A),
+              ),
+              bodyLarge: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF1A1A1A),
+              ),
+              bodyMedium: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: const Color(0xFF4A4A4A),
+              ),
+            ),
         useMaterial3: true,
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: 4,
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: primary, width: 2),
+            foregroundColor: primary,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.grey.shade100,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: primary, width: 2),
+          ),
+        ),
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -50,8 +119,69 @@ class MyApp extends StatelessWidget {
           background: backgroundDark,
         ),
         scaffoldBackgroundColor: backgroundDark,
-        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+        cardColor: cardDark,
+        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme)
+            .copyWith(
+              headlineLarge: GoogleFonts.poppins(
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFFE0E0E0),
+              ),
+              headlineMedium: GoogleFonts.poppins(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFFE0E0E0),
+              ),
+              titleLarge: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFE0E0E0),
+              ),
+              bodyLarge: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFFCCCCCC),
+              ),
+              bodyMedium: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: const Color(0xFFAAAAAA),
+              ),
+            ),
         useMaterial3: true,
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: 4,
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: primary, width: 2),
+            foregroundColor: primary,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.grey.shade900,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: primary, width: 2),
+          ),
+        ),
       ),
       home: const AppShell(),
       // home: const TestScreen(), // Test screen
@@ -142,7 +272,7 @@ class _AppShellState extends State<AppShell> {
               _authLoading = true;
               _authError = null;
             });
-            
+
             try {
               final profile = await _api.login(
                 login: login,
@@ -153,7 +283,7 @@ class _AppShellState extends State<AppShell> {
                 _profile = profile;
                 _authLoading = false;
               });
-              
+
               if (mounted) {
                 Navigator.of(context).pop(); // Close login screen only on success
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -172,7 +302,7 @@ class _AppShellState extends State<AppShell> {
           onOpenRegister: () {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const RegisterScreen(),
+                builder: (_) => RegisterScreen(api: _api),
               ),
             );
           },
@@ -210,13 +340,6 @@ class _AppShellState extends State<AppShell> {
     final screens = [
       CarListingScreen(
         api: _api,
-        onOpenDetails: (car) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => CarDetailsScreen(car: car),
-            ),
-          );
-        },
       ),
       SearchScreen(api: _api),
       MessagesListScreen(
@@ -358,10 +481,9 @@ class _AppShellState extends State<AppShell> {
 }
 
 class CarListingScreen extends StatefulWidget {
-  const CarListingScreen({super.key, required this.api, required this.onOpenDetails});
+  const CarListingScreen({super.key, required this.api});
 
   final ApiClient api;
-  final ValueChanged<Listing> onOpenDetails;
 
   @override
   State<CarListingScreen> createState() => _CarListingScreenState();
@@ -447,7 +569,7 @@ class _CarListingScreenState extends State<CarListingScreen> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -456,10 +578,11 @@ class _CarListingScreenState extends State<CarListingScreen> {
                     const _Logo(),
                     const SizedBox(width: 8),
                     Text(
-                      'idrom.am',
+                      'drom.am',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.grey[200] : Colors.grey[900],
+                        fontSize: 20,
+                        color: isDark ? Colors.white : Colors.grey[900],
                       ),
                     ),
                   ],
@@ -469,14 +592,15 @@ class _CarListingScreenState extends State<CarListingScreen> {
                   children: [
                     IconButton(
                       icon: Icon(
-                        Icons.notifications_none_rounded,
+                        Icons.notifications,
                         color: isDark ? Colors.grey[400] : Colors.grey[700],
+                        size: 24,
                       ),
                       onPressed: () {},
                     ),
                     Positioned(
-                      top: 6,
-                      right: 6,
+                      top: 4,
+                      right: 4,
                       child: _PingDot(color: primary),
                     ),
                   ],
@@ -511,9 +635,31 @@ class _CarListingScreenState extends State<CarListingScreen> {
                                     ?.copyWith(color: Colors.grey),
                               ),
                               const SizedBox(height: 12),
-                              FilledButton(
-                                onPressed: _load,
-                                child: const Text('Повторить'),
+                              Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [primary, primary.withOpacity(0.8)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: primary.withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: _load,
+                                  child: const Text('Повторить'),
+                                ),
                               ),
                             ],
                           ),
@@ -579,7 +725,7 @@ class _CarListingScreenState extends State<CarListingScreen> {
                                     style: OutlinedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,
-                                        vertical: 8,
+                                        vertical: 6,
                                       ),
                                       side: BorderSide(
                                         color: isDark
@@ -587,23 +733,24 @@ class _CarListingScreenState extends State<CarListingScreen> {
                                             : Colors.grey.shade300,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                     ),
                                     onPressed: () {},
                                     icon: Icon(
                                       Icons.expand_more,
-                                      size: 18,
+                                      size: 16,
                                       color: isDark
-                                          ? Colors.grey.shade400
+                                          ? Colors.grey.shade500
                                           : Colors.grey.shade600,
                                     ),
                                     label: Text(
                                       'Сначала новые',
                                       style:
                                           theme.textTheme.bodyMedium?.copyWith(
+                                        fontSize: 13,
                                         color: isDark
-                                            ? Colors.grey.shade300
+                                            ? Colors.grey.shade400
                                             : Colors.grey.shade700,
                                       ),
                                     ),
@@ -628,7 +775,14 @@ class _CarListingScreenState extends State<CarListingScreen> {
                               child: _ListingTile(
                                 car: car,
                                 onFavorite: () => _toggleFavorite(car),
-                                onTap: () => widget.onOpenDetails(car),
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => CarDetailsScreen(
+                                      car: car,
+                                      api: widget.api, // Pass the API client
+                                    ),
+                                  ),
+                                ),
                               ),
                             );
                           },
@@ -675,131 +829,182 @@ class _FeaturedCarouselState extends State<_FeaturedCarousel> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.colorScheme.primary;
 
-    return Column(
-      children: [
-        SizedBox(
-          height: 220,
-          child: PageView.builder(
-            controller: controller,
-            itemCount: widget.items.length,
-            onPageChanged: widget.onChanged,
-            itemBuilder: (context, index) {
-              final item = widget.items[index];
-              final badge = item.primaryDamage;
-              return AnimatedPadding(
-                duration: const Duration(milliseconds: 250),
-                padding: EdgeInsets.only(
-                  right: 12,
-                  left: index == 0 ? 16 : 4,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        children: [
+          Container(
+            height: 240,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                    ? Colors.black.withOpacity(0.5)
+                    : Colors.grey.shade300.withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.network(
-                        item.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: Colors.grey.shade300,
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.image_not_supported),
+              ],
+            ),
+            child: PageView.builder(
+              controller: controller,
+              itemCount: widget.items.length,
+              onPageChanged: widget.onChanged,
+              itemBuilder: (context, index) {
+                final item = widget.items[index];
+                final badge = item.primaryDamage;
+                return AnimatedPadding(
+                  duration: const Duration(milliseconds: 250),
+                  padding: EdgeInsets.only(
+                    right: 16,
+                    left: index == 0 ? 16 : 8,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          item.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.image_not_supported),
+                          ),
                         ),
-                      ),
-                      Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              Colors.black54,
-                              Colors.transparent,
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                isDark
+                                  ? Colors.black.withOpacity(0.8)
+                                  : Colors.black.withOpacity(0.6),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (badge != null && badge.isNotEmpty)
+                          Positioned(
+                            top: 16,
+                            left: 16,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.red.shade600, Colors.red.shade500],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                badge,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        Positioned(
+                          top: 16,
+                          right: 16,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.favorite,
+                              color: Colors.white.withOpacity(0.9),
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 16,
+                          left: 16,
+                          right: 16,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black.withOpacity(0.7),
+                                      blurRadius: 4,
+                                      offset: const Offset(1, 1),
+                                    ),
+                                  ],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                item.priceDisplay,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      ),
-                      if (badge != null && badge.isNotEmpty)
-                        Positioned(
-                          top: 12,
-                          left: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade500,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              badge,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: Icon(
-                          Icons.favorite,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 12,
-                        left: 12,
-                        right: 12,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.title,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              item.priceDisplay,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(widget.items.length, (index) {
+              final isActive = index == widget.activeIndex;
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 5),
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  gradient: isActive
+                    ? LinearGradient(
+                      colors: [primary, primary.withOpacity(0.7)],
+                    )
+                    : LinearGradient(
+                      colors: [
+                        isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                        isDark ? Colors.grey.shade600 : Colors.grey.shade200,
+                      ],
+                    ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
               );
-            },
+            }),
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(widget.items.length, (index) {
-            final isActive = index == widget.activeIndex;
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: isActive
-                    ? theme.colorScheme.primary
-                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
-                shape: BoxShape.circle,
-              ),
-            );
-          }),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -819,99 +1024,124 @@ class _ListingTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.colorScheme.primary;
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(14),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+              ? Colors.black.withOpacity(0.3)
+              : Colors.grey.shade300.withOpacity(0.4),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  car.imageUrl,
-                  width: 120,
-                  height: 90,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 120,
-                    height: 90,
-                    color: Colors.grey.shade300,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.image_not_supported),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 112,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        car.imageUrl,
+                        width: 112,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 112,
+                          height: 80,
+                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.image_not_supported),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      car.title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color:
-                            isDark ? Colors.grey.shade200 : Colors.grey.shade900,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      car.priceDisplay,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.place,
-                          size: 16,
-                          color: isDark
-                              ? Colors.grey.shade500
-                              : Colors.grey.shade600,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        car.title,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : Colors.grey.shade900,
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            car.location ?? '—',
-                            style: theme.textTheme.bodySmall?.copyWith(
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        car.priceDisplay,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (car.location != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.place,
+                              size: 12,
                               color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade700,
+                                  ? Colors.grey.shade500
+                                  : Colors.grey.shade600,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                car.location!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: onFavorite,
-                icon: Icon(
-                  car.isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: car.isFavorite
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.primary.withOpacity(0.7),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: onFavorite,
+                  icon: Icon(
+                    car.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: car.isFavorite
+                        ? primary
+                        : theme.colorScheme.primary.withOpacity(0.7),
+                    size: 20,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -976,10 +1206,32 @@ class _Logo extends StatelessWidget {
   }
 }
 
-class CarDetailsScreen extends StatelessWidget {
-  const CarDetailsScreen({super.key, required this.car});
+class CarDetailsScreen extends StatefulWidget {
+  const CarDetailsScreen({super.key, required this.car, required this.api});
 
   final Listing car;
+  final ApiClient api;
+
+  @override
+  State<CarDetailsScreen> createState() => _CarDetailsScreenState();
+}
+
+class _CarDetailsScreenState extends State<CarDetailsScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  bool _isFavorite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _isFavorite = widget.car.isFavorite;
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -992,294 +1244,380 @@ class CarDetailsScreen extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            icon: const Icon(
-                              Icons.arrow_back_ios_new,
-                              color: Colors.white,
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () {},
-                            icon: Icon(
-                              Icons.favorite,
-                              color: primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Stack(
-                          children: [
-                            AspectRatio(
-                              aspectRatio: 16 / 9,
-                              child: car.imageUrl.isEmpty
-                                  ? Container(
+              child: Column(
+                children: [
+                  // Header with image and title
+                  Expanded(
+                    flex: 2,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: widget.car.imageUrl.isNotEmpty
+                                ? Image.network(
+                                    widget.car.imageUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
                                       color: Colors.grey.shade800,
                                       alignment: Alignment.center,
                                       child: const Icon(
                                         Icons.image_not_supported,
                                         color: Colors.white,
                                       ),
-                                    )
-                                  : Image.network(
-                                      car.imageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
-                                        color: Colors.grey.shade800,
-                                        alignment: Alignment.center,
-                                        child: const Icon(
-                                          Icons.image_not_supported,
-                                          color: Colors.white,
-                                        ),
-                                      ),
                                     ),
+                                  )
+                                : Container(
+                                    color: Colors.grey.shade800,
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.image_not_supported,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 12,
+                          left: 16,
+                          child: IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(
+                              Icons.arrow_back_ios_new,
+                              color: Colors.white,
                             ),
-                            Positioned(
-                              bottom: 12,
-                              left: 12,
-                              right: 12,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 18,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      color: primary,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ...List.generate(
-                                    4,
-                                    (_) => Container(
-                                      width: 6,
-                                      height: 6,
-                                      margin: const EdgeInsets.only(right: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white54,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 12,
+                          right: 16,
+                          child: IconButton(
+                            onPressed: () async {
+                              final next = !widget.car.isFavorite;
+                              setState(() => _isFavorite = next);
+                              try {
+                                final success = await widget.api.toggleFavorite(widget.car.id, favorite: next);
+                                if (success) {
+                                  // Update the state to reflect the new favorite status
+                                  setState(() {
+                                    _isFavorite = next;
+                                  });
+                                } else {
+                                  setState(() => _isFavorite = !next);
+                                }
+                              } catch (e) {
+                                setState(() => _isFavorite = !next);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Failed to update favorite: $e')),
+                                  );
+                                }
+                              }
+                            },
+                            icon: Icon(
+                              _isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: _isFavorite ? Colors.red : Colors.white,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  const Color(0xFF221310).withOpacity(0.9),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            car.title,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            car.priceDisplay,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              color: primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.all(6),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _DetailTab(
-                                label: 'Details',
-                                isActive: true,
-                                primary: primary,
-                              ),
-                            ),
-                            Expanded(
-                              child: _DetailTab(
-                                label: 'Features',
-                                isActive: false,
-                                primary: primary,
-                              ),
-                            ),
-                            Expanded(
-                              child: _DetailTab(
-                                label: 'Seller Info',
-                                isActive: false,
-                                primary: primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      child: GridView.count(
-                        physics: const NeverScrollableScrollPhysics(),
-                        shrinkWrap: true,
-                        crossAxisCount: 2,
-                        childAspectRatio: 3.2,
-                        children: [
-                          _SpecTile(label: 'Year', value: car.year ?? '—'),
-                          _SpecTile(
-                            label: 'Mileage',
-                            value: car.mileage ?? '—',
-                          ),
-                          _SpecTile(
-                            label: 'Transmission',
-                            value: car.transmission ?? '—',
-                          ),
-                          _SpecTile(
-                            label: 'Engine',
-                            value: car.engine ?? '—',
-                          ),
-                          _SpecTile(
-                            label: 'Exterior Color',
-                            value: car.exteriorColor ?? '—',
-                          ),
-                          _SpecTile(
-                            label: 'Primary Damage',
-                            value: car.primaryDamage ?? '—',
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Location',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Stack(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                SizedBox(
-                                  height: 180,
-                                  width: double.infinity,
-                                  child: Image.network(
-                                    'https://lh3.googleusercontent.com/aida-public/AB6AXuAhRQs2Af2QoWCs7k4JtGxA3Re4nwqK_brDBkuNrSbUG1B0YGVU9e6uylvaAPHmz-1GI7FG_nsUnIXRMGK3LA389tThCMdpKmipbD9QLO00UmhW70bB0IU0bcRN2bdVTbR0V5_1YAWnBNg_cN9O4mNT8jr5CZl4hVeX9v3l-o7RFEqAjtcuRpVYcESkatExYl2Kk7mxsCmYfr0KsUUxHrj6DnZiNOMUjq2jouuKKs9Cuvq95Wnqn_0FtoQ9uhsiRQqzn3AN4hjkiA',
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      color: Colors.grey.shade800,
-                                    ),
+                                Text(
+                                  widget.car.title,
+                                  style: theme.textTheme.headlineSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                Container(
-                                  height: 180,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.black.withOpacity(0.4),
-                                        Colors.transparent,
-                                      ],
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                    ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  widget.car.priceDisplay,
+                                  style: theme.textTheme.headlineSmall?.copyWith(
+                                    color: primary,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                Positioned(
-                                  bottom: 12,
-                                  left: 12,
-                                  right: 12,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF221310)
-                                          .withOpacity(0.85),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.location_on,
-                                              color: primary,
+                                // Auction-specific information
+                                if (widget.car.isFromAuction) ...[
+                                  if (widget.car.currentBidPrice != null || widget.car.buyNowPrice != null) ...[
+                                    const SizedBox(height: 4),
+                                    if (widget.car.currentBidPrice != null)
+                                      Text(
+                                        'Current Bid: ${widget.car.currentBidPrice?.toStringAsFixed(0)} ${widget.car.currentBidCurrency ?? 'USD'}',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    if (widget.car.buyNowPrice != null)
+                                      Text(
+                                        'Buy Now: ${widget.car.buyNowPrice?.toStringAsFixed(0)} ${widget.car.buyNowCurrency ?? 'USD'}',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                  ],
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Tab bar and content
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      children: [
+                        Container(
+                          color: const Color(0xFF221310),
+                          child: TabBar(
+                            controller: _tabController,
+                            labelColor: primary,
+                            unselectedLabelColor: Colors.grey,
+                            indicatorColor: primary,
+                            tabs: const [
+                              Tab(text: 'Details'),
+                              Tab(text: 'Features'),
+                              Tab(text: 'Seller'),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              // Details Tab
+                              SingleChildScrollView(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Basic vehicle info
+                                    _DetailRow('Make', widget.car.make ?? '—'),
+                                    _DetailRow('Model', widget.car.model ?? '—'),
+                                    _DetailRow('Year', widget.car.year ?? '—'),
+                                    _DetailRow('Mileage', widget.car.mileage ?? '—'),
+                                    _DetailRow('Transmission', widget.car.transmission ?? '—'),
+                                    _DetailRow('Engine', widget.car.engine ?? '—'),
+                                    _DetailRow('Body Type', widget.car.bodyType ?? '—'),
+                                    _DetailRow('Fuel Type', widget.car.fuelType ?? '—'),
+                                    _DetailRow('Exterior Color', widget.car.exteriorColor ?? '—'),
+                                    _DetailRow('Interior Color', widget.car.interiorColor ?? '—'),
+                                    const SizedBox(height: 16),
+                                    // Auction-specific details
+                                    if (widget.car.isFromAuction) ...[
+                                      Text(
+                                        'Auction Information',
+                                        style: theme.textTheme.titleMedium?.copyWith(
+                                          color: primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _DetailRow('Auction URL', widget.car.auctionUrl ?? '—'),
+                                      _DetailRow('Operational Status', widget.car.operationalStatus ?? '—'),
+                                      _DetailRow('Primary Damage', widget.car.primaryDamage ?? '—'),
+                                      _DetailRow('Auction Ends', widget.car.auctionEndsAt ?? '—'),
+                                    ],
+                                    // Location
+                                    if (widget.car.location != null) ...[
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Location',
+                                        style: theme.textTheme.titleMedium?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: SizedBox(
+                                          height: 180,
+                                          width: double.infinity,
+                                          child: Image.network(
+                                            'https://maps.googleapis.com/maps/api/staticmap?center=${widget.car.location!}&zoom=13&size=600x300&maptype=roadmap&key=YOUR_API_KEY', // Replace with real map service
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(
+                                              color: Colors.grey.shade800,
+                                              alignment: Alignment.center,
+                                              child: const Icon(Icons.map),
                                             ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              car.location ?? '—',
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              widget.car.location!,
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                        TextButton(
-                                          onPressed: () {},
-                                          child: Text(
-                                            'Get Directions',
-                                            style: TextStyle(color: primary),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                          TextButton(
+                                            onPressed: () {},
+                                            child: Text(
+                                              'Get Directions',
+                                              style: TextStyle(color: primary),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                              // Features Tab
+                              SingleChildScrollView(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Description',
+                                      style: theme.textTheme.titleMedium?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      widget.car.description ?? 'No description available',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    if (widget.car.auctionPhotoUrls.isNotEmpty) ...[
+                                      Text(
+                                        'Auction Photos',
+                                        style: theme.textTheme.titleMedium?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        height: 120,
+                                        child: ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: widget.car.auctionPhotoUrls.length,
+                                          itemBuilder: (context, index) {
+                                            return Container(
+                                              margin: const EdgeInsets.only(right: 8),
+                                              child: ClipRRect(
+                                                borderRadius: BorderRadius.circular(8),
+                                                child: Image.network(
+                                                  widget.car.auctionPhotoUrls[index],
+                                                  width: 120,
+                                                  height: 120,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) => Container(
+                                                    width: 120,
+                                                    height: 120,
+                                                    color: Colors.grey.shade800,
+                                                    alignment: Alignment.center,
+                                                    child: const Icon(Icons.image_not_supported),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              // Seller Info Tab
+                              SingleChildScrollView(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Seller Contact',
+                                      style: theme.textTheme.titleMedium?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    OutlinedButton.icon(
+                                      onPressed: () {},
+                                      icon: const Icon(Icons.phone),
+                                      label: const Text('Show Phone Number'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: primary,
+                                        side: BorderSide(color: primary),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    OutlinedButton.icon(
+                                      onPressed: () {},
+                                      icon: const Icon(Icons.chat),
+                                      label: const Text('Send Message'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: primary,
+                                        side: BorderSide(color: primary),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: () {},
+                                      icon: const Icon(Icons.report),
+                                      label: const Text('Report Item'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 120),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             Positioned(
@@ -1336,6 +1674,42 @@ class CarDetailsScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1452,8 +1826,8 @@ class AddListingOptionsScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 children: [
                   _AddTypeCard(
-                    icon: Icons.description,
-                    title: 'Обычное объявление',
+                    icon: Icons.directions_car,
+                    title: 'Объявление автомобиля',
                     description:
                         'Подходит для частных продавцов и автосалонов',
                     primary: primary,
@@ -1461,11 +1835,28 @@ class AddListingOptionsScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => CreateListingScreen(api: api, type: 'regular'),
+                          builder: (_) => CreateListingScreen(api: api, type: 'vehicle'),
                         ),
                       );
                     },
                   ),
+                  const SizedBox(height: 12),
+                  _AddTypeCard(
+                    icon: Icons.build,
+                    title: 'Объявление запчастей',
+                    description:
+                        'Для продажи автомобильных запчастей и аксессуаров',
+                    primary: primary,
+                    isDark: isDark,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CreateListingScreen(api: api, type: 'parts'),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   const SizedBox(height: 12),
                   _AddTypeCard(
                     icon: Icons.public,
@@ -2302,6 +2693,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
 
     if (!widget.api.hasToken) {
       return Scaffold(
@@ -2310,7 +2702,7 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.lock, color: theme.colorScheme.primary, size: 48),
+                Icon(Icons.lock, color: primary, size: 48),
                 const SizedBox(height: 12),
                 Text(
                   'Войдите, чтобы видеть сообщения',
@@ -2378,9 +2770,31 @@ class _MessagesListScreenState extends State<MessagesListScreen> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: _load,
-                        child: const Text('Повторить'),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [primary, primary.withOpacity(0.8)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: _load,
+                          child: const Text('Повторить'),
+                        ),
                       ),
                     ],
                   ),
@@ -2640,9 +3054,31 @@ class _ChatScreenState extends State<ChatScreen> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: _load,
-                        child: const Text('Повторить'),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [primary, primary.withOpacity(0.8)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: _load,
+                          child: const Text('Повторить'),
+                        ),
                       ),
                     ],
                   ),
@@ -3420,22 +3856,40 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                       const SizedBox(height: 16),
-                      SizedBox(
+                      Container(
                         width: double.infinity,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [primary, primary.withOpacity(0.8)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
                             padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           onPressed: loading ? null : _submit,
                           child: loading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 18,
                                   height: 18,
                                   child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                                      CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
                                 )
-                              : const Text(
+                              : Text(
                                   'Войти',
                                   style: TextStyle(
                                     color: Colors.white,
@@ -3459,17 +3913,34 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      SizedBox(
+                      Container(
                         width: double.infinity,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white30),
+                          color: Colors.white.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             side: BorderSide(color: Colors.white30),
-                            backgroundColor: Colors.white.withOpacity(0.05),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           onPressed: loading ? null : _handleGoogleSignIn,
                           icon: Icon(Icons.g_mobiledata, color: Colors.white, size: 28),
-                          label: const Text(
+                          label: Text(
                             'Войти через Google',
                             style: TextStyle(
                               color: Colors.white,
@@ -3479,213 +3950,26 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      TextButton(
-                        onPressed: loading ? null : widget.onOpenRegister,
-                        child: const Text('Зарегистрироваться'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
-
-  @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
-}
-
-class _RegisterScreenState extends State<RegisterScreen> {
-  bool loading = false;
-
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-  );
-
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => loading = true);
-
-    try {
-      final ApiClient api = ApiClient();
-      final account = await _googleSignIn.signIn();
-      
-      if (account == null) {
-        setState(() => loading = false);
-        return;
-      }
-
-      final auth = await account.authentication;
-      final idToken = auth.idToken;
-
-      if (idToken == null) {
-        throw Exception('Failed to get Google ID token');
-      }
-
-      // Call API
-      final profile = await api.loginWithGoogle(idToken);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Welcome, ${profile.name}!')),
-        );
-        Navigator.of(context).popUntil((route) => route.isFirst); // Go to home
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google Sign-In failed: ${e.toString().replaceFirst("Exception: ", "")}')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
-
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0F0F0F), Color(0xFF220C0C)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const _Logo(),
-                    const SizedBox(width: 10),
-                    Text(
-                      'idrom.am',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Регистрация',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Повторяет веб: имя, e-mail, телефон, пароль',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _GlassCard(
-                  child: Column(
-                    children: [
-                      const _InputField(
-                        label: 'Имя',
-                        icon: Icons.badge_outlined,
-                      ),
-                      const SizedBox(height: 12),
-                      const _InputField(
-                        label: 'Email',
-                        icon: Icons.mail_outline,
-                      ),
-                      const SizedBox(height: 12),
-                      const _InputField(
-                        label: 'Телефон',
-                        icon: Icons.phone_outlined,
-                      ),
-                      const SizedBox(height: 12),
-                      const _InputField(
-                        label: 'Пароль',
-                        icon: Icons.lock_outline,
-                        obscure: true,
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
+                      Container(
                         width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                        height: 40,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.grey.shade600, Colors.grey.shade700],
                           ),
-                          onPressed: loading ? null : () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Регистрация пока не подключена к API'),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Создать аккаунт',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(child: Divider(color: Colors.white30)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'или',
-                              style: TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                          ),
-                          Expanded(child: Divider(color: Colors.white30)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: BorderSide(color: Colors.white30),
-                            backgroundColor: Colors.white.withOpacity(0.05),
-                          ),
-                          onPressed: loading ? null : _handleGoogleSignIn,
-                          icon: Icon(Icons.g_mobiledata, color: Colors.white, size: 28),
-                          label: const Text(
-                            'Регистрация через Google',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Center(
                         child: TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text(
-                            'Уже есть аккаунт? Войти',
-                            style: TextStyle(color: Colors.white70),
+                          onPressed: loading ? null : widget.onOpenRegister,
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          child: Text('Зарегистрироваться',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
@@ -3764,6 +4048,8 @@ class _InputField extends StatelessWidget {
     );
   }
 }
+
+// RegisterScreen has been moved to screens/register_screen.dart
 
 class _UnauthedProfile extends StatelessWidget {
   const _UnauthedProfile({

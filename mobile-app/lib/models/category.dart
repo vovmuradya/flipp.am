@@ -3,6 +3,7 @@ class Category {
   final String name;
   final String? slug;
   final int? parentId;
+  final String? listingType; // 'vehicle', 'parts', or null for both
   final List<Category> children;
   final List<CategoryField> fields;
 
@@ -11,6 +12,7 @@ class Category {
     required this.name,
     this.slug,
     this.parentId,
+    this.listingType,
     this.children = const [],
     this.fields = const [],
   });
@@ -26,6 +28,7 @@ class Category {
       parentId: json['parent_id'] is int
           ? json['parent_id']
           : int.tryParse('${json['parent_id']}'),
+      listingType: json['listing_type']?.toString(),
       children: childrenList
               ?.whereType<Map<String, dynamic>>()
               .map((e) => Category.fromJson(e))

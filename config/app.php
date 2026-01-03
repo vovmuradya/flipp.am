@@ -180,6 +180,10 @@ return [
         App\Providers\AppServiceProvider::class,
         App\Providers\AuthServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
+        App\Providers\RBACServiceProvider::class,
+        App\Providers\AnalyticsServiceProvider::class,
+        App\Providers\IdramImIDServiceProvider::class,
+        App\Providers\RegistrationErrorLoggerServiceProvider::class,
     ],
 
     /*
