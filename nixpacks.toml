@@ -1,5 +1,5 @@
 [variables]
-PHP_VERSION = '8.4'
+PHP_VERSION = '8.3'
 
 [phases.setup]
-nixPkgs = ['...', 'php84Extensions.pdo_mysql', 'php84Extensions.redis', 'php84Extensions.exif', 'php84Extensions.gd', 'php84Extensions.imagick', 'php84Extensions.soap', 'php84Extensions.bcmath', 'php84Extensions.intl', 'php84Extensions.zip']
+nixPkgs = ['...', 'php83Extensions.pdo_mysql', 'php83Extensions.redis', 'php83Extensions.exif', 'php83Extensions.gd', 'php83Extensions.imagick', 'php83Extensions.soap', 'php83Extensions.bcmath', 'php83Extensions.intl', 'php83Extensions.zip']

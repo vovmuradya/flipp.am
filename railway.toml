@@ -1,10 +1,10 @@
 # Specify the runtime
 node.version = "22"
-php.version = "8.4"
+php.version = "8.3"
 
 # Build command
 [build]
-  command = "composer install --ignore-platform-reqs"
+  command = "composer install && php artisan migrate --force"
 
 # Start command
 [run]
