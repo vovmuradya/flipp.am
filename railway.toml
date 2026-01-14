@@ -4,7 +4,7 @@ php.version = "8.4"
 
 # Build command
 [build]
-  command = "composer install && php artisan migrate --force"
+  command = "composer install --ignore-platform-reqs"
 
 # Start command
 [run]
