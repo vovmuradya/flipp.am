@@ -80,4 +80,15 @@ return [
         'telcell_api_key' => env('TELCELL_ESCROW_KEY'),
     ],
 
+    'idram' => [
+        'api_url' => env('IDRAM_API_URL', 'https://api.idram.am'),
+        'merchant_id' => env('IDRAM_MERCHANT_ID'),
+        'api_key' => env('IDRAM_API_KEY'),
+    ],
+
+    'imid' => [
+        'api_url' => env('IMID_API_URL', 'https://api.imid.am'),
+        'api_key' => env('IMID_API_KEY'),
+    ],
+
 ];
