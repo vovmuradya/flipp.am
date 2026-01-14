@@ -54,18 +54,24 @@ class AppServiceProvider extends ServiceProvider
     private function configureDatabaseForRailway()
     {
         if (getenv('RAILWAY_ENVIRONMENT')) {
-            $host = getenv('MYSQLHOST') ?: config('database.connections.mysql.host');
-            $port = getenv('MYSQLPORT') ?: config('database.connections.mysql.port');
-            $database = getenv('MYSQLDATABASE') ?: config('database.connections.mysql.database');
-            $username = getenv('MYSQLUSER') ?: config('database.connections.mysql.username');
-            $password = getenv('MYSQLPASSWORD') ?: config('database.connections.mysql.password');
+            // Load railway-specific database configuration
+            $config = config('railway_database.mysql');
+
+            $host = getenv('MYSQLHOST') ?: $config['host'];
+            $port = getenv('MYSQLPORT') ?: $config['port'];
+            $database = getenv('MYSQLDATABASE') ?: $config['database'];
+            $username = getenv('MYSQLUSER') ?: $config['username'];
+            $password = getenv('MYSQLPASSWORD') ?: $config['password'];
 
             config([
-                'database.connections.mysql.host' => $host,
-                'database.connections.mysql.port' => $port,
-                'database.connections.mysql.database' => $database,
-                'database.connections.mysql.username' => $username,
-                'database.connections.mysql.password' => $password,
+                'database.connections.mysql' => array_merge(config('database.connections.mysql'), [
+                    'host' => $host,
+                    'port' => $port,
+                    'database' => $database,
+                    'username' => $username,
+                    'password' => $password,
+                    'options' => $config['options'],
+                ]),
                 'database.default' => 'mysql'
             ]);
         }
