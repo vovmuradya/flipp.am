@@ -34,9 +34,6 @@ COPY . .
 # Устанавливаем зависимости PHP
 RUN composer install --ignore-platform-reqs --no-dev
 
-# Устанавливаем зависимости Node.js
-RUN npm install && npm run build
-
 EXPOSE 80
 
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]
