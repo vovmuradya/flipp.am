@@ -22,7 +22,7 @@ return [
             'database' => env('DB_DATABASE', env('MYSQLDATABASE', 'laravel')),
             'username' => env('DB_USERNAME', env('MYSQLUSER', 'root')),
             'password' => env('DB_PASSWORD', env('MYSQLPASSWORD', '')),
-            'unix_socket' => '', // Очищаем unix_socket, чтобы использовать TCP/IP
+            'unix_socket' => '', // Не используем Unix socket
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',
@@ -31,8 +31,9 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,  // Добавляем для Railway
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, // Добавляем для лучшей обработки ошибок
+                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::MYSQL_ATTR_COMPRESS => true, // Включаем сжатие для сетевых соединений
             ]) : [],
         ],
     ],
