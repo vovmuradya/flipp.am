@@ -35,6 +35,11 @@ class AppServiceProvider extends ServiceProvider
             Config::set('database.default', 'mysql');
         }
 
+        // Configure database connection at runtime if not set during boot
+        if (app()->runningInConsole()) {
+            $this->configureDatabaseForRailway();
+        }
+
         // Log warnings if required extensions are missing
         if (!extension_loaded('exif')) {
             Log::warning('EXIF extension is not loaded. Image processing features may not work properly.');
@@ -42,6 +47,29 @@ class AppServiceProvider extends ServiceProvider
 
         if (!extension_loaded('zip')) {
             Log::warning('ZIP extension is not loaded. Archive creation features may not work properly.');
+        }
+    }
+
+    /**
+     * Configure database connection for Railway environment at runtime
+     */
+    private function configureDatabaseForRailway()
+    {
+        if (getenv('RAILWAY_ENVIRONMENT')) {
+            $host = getenv('MYSQLHOST') ?: config('database.connections.mysql.host');
+            $port = getenv('MYSQLPORT') ?: config('database.connections.mysql.port');
+            $database = getenv('MYSQLDATABASE') ?: config('database.connections.mysql.database');
+            $username = getenv('MYSQLUSER') ?: config('database.connections.mysql.username');
+            $password = getenv('MYSQLPASSWORD') ?: config('database.connections.mysql.password');
+
+            config([
+                'database.connections.mysql.host' => $host,
+                'database.connections.mysql.port' => $port,
+                'database.connections.mysql.database' => $database,
+                'database.connections.mysql.username' => $username,
+                'database.connections.mysql.password' => $password,
+                'database.default' => 'mysql'
+            ]);
         }
     }
 }
