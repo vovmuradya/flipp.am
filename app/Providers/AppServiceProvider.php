@@ -6,6 +6,7 @@ use App\Models\Listing;         // <-- Добавьте эту строку
 use App\Policies\ListingPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,6 +33,15 @@ class AppServiceProvider extends ServiceProvider
             Config::set('database.connections.mysql.password', getenv('MYSQLPASSWORD') ?: Config::get('database.connections.mysql.password'));
 
             Config::set('database.default', 'mysql');
+        }
+
+        // Log warnings if required extensions are missing
+        if (!extension_loaded('exif')) {
+            Log::warning('EXIF extension is not loaded. Image processing features may not work properly.');
+        }
+
+        if (!extension_loaded('zip')) {
+            Log::warning('ZIP extension is not loaded. Archive creation features may not work properly.');
         }
     }
 }
