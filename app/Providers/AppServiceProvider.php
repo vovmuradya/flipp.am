@@ -36,9 +36,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         // Configure database connection at runtime if not set during boot
-        if (app()->runningInConsole()) {
-            $this->configureDatabaseForRailway();
-        }
+        $this->configureDatabaseForRailway();
 
         // Log warnings if required extensions are missing
         if (!extension_loaded('exif')) {
