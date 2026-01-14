@@ -1,0 +1,5 @@
+[variables]
+PHP_VERSION = '8.3'
+
+[phases.setup]
+nixPkgs = ['...', 'php83Extensions.pdo_mysql', 'php83Extensions.redis', 'php83Extensions.exif', 'php83Extensions.gd', 'php83Extensions.imagick', 'php83Extensions.soap', 'php83Extensions.bcmath', 'php83Extensions.intl']
