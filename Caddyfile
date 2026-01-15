@@ -3,7 +3,11 @@
     auto_https disable_redirects
 }
 
-:80 {
+{
+    $PORT 80
+}
+
+:${PORT} {
     encode zstd gzip
 
     root * public
