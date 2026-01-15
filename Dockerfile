@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     unzip \
-    libzip-dev
+    libzip-dev \
+    netcat-openbsd
 
 # Устанавливаем PHP-расширения
 RUN install-php-extensions \
@@ -34,6 +35,9 @@ COPY . .
 # Устанавливаем зависимости PHP
 RUN composer install --ignore-platform-reqs --no-dev
 
+# Копируем Caddyfile
+COPY Caddyfile /etc/caddy/Caddyfile
+
 EXPOSE 80
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]
+CMD ["/usr/local/bin/frankenphp", "server", "--config", "/etc/caddy/Caddyfile"]

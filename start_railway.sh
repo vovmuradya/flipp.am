@@ -25,5 +25,5 @@ if [ ! -z "$RAILWAY_ENVIRONMENT" ]; then
     php artisan storage:link
 fi
 
-# Start the application
+# Just run the command passed to the script
 exec "$@"

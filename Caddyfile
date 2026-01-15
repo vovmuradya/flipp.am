@@ -1,0 +1,15 @@
+{
+    experimental_http3
+    auto_https disable_redirects
+}
+
+:80 {
+    encode zstd gzip
+
+    root * public
+    file_server
+
+    php_server {
+        root public
+    }
+}
