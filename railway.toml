@@ -8,4 +8,4 @@ php.version = "8.3"
 
 # Start command
 [run]
-  command = "php diagnostic_start.php"
+  command = "php minimal_server.php"
