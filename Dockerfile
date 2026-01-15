@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp:php8.3-bookworm
+FROM php:8.3-cli
 
 # Устанавливаем системные зависимости
 RUN apt-get update && apt-get install -y \
@@ -10,19 +10,34 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     libzip-dev \
+    libssl-dev \
+    libmcrypt-dev \
+    libicu-dev \
+    libxml2-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libmagickwand-dev \
     netcat-openbsd
 
 # Устанавливаем PHP-расширения
-RUN install-php-extensions \
+RUN docker-php-ext-install \
     exif \
     zip \
     pdo_mysql \
-    redis \
     bcmath \
     gd \
     intl \
     soap \
-    imagick
+    mysqli \
+    tokenizer \
+    xml \
+    json \
+    mbstring
+
+# Установка Imagick
+RUN apt-get install -y libmagickwand-dev && \
+    pecl install imagick && \
+    docker-php-ext-enable imagick
 
 # Устанавливаем Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -35,10 +50,6 @@ COPY . .
 # Устанавливаем зависимости PHP
 RUN composer install --ignore-platform-reqs --no-dev
 
-# Копируем конфигурационные файлы
-COPY Caddyfile /etc/caddy/Caddyfile
-COPY frankenphp.json /etc/frankenphp/config.json
-
 EXPOSE 80
 
-CMD ["/usr/local/bin/frankenphp", "server", "--config", "/etc/caddy/Caddyfile"]
+CMD ["php", "start_with_port.php"]

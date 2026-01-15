@@ -1,4 +1,9 @@
 {
+    experimental_http3
+    auto_https disable_redirects
+}
+
+{
     $PORT 80
 }
 
@@ -10,6 +15,6 @@
 
     php_server {
         root public
-        index info.php
+        index index.php
     }
 }
