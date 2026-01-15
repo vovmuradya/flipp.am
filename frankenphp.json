@@ -1,0 +1,43 @@
+{
+	apps: {
+		http: {
+			servers: {
+				main: {
+					listen: [":${PORT:-80}"],
+					routes: [
+						{
+							match: [{path: ["/"]}],
+							handle: [
+								{
+									handler: "subroute",
+									routes: [
+										{
+											# Serve static files directly
+											match: [{not: [{path: ["/index.php", "/api/*", "/graphql"]}], path: ["*"]}],
+											handle: [
+												{
+													handler: "file_server",
+													root: "/app/public"
+												}
+											]
+										},
+										{
+											# Route everything else to index.php
+											handle: [
+												{
+													handler: "php",
+													root: "/app/public",
+													split_path: ".php"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			}
+		}
+	}
+}

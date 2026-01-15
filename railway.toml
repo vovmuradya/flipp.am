@@ -8,4 +8,4 @@ php.version = "8.3"
 
 # Start command
 [run]
-  command = "sh start_railway.sh && /usr/local/bin/frankenphp server --config=/etc/caddy/Caddyfile"
+  command = "sh start_railway.sh && /usr/local/bin/frankenphp server --config=/etc/caddy/Caddyfile --php-config=/etc/frankenphp/config.json"

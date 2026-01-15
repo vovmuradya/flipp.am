@@ -35,8 +35,9 @@ COPY . .
 # Устанавливаем зависимости PHP
 RUN composer install --ignore-platform-reqs --no-dev
 
-# Копируем Caddyfile
+# Копируем конфигурационные файлы
 COPY Caddyfile /etc/caddy/Caddyfile
+COPY frankenphp.json /etc/frankenphp/config.json
 
 EXPOSE 80
 
