@@ -18,14 +18,12 @@ RUN apt-get update && apt-get install -y \
     libmagickwand-dev \
     netcat-openbsd
 
-# Устанавливаем PHP-расширения по одному для лучшей отладки
+# Устанавливаем только те PHP-расширения, которые не встроены в PHP
 RUN docker-php-ext-install exif
 RUN docker-php-ext-install zip
 RUN docker-php-ext-install pdo_mysql
 RUN docker-php-ext-install bcmath
-# tokenizer уже встроен в PHP, нет необходимости устанавливать отдельно
-RUN docker-php-ext-install xml
-RUN docker-php-ext-install json
+# tokenizer, json, xml уже встроены в PHP, нет необходимости устанавливать отдельно
 RUN docker-php-ext-install mbstring
 
 # Установка GD
