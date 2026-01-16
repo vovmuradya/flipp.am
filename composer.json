@@ -6,7 +6,7 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "algolia/algoliasearch-client-php": "^4.0",
         "guzzlehttp/guzzle": "^7.10",
         "http-interop/http-factory-guzzle": "^1.2",

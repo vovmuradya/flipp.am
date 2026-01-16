@@ -1,11 +1,20 @@
- cd /home/vov/flipp-am — войди в проект.
-  - ./vendor/bin/sail up -d — поднять Docker‑контейнеры (включая PHP, MySQL, Redis, Meilisearch и т.д.).
-  - ./vendor/bin/sail artisan migrate --force — если были новые миграции.
-  - ./vendor/bin/sail artisan scout:import "App\Models\Listing" — при первом запуске или после изменений в индексации, чтобы перепостроить Meilisearch.
-  - ./vendor/bin/sail npm run dev (или build) — если нужны актуальные фронтенд‑ассеты.]
+gcloud compute ssh instance-20260115-091853 --zone us-central1-f
+cd ~/flipp.am
 
-  mutq server
 
+
+
+
+
+
+
+
+
+
+1. Сохранить код	На ПК	git add . и git commit -m "что сделал"
+2. Отправить в облако	На ПК	git push origin main
+3. Обновить сайт	На сервере	git pull origin main
+4. Применить изменения	На сервере	php artisan optimize:clear
 /////
  php artisan serve --host=0.0.0.0 --port=8002
  /////// cragiry bacelu hamar stex senc serve bacel
@@ -14,6 +23,18 @@ ssh root@idrom.am
 ssh root@113.30.188.98
 
 server password tatevS1000@1000
+
+
+ CREATE USER IF NOT EXISTS 'flipp_user'@'127.0.0.1' IDENTIFIED BY 'vovaS1000@';
+GRANT ALL PRIVILEGES ON flipp_am.* TO 'flipp_user'@'127.0.0.1';
+FLUSH PRIVILEGES;
+CREATE USER IF NOT EXISTS 'flipp_user'@'localhost' IDENTIFIED BY 'vovaS1000@';
+GRANT ALL PRIVILEGES ON flipp_am.* TO 'flipp_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+
+
+
 
 
 craper/fetch-copart-cookies.cjs
