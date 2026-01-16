@@ -3,8 +3,16 @@ require('dotenv').config();
 
 (async () => {
     const browser = await puppeteer.launch({
-        headless: false, // Отключаем headless для отладки
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        executablePath: '/usr/bin/google-chrome', // на локале можно оставить путь к локальному Chrome
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process',
+            '--disable-crash-reporter'
+        ]
     });
 
     const page = await browser.newPage();

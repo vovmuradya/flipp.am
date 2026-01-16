@@ -11,7 +11,7 @@ async function fetchCopartLot(lotId) {
   try {
     browser = await puppeteer.launch({
       headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/opt/google/chrome/chrome',
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
       args: process.env.PUPPETEER_ARGS
         ? process.env.PUPPETEER_ARGS.split(' ')
         : [

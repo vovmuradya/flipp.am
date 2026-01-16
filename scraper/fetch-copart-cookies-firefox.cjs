@@ -10,7 +10,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
 puppeteer.use(StealthPlugin());
 
-const DEFAULT_EXEC_PATH = '/home/vov/.cache/puppeteer/chrome/linux-142.0.7444.61/chrome-linux64/chrome';
+const DEFAULT_EXEC_PATH = '/usr/bin/google-chrome';
 const USER_AGENT =
   process.env.COPART_USER_AGENT ||
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -43,7 +43,7 @@ async function fetchCopartCookies() {
   });
 
   try {
-    await page.goto('https://www.copart.com/', { waitUntil: 'networkidle0', timeout: 90000 });
+    await page.goto('https://www.copart.com/', { waitUntil: 'networkidle2', timeout: 120000 });
     await sleep(5000);
 
     const cookies = await page.cookies();
