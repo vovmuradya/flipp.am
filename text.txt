@@ -1,6 +1,59 @@
 gcloud compute ssh instance-20260115-091853 --zone us-central1-f
 cd ~/flipp.am
 
+ 1 # 1. Получить последние изменения из репозитория
+     git pull origin main
+
+     # 2. Очистить кэшированные конфигурации
+     php artisan optimize:clear
+
+     # 3. Выполнить миграции базы данных (если есть новые)
+     php artisan migrate
+
+  1 # Получить хеш последнего коммита
+    git rev-parse HEAD
+
+    # Получить краткий хеш последнего коммита
+    git rev-parse --short HEAD
+
+   # Получить информацию о последнем коммите в одной строке
+   git show --oneline -s
+
+    # 4. Обновить зависимости Composer (если были изменения в composer.json)
+    composer install --no-dev
+
+    # 5. Очистить и скомпилировать ассеты (если были изменения в JS/CSS)
+    npm install && npm run build
+
+    # 6. Перезапустить службу очередей (если используется)
+    php artisan queue:restart
+
+    # 7. Перезапустить службу кэширования (если используется)
+    php artisan cache:clear
+
+    # 8. Перезапустить веб-сервер (если используется artisan serve)
+    # или перезапустить ваш веб-сервер (nginx/apache)
+    sudo systemctl restart nginx  # или ваш способ перезапуска веб-сервера
+
+    # 9. Проверить статус всех служб
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
+
+  Также рекомендую проверить работоспособность приложения после обновления:
+
+   1 # Проверить статус приложения
+    php artisan down  # временно отключить приложение для обслуживания
+   3 # выполнить обновления
+    php artisan up    # включить приложение обратно
+
+  Для проверки логов в случае проблем:
+
+   1 # Посмотреть последние логи
+    tail -f storage/logs/laravel.log
+   3
+   4 # Проверить статус очередей
+    php artisan queue:work --daemon
 
 
 
