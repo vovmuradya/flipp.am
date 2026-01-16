@@ -12,7 +12,7 @@ class ParseAuctionJob implements ShouldQueue
 {
     use Queueable;
 
-    public $timeout = 300; // 5 минут
+    public $timeout = 600; // 10 минут - Increased timeout for server environment
     public $tries = 1;
 
     /**

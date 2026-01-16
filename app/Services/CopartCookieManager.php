@@ -12,7 +12,7 @@ class CopartCookieManager
     public const CACHE_KEY = 'copart.dynamic_cookies';
     private const MIN_COOKIE_PAIRS = 7;
     private const MAX_ATTEMPTS = 3; // allow a few retries before failing
-    private const FETCH_TIMEOUT = 60; // seconds
+    private const FETCH_TIMEOUT = 120; // seconds - increased timeout for reliable operation
     private const CHECK_URL = 'https://www.copart.com/public/data/lotdetails/solr/1';
     private const LOCK_KEY = 'copart_cookie_refresh_lock';
     private const LOCK_SECONDS = 90;
@@ -100,7 +100,7 @@ class CopartCookieManager
                 $env = [
                     'PUPPETEER_EXECUTABLE_PATH' => env('PUPPETEER_EXECUTABLE_PATH', '/home/vov/.cache/puppeteer/chrome/linux-142.0.7444.61/chrome-linux64/chrome'),
                 ];
-                $process = new Process(['node', $script], base_path(), $env, null, self::FETCH_TIMEOUT);
+                $process = new Process(['node', $script], base_path(), $env, null, self::FETCH_TIMEOUT); // Increased timeout to handle server environment
                 $process->run();
 
                 if (! $process->isSuccessful()) {

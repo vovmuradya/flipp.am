@@ -14,10 +14,10 @@ use App\Services\CopartImageService;
 class AuctionParserService
 {
     // Hard cap so пользователь не ждёт слишком долго
-    private const COPART_MAX_DURATION_SECONDS = 15;
-    private const COPART_HTTP_TIMEOUT_SECONDS = 6;
-    private const COPART_CURL_TIMEOUT_SECONDS = 10;
-    private const COPART_HEADLESS_TIMEOUT_SECONDS = 10;
+    private const COPART_MAX_DURATION_SECONDS = 120; // Increased duration for server environment
+    private const COPART_HTTP_TIMEOUT_SECONDS = 30; // Increased timeout for server environment
+    private const COPART_CURL_TIMEOUT_SECONDS = 45; // Increased timeout for server environment
+    private const COPART_HEADLESS_TIMEOUT_SECONDS = 60; // Increased timeout for server environment
     private const COPART_REQUEST_DELAY_MS = 3000;
     private ?string $copartCookieString = null;
     private ?array $copartCookieArray = null;
@@ -375,7 +375,7 @@ class AuctionParserService
             'PUPPETEER_EXECUTABLE_PATH' => env('PUPPETEER_EXECUTABLE_PATH', '/home/vov/.cache/puppeteer/chrome/linux-142.0.7444.61/chrome-linux64/chrome'),
         ];
         // Give more time to let Chrome start and fetch data when Incapsula is slow
-        $process = new Process(['node', $script, $lotId], base_path(), $env, null, 60);
+        $process = new Process(['node', $script, $lotId], base_path(), $env, null, 120); // Increased timeout for server environment
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -633,7 +633,7 @@ class AuctionParserService
             base_path(),
             $env,
             null,
-            60
+            120 // Increased timeout for server environment
         );
         $process->run();
 
